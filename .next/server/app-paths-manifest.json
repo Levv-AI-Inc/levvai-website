@@ -1,0 +1,9 @@
+{
+  "/page": "app/page.js",
+  "/services/sow/page": "app/services/sow/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/company/page": "app/admin/company/page.js",
+  "/requests/new/job/create/financials/page": "app/requests/new/job/create/financials/page.js",
+  "/requests/new/job/create/define/page": "app/requests/new/job/create/define/page.js"
+}
