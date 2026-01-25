@@ -1,0 +1,9 @@
+{
+  "/page": "app/page.js",
+  "/workers/[workerId]/engagements/page": "app/workers/[workerId]/engagements/page.js",
+  "/workers/[workerId]/engagements/onboarding/workspace/page": "app/workers/[workerId]/engagements/onboarding/workspace/page.js",
+  "/admin/suppliers/page": "app/admin/suppliers/page.js",
+  "/admin/integrations/page": "app/admin/integrations/page.js",
+  "/requests/new/job/create/define/page": "app/requests/new/job/create/define/page.js",
+  "/requests/new/job/create/financials/page": "app/requests/new/job/create/financials/page.js"
+}
