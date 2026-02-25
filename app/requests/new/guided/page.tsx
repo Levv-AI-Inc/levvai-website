@@ -23,7 +23,7 @@ export default function NovaPage() {
 
   return (
     <div key="nova-page">
-      <div className="flex flex-col min-h-screen p-6">
+      <div className="flex flex-col min-h-full p-6">
         <div className="flex flex-1 flex-col lg:flex-row max-w-7xl mx-auto w-full gap-8">
           {/* Main Left Panel */}
           <div className="lg:w-2/3 w-full">

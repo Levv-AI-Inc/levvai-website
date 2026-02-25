@@ -101,7 +101,7 @@ export default function RecommendationPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen p-6 bg-gray-50">
+    <div className="flex flex-col min-h-full p-6 bg-gray-50">
       <div className="max-w-5xl mx-auto w-full">
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="text-sm text-gray-500 mb-1">Nova</div>

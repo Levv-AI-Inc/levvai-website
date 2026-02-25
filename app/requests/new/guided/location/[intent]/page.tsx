@@ -11,7 +11,7 @@ export default function LocationPage() {
   const canContinue = country.trim().length > 0
 
   return (
-    <div className="flex flex-col min-h-screen p-6 bg-gray-50">
+    <div className="flex flex-col min-h-full p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-8 flex-1">
         <div className="lg:w-2/3 w-full space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl p-6">
