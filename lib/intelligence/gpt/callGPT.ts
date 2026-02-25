@@ -1,8 +1,20 @@
 import OpenAI from 'openai'
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-})
+let client: OpenAI | null = null
+
+function getOpenAIClient() {
+  if (client) return client
+
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error(
+      'OPENAI_API_KEY is not configured.'
+    )
+  }
+
+  client = new OpenAI({ apiKey })
+  return client
+}
 
 export type GPTMessage = {
   role: 'system' | 'user'
@@ -10,7 +22,9 @@ export type GPTMessage = {
 }
 
 export async function callGPT(messages: GPTMessage[]) {
-  const response = await client.responses.create({
+  const openai = getOpenAIClient()
+
+  const response = await openai.responses.create({
     model: 'gpt-4.1-mini',
     input: messages.map(m => ({
       role: m.role,
@@ -28,4 +42,3 @@ export async function callGPT(messages: GPTMessage[]) {
 
   return text
 }
-

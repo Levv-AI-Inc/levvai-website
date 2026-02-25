@@ -19,14 +19,64 @@ export type ContractTerms = {
   recurringAmount?: number
 
   paymentTerms?: string
-  sowStatus?: 'draft' | 'signed' | 'not_provided'
+  sowStatus?: 'draft' | 'signed' | 'uploaded' | 'not_provided'
+}
+
+export type FinancialAllocation = {
+  costCenterId: string
+  costCenterName: string
+  mode: 'percentage' | 'amount'
+  value: number
+}
+
+export type Financials = {
+  totalValue?: number
+  currency?: string
+  allocations?: FinancialAllocation[]
+}
+
+export type CommercialMilestone = {
+  id: string
+  name: string
+  amount: number
+  due: string
+}
+
+export type CommercialTMRole = {
+  id: string
+  role: string
+  rate: number
+  startDate: string
+  endDate: string
+}
+
+export type Commercials = {
+  pricingModel?: string
+  paymentTrigger?: string
+  milestones?: CommercialMilestone[]
+  recurringAmount?: number | string
+  billingFrequency?: string
+  tmRoles?: CommercialTMRole[]
+}
+
+export type SOWAttachment = {
+  name?: string
+  [key: string]: unknown
 }
 
 export type SOWData = {
   workType?: string
+  name?: string
+  vendor?: string
+  startDate?: string
+  endDate?: string
+  scope?: string
   rawScope?: string
   structuredScope?: StructuredScope
   contractTerms?: ContractTerms
+  financials?: Financials
+  commercials?: Commercials
+  attachments?: SOWAttachment[]
 }
 
 type SOWContextValue = {
@@ -46,10 +96,24 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
     setSOWState(prev => ({
       ...prev,
       ...data,
-      contractTerms: {
-        ...prev.contractTerms,
-        ...data.contractTerms,
-      },
+      contractTerms: data.contractTerms
+        ? {
+            ...prev.contractTerms,
+            ...data.contractTerms,
+          }
+        : prev.contractTerms,
+      financials: data.financials
+        ? {
+            ...prev.financials,
+            ...data.financials,
+          }
+        : prev.financials,
+      commercials: data.commercials
+        ? {
+            ...prev.commercials,
+            ...data.commercials,
+          }
+        : prev.commercials,
     }))
   }
 

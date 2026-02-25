@@ -19,6 +19,7 @@ export type CWRequest = {
   currency?: string
 
   costCenter?: string
+  suppliers?: string[]
 
   /* -----------------------------
      Calculated / Derived (MVP)

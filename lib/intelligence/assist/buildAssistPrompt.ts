@@ -1,10 +1,12 @@
+import type { GPTMessage } from '@/lib/intelligence/gpt/callGPT'
+
 export function buildAssistPrompt({
   sowType,
   rawDescription,
 }: {
   sowType: string
   rawDescription: string
-}) {
+}): GPTMessage[] {
   return [
     {
       role: 'system',

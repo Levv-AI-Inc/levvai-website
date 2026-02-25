@@ -36,7 +36,7 @@ export default function CWFinancialsPage() {
      Rate Grid State (MVP)
   -------------------------------- */
   const [stMode, setStMode] = useState<BillRateMode>('fixed')
-  const [stFixed, setStFixed] = useState<number>(1)
+  const [stFixed, setStFixed] = useState<number | ''>(1)
   const [stMin, setStMin] = useState<number | ''>('')
   const [stMax, setStMax] = useState<number | ''>('')
 

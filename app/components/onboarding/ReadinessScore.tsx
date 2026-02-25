@@ -2,7 +2,13 @@
 
 type ReadinessScoreProps = {
   score: number
-  status: 'Not Started' | 'In Progress' | 'Complete'
+  status:
+    | 'Not Started'
+    | 'In Progress'
+    | 'Complete'
+    | 'On Track'
+    | 'At Risk'
+    | 'Blocked'
   label?: string
 }
 
@@ -11,10 +17,13 @@ export default function ReadinessScore({
   status,
   label = 'Onboarding Progress',
 }: ReadinessScoreProps) {
-  const statusStyles = {
+  const statusStyles: Record<ReadinessScoreProps['status'], string> = {
     'Not Started': 'bg-gray-100 text-gray-600',
     'In Progress': 'bg-yellow-100 text-yellow-700',
     Complete: 'bg-green-100 text-green-700',
+    'On Track': 'bg-green-100 text-green-700',
+    'At Risk': 'bg-amber-100 text-amber-700',
+    Blocked: 'bg-red-100 text-red-700',
   }
 
   return (

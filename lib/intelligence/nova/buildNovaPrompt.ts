@@ -1,3 +1,5 @@
+import type { GPTMessage } from '@/lib/intelligence/gpt/callGPT'
+
 export function buildNovaPrompt(input: {
   sowType: string
   pricingModel: string | null
@@ -8,7 +10,7 @@ export function buildNovaPrompt(input: {
     discouragedPricing: string[]
     semanticIndicators: string[]
   }
-}) {
+}): GPTMessage[] {
   return [
     {
       role: 'system',

@@ -49,8 +49,23 @@ const buttonVariants = cva(
   }
 )
 
+type ButtonBaseProps = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  | 'onDrag'
+  | 'onDragEnd'
+  | 'onDragEnter'
+  | 'onDragExit'
+  | 'onDragLeave'
+  | 'onDragOver'
+  | 'onDragStart'
+  | 'onDrop'
+  | 'onAnimationStart'
+  | 'onAnimationEnd'
+  | 'onAnimationIteration'
+>
+
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends ButtonBaseProps,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
   loading?: boolean

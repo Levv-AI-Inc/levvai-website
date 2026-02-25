@@ -9,20 +9,17 @@ export async function callApprovalEvolutionGPT(
 ): Promise<ApprovalRuleSet> {
   const prompt = buildApprovalEvolutionPrompt(existingRules, userInput)
 
-  const response = await callGPT({
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are an enterprise approval configuration assistant.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0,
-  })
+  const response = await callGPT([
+    {
+      role: 'system',
+      content:
+        'You are an enterprise approval configuration assistant.',
+    },
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ])
 
   return parseApprovalResponse(response)
 }
