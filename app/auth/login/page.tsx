@@ -2,9 +2,11 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Globe2, KeyRound, Lock, Mail } from 'lucide-react'
+import { ArrowRight, Globe2, KeyRound, Loader2, Lock, Mail } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
+import { isTenantHost, normalizeHost } from '@/lib/tenant'
 import { cn } from '@/lib/utils'
 
 type Mode = 'login' | 'register'
@@ -14,22 +16,134 @@ type Feedback =
   | { status: 'success'; title: string; detail?: string }
   | { status: 'error'; title: string; detail?: string }
 
+type SessionStatusResponse = {
+  authenticated?: boolean
+}
+
+type JsonLike =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonLike[]
+  | { [key: string]: JsonLike }
+
+function toText(value: JsonLike | undefined): string[] {
+  if (value === null || value === undefined) return []
+  if (typeof value === 'string') return [value]
+  if (typeof value === 'number' || typeof value === 'boolean') return [String(value)]
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => toText(item))
+  }
+  if (typeof value === 'object') {
+    const lines: string[] = []
+    for (const [key, val] of Object.entries(value)) {
+      const messages = toText(val)
+      if (!messages.length) continue
+      if (key === 'detail' || key === 'non_field_errors') {
+        lines.push(...messages)
+      } else {
+        const label = key.replace(/_/g, ' ')
+        lines.push(...messages.map((message) => `${label}: ${message}`))
+      }
+    }
+    return lines
+  }
+  return []
+}
+
+function formatApiError(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') return fallback
+  const messages = toText(body as JsonLike)
+  const unique = Array.from(new Set(messages.filter(Boolean)))
+  return unique.length ? unique.join('\n') : fallback
+}
+
+function cleanNextPath(nextPath: string | null | undefined, fallback = '/home'): string {
+  if (!nextPath) return fallback
+  if (!nextPath.startsWith('/')) return fallback
+  if (nextPath.startsWith('//')) return fallback
+  return nextPath
+}
+
 export default function TenantLoginPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
   const [origin, setOrigin] = useState('')
+  const [tenantName, setTenantName] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessionChecking, setSessionChecking] = useState(true)
   const [feedback, setFeedback] = useState<Feedback>({ status: 'idle' })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin)
+
+      const host = normalizeHost(window.location.hostname)
+      const baseDomain = normalizeHost(
+        process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'levvai.com'
+      )
+
+      if (isTenantHost(host, baseDomain) && host.endsWith(`.${baseDomain}`)) {
+        const subdomain = host.slice(0, -(`.${baseDomain}`.length))
+        const tenant = subdomain.split('.')[0] || null
+        setTenantName(tenant)
+      } else {
+        setTenantName(null)
+      }
     }
   }, [])
+
+
+  useEffect(() => {
+    if (!origin) return
+
+    const controller = new AbortController()
+    const nextPath = cleanNextPath(searchParams.get('next'), '/home')
+
+    const checkSession = async () => {
+      setSessionChecking(true)
+      try {
+        const response = await fetch(`${origin}/api/session`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+
+        const payload = (await response.json().catch(() => ({}))) as SessionStatusResponse
+        if (response.ok && payload.authenticated === true) {
+          router.replace(nextPath)
+        }
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+      } finally {
+        setSessionChecking(false)
+      }
+    }
+
+    void checkSession()
+
+    return () => controller.abort()
+  }, [origin, router, searchParams])
+
+  useEffect(() => {
+    const ssoError = searchParams.get('sso_error')
+    const ssoErrorDescription = searchParams.get('sso_error_description')
+    if (!ssoError && !ssoErrorDescription) return
+
+    setFeedback({
+      status: 'error',
+      title: 'SSO sign-in failed',
+      detail: ssoErrorDescription || 'Unable to sign in with SSO.',
+    })
+  }, [searchParams])
 
   const endpoint =
     mode === 'login'
@@ -42,6 +156,10 @@ export default function TenantLoginPage() {
     mode === 'login'
       ? 'Use your work email to sign in.'
       : 'Create your account to get started.'
+  const passwordMismatch =
+    mode === 'register' &&
+    Boolean(confirmPassword) &&
+    password !== confirmPassword
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -104,22 +222,28 @@ export default function TenantLoginPage() {
       const body = await response.json().catch(() => undefined)
 
       if (!response.ok) {
-        const detail =
-          typeof body === 'object' && body
-            ? body.message || body.detail || JSON.stringify(body)
-            : response.statusText
+        const detail = formatApiError(body, response.statusText || 'Request failed')
 
         throw new Error(detail)
       }
 
-      setFeedback({
-        status: 'success',
-        title: mode === 'login' ? 'Signed in' : 'Registered',
-        detail:
-          typeof body === 'object' && body
-            ? JSON.stringify(body)
-            : 'Request succeeded.',
-      })
+      if (mode === 'register') {
+        setMode('login')
+        setPassword('')
+        setConfirmPassword('')
+        setFirstName('')
+        setLastName('')
+        setFeedback({
+          status: 'success',
+          title: 'Registered successfully',
+          detail: 'Your account has been created. Please sign in.',
+        })
+      } else {
+        const nextPath = cleanNextPath(searchParams.get('next'), '/home')
+        const homeTarget = origin ? `${origin}${nextPath}` : nextPath
+        window.location.assign(homeTarget)
+        return
+      }
     } catch (error) {
       const detail =
         error instanceof Error
@@ -136,6 +260,27 @@ export default function TenantLoginPage() {
     }
   }
 
+  if (sessionChecking) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="relative w-full max-w-xl"
+        >
+          <div className="absolute -inset-0.5 rounded-[26px] bg-gradient-to-br from-cyan-400/50 via-blue-500/40 to-emerald-400/40 opacity-60 blur" />
+          <div className="relative rounded-[22px] border border-white/10 bg-white px-6 py-14 text-slate-900 shadow-2xl">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+              <p className="text-sm font-medium text-slate-700">Checking your session...</p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
       <motion.div
@@ -148,7 +293,9 @@ export default function TenantLoginPage() {
         <div className="relative rounded-[22px] border border-white/10 bg-white text-slate-900 shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <div className="space-y-2">
-              <p className="text-lg font-semibold tracking-tight text-slate-900">levvai</p>
+              <p className="text-lg font-semibold tracking-tight text-slate-900">
+                {tenantName ? `${tenantName} · levvai` : 'levvai'}
+              </p>
               <p className="text-sm font-medium text-slate-600">{helperCopy}</p>
             </div>
             <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
@@ -183,10 +330,9 @@ export default function TenantLoginPage() {
                 size="lg"
                 className="w-full rounded-xl border-slate-200 text-base font-semibold text-slate-900"
                 onClick={() => {
-                  // const target = origin
-                  //   ? `${origin}/auth/workos/login?next=/home`
-                  //   : '/auth/workos/login?next=/home'
-                  const target = `https://test.levvai.com/auth/workos/login?next=/home`;
+                  const target = origin
+                    ? `${origin}/auth/workos/login?next=/home`
+                    : '/auth/workos/login?next=/home'
                   window.location.assign(target)
                 }}
               >
@@ -237,7 +383,14 @@ export default function TenantLoginPage() {
                 <label className="text-sm font-medium text-slate-800">
                   Confirm password
                 </label>
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <div
+                  className={cn(
+                    'flex items-center gap-2 rounded-xl border px-3 py-2',
+                    passwordMismatch
+                      ? 'border-rose-300 bg-rose-50/60'
+                      : 'border-slate-200 bg-white'
+                  )}
+                >
                   <KeyRound className="h-4 w-4 text-slate-400" />
                   <input
                     type="password"
@@ -246,9 +399,15 @@ export default function TenantLoginPage() {
                     autoComplete="new-password"
                     className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     placeholder="********"
+                    aria-invalid={passwordMismatch}
                     required
                   />
                 </div>
+                {passwordMismatch && (
+                  <p className="text-xs font-medium text-rose-600">
+                    Password and confirm password must match.
+                  </p>
+                )}
               </div>
             )}
 
@@ -283,6 +442,7 @@ export default function TenantLoginPage() {
                 size="lg"
                 className="w-full rounded-xl text-base font-semibold shadow-lg shadow-cyan-500/20"
                 loading={loading}
+                disabled={passwordMismatch || sessionChecking}
                 loadingText={mode === 'login' ? 'Signing in...' : 'Registering...'}
               >
                 <span>{submitLabel}</span>
@@ -303,7 +463,7 @@ export default function TenantLoginPage() {
                   <span>{feedback.title}</span>
                 </div>
                 {feedback.detail && (
-                  <p className="mt-1 break-words text-xs leading-relaxed text-current">
+                  <p className="mt-1 break-words whitespace-pre-line text-xs leading-relaxed text-current">
                     {feedback.detail}
                   </p>
                 )}

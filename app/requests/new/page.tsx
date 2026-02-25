@@ -42,7 +42,7 @@ export default function NewRequestPage() {
       {/* ✅ Back to Home */}
       <div>
         <a
-          href="/"
+          href="/home"
           className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors"
         >
           ← Back to Home

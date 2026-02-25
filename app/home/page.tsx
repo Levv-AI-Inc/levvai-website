@@ -1,13 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
   MessageCircle,
   X,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import InitiateRequestButton from '../components/InitiateRequestButton'
+
+type SessionUser = {
+  first_name?: string
+  username?: string
+  email?: string
+}
+
+type SessionStatusResponse = {
+  authenticated?: boolean
+  user?: SessionUser
+}
 
 function Card({
   title,
@@ -29,6 +41,9 @@ function Card({
 }
 
 export default function Home() {
+  const router = useRouter()
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [greetingName, setGreetingName] = useState('there')
   const [showAgent, setShowAgent] = useState(false)
   const [openRequest, setOpenRequest] = useState<string | null>(
     null
@@ -47,6 +62,53 @@ export default function Home() {
   }>(null)
   /* ========================================================= */
 
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const verifySession = async () => {
+      try {
+        const response = await fetch('/api/session', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          router.replace('/auth/login?next=/home')
+          return
+        }
+
+        const payload = (await response.json().catch(() => ({}))) as SessionStatusResponse
+        if (!payload.authenticated || !payload.user) {
+          router.replace('/auth/login?next=/home')
+          return
+        }
+
+        const user = payload.user
+        const derivedName =
+          user.first_name?.trim() ||
+          user.username?.trim() ||
+          user.email?.split('@')[0]?.trim() ||
+          'there'
+        setGreetingName(derivedName)
+        setCheckingSession(false)
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+        router.replace('/auth/login?next=/home')
+      }
+    }
+
+    void verifySession()
+
+    return () => controller.abort()
+  }, [router])
+
+  if (checkingSession) {
+    return <main className="min-h-screen bg-slate-100" />
+  }
+
   return (
     /* ================= ROOT BACKGROUND ================= */
     <main className="min-h-screen bg-slate-100">
@@ -56,7 +118,7 @@ export default function Home() {
         <div className="flex justify-between items-start mb-12">
           <div>
             <h1 className="text-3xl font-semibold text-slate-900">
-              Hi Faraz, welcome back
+              Hi {greetingName}, welcome back
             </h1>
             <p className="mt-2 text-base text-slate-500">
               You have <strong>8 pending requests</strong> and{' '}

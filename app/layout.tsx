@@ -13,13 +13,81 @@ import {
   Building2,
   Settings,
   ChevronDown,
+  UserCircle2,
+  LogOut,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
 
+type SessionUser = {
+  first_name?: string
+  last_name?: string
+  email?: string
+  username?: string
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
+function parseSessionUser(payload: unknown): SessionUser | null {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+
+  const topLevel = payload as Record<string, unknown>
+  if (topLevel.authenticated !== true) {
+    return null
+  }
+
+  const candidate =
+    typeof topLevel.user === 'object' && topLevel.user
+      ? (topLevel.user as Record<string, unknown>)
+      : null
+
+  if (!candidate) {
+    return null
+  }
+
+  const firstName =
+    readOptionalString(candidate.first_name) ??
+    readOptionalString(candidate.firstName)
+  const lastName =
+    readOptionalString(candidate.last_name) ??
+    readOptionalString(candidate.lastName)
+  const email = readOptionalString(candidate.email)
+  const username = readOptionalString(candidate.username)
+
+  return {
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    username,
+  }
+}
+
+function getCookie(name: string) {
+  if (typeof document === 'undefined') return ''
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || ''
+  return ''
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+
+  const isStandalone =
+    pathname === '/' ||
+    pathname.startsWith('/external') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/demo') ||
+    pathname.startsWith('/tenant-not-found')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -73,12 +141,75 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return () => controller.abort()
   }, [pathname])
 
-  const isStandalone =
-    pathname === '/' ||
-    pathname.startsWith('/external') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/demo') ||
-    pathname.startsWith('/tenant-not-found')
+  useEffect(() => {
+    if (isStandalone) {
+      setSessionUser(null)
+      return
+    }
+
+    const controller = new AbortController()
+
+    const loadSessionUser = async () => {
+      try {
+        const response = await fetch('/api/session', {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          setSessionUser(null)
+          return
+        }
+
+        const payload = await response.json().catch(() => ({}))
+        setSessionUser(parseSessionUser(payload))
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+        setSessionUser(null)
+      }
+    }
+
+    void loadSessionUser()
+
+    return () => controller.abort()
+  }, [isStandalone, pathname])
+
+  const handleSignOut = async () => {
+    if (signingOut) return
+    setSigningOut(true)
+
+    try {
+      const csrfToken = getCookie('csrftoken')
+
+      const headers: Record<string, string> = {}
+      if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken
+      }
+
+      let response = await fetch('/auth/logout/', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+      })
+
+      if (!response.ok && response.status === 404) {
+        response = await fetch('/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+        })
+      }
+
+      setSessionUser(null)
+      window.location.assign('/auth/login')
+    } catch {
+      window.location.assign('/auth/login')
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   if (isStandalone) {
     return (
@@ -100,7 +231,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
 
           <nav className="px-3 space-y-1">
-            <NavItem label="Home" href="/" icon={Home} />
+            <NavItem label="Home" href="/home" icon={Home} />
 
             <NavGroup
               label="My Items"
@@ -159,10 +290,83 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </aside>
 
         <main className="flex-1 px-8 py-6">
+          {sessionUser && (
+            <div className="mb-6 flex justify-end">
+              <AccountMenu
+                user={sessionUser}
+                signingOut={signingOut}
+                onSignOut={handleSignOut}
+              />
+            </div>
+          )}
           {children}
         </main>
       </body>
     </html>
+  )
+}
+
+function AccountMenu({
+  user,
+  signingOut,
+  onSignOut,
+}: {
+  user: SessionUser
+  signingOut: boolean
+  onSignOut: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim()
+  const displayName = fullName || user.username || user.email || 'Account'
+  const accountLabel = user.email || user.username || 'Signed-in account'
+
+  useEffect(() => {
+    if (!open) return
+
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (!containerRef.current?.contains(target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onDocumentClick)
+    return () => document.removeEventListener('mousedown', onDocumentClick)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+      >
+        <UserCircle2 className="h-4 w-4 text-slate-500" />
+        <span>{displayName}</span>
+        <ChevronDown className={open ? 'h-4 w-4 rotate-180 text-slate-500' : 'h-4 w-4 text-slate-500'} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-slate-100 shadow-2xl">
+          <div className="border-b border-white/10 px-4 py-3">
+            <div className="text-sm font-semibold text-white">{displayName}</div>
+            <div className="mt-1 text-xs text-slate-300">{accountLabel}</div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onSignOut}
+            disabled={signingOut}
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-100 hover:bg-white/10 disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{signingOut ? 'Signing out...' : 'Sign out'}</span>
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
