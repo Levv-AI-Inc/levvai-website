@@ -2,11 +2,17 @@
 
 import Link from 'next/link';
 
-export default function InitiateRequestButton() {
+type InitiateRequestButtonProps = {
+  className?: string;
+};
+
+export default function InitiateRequestButton({
+  className = '',
+}: InitiateRequestButtonProps) {
   return (
     <Link href="/requests/new">
       <button
-        className="
+        className={`
           bg-slate-900 text-white
           px-5 py-2.5
           rounded-full
@@ -14,7 +20,8 @@ export default function InitiateRequestButton() {
           shadow-sm
           hover:bg-slate-800
           transition-colors
-        "
+          ${className}
+        `}
       >
         Initiate Request
       </button>
