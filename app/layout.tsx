@@ -14,14 +14,73 @@ import {
   Settings,
   ChevronDown,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
+import { isTenantHost, normalizeHost } from '@/lib/tenant'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isExternal = pathname.startsWith('/external')
 
-  if (isExternal) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const host = normalizeHost(window.location.hostname)
+    if (!isTenantHost(host)) return
+
+    const controller = new AbortController()
+
+    const validateTenant = async () => {
+      try {
+        const response = await fetch(
+          `/auth/password/tenant-exists?host=${encodeURIComponent(host)}`,
+          {
+            method: 'GET',
+            cache: 'no-store',
+            signal: controller.signal,
+          }
+        )
+
+        if (!response.ok) {
+          if (pathname !== '/tenant-not-found') {
+            window.location.replace('/tenant-not-found')
+          }
+          return
+        }
+
+        const payload = (await response.json()) as { exists?: boolean }
+
+        if (payload.exists === true) {
+          if (pathname === '/tenant-not-found') {
+            window.location.replace('/')
+          }
+          return
+        }
+
+        if (pathname !== '/tenant-not-found') {
+          window.location.replace('/tenant-not-found')
+        }
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+
+        if (pathname !== '/tenant-not-found') {
+          window.location.replace('/tenant-not-found')
+        }
+      }
+    }
+
+    void validateTenant()
+
+    return () => controller.abort()
+  }, [pathname])
+
+  const isStandalone =
+    pathname === '/' ||
+    pathname.startsWith('/external') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/demo') ||
+    pathname.startsWith('/tenant-not-found')
+
+  if (isStandalone) {
     return (
       <html lang="en">
         <body className="min-h-screen bg-slate-50 text-slate-900">
@@ -209,4 +268,8 @@ function NavGroup({
       </div>
     </div>
   )
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <CWRequestProvider>{children}</CWRequestProvider>
 }
