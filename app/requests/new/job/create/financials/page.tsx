@@ -26,6 +26,20 @@ function calculateBusinessDays(start?: string, end?: string) {
 
 type BillRateMode = 'fixed' | 'range'
 
+function parseNonNegativeNumber(value: string): number | '' {
+  if (value === '') return ''
+  const parsed = Number(value)
+  if (Number.isNaN(parsed)) return ''
+  return Math.max(0, parsed)
+}
+
+function parseNonNegativeDecimal(value: string, fallback: number): number {
+  if (value === '') return 0
+  const parsed = Number(value)
+  if (Number.isNaN(parsed)) return fallback
+  return Math.max(0, parsed)
+}
+
 export default function CWFinancialsPage() {
   const router = useRouter()
   const { request } = useCWRequest()
@@ -106,7 +120,7 @@ export default function CWFinancialsPage() {
   -------------------------------- */
  const canCalculate =
   stBillRateForCalc !== null &&
-  stBillRateForCalc > 0
+  stBillRateForCalc >= 0
 
 
 
@@ -197,14 +211,11 @@ export default function CWFinancialsPage() {
                   {stMode === 'fixed' ? (
                     <input
                       type="number"
+                      min={0}
                       placeholder="e.g. 70"
                       value={stFixed}
                       onChange={(e) =>
-                        setStFixed(
-                          e.target.value
-                            ? Number(e.target.value)
-                            : ''
-                        )
+                        setStFixed(parseNonNegativeNumber(e.target.value))
                       }
                       className="w-28 border rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-200"
                     />
@@ -226,12 +237,11 @@ export default function CWFinancialsPage() {
               <td className="p-3">
                 <input
                   type="number"
+                  min={0}
                   placeholder="50.00"
                   value={stMin}
                   onChange={(e) =>
-                    setStMin(
-                      e.target.value ? Number(e.target.value) : ''
-                    )
+                    setStMin(parseNonNegativeNumber(e.target.value))
                   }
                   className="w-28 border rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-200"
                   disabled={stMode !== 'range'}
@@ -242,12 +252,11 @@ export default function CWFinancialsPage() {
               <td className="p-3">
                 <input
                   type="number"
+                  min={0}
                   placeholder="70.00"
                   value={stMax}
                   onChange={(e) =>
-                    setStMax(
-                      e.target.value ? Number(e.target.value) : ''
-                    )
+                    setStMax(parseNonNegativeNumber(e.target.value))
                   }
                   className="w-28 border rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-200"
                   disabled={stMode !== 'range'}
@@ -288,10 +297,16 @@ export default function CWFinancialsPage() {
                       </span>
                       <input
                         type="number"
+                        min={0}
                         step="0.1"
                         value={otFactor}
                         onChange={(e) =>
-                          setOtFactor(Number(e.target.value))
+                          setOtFactor(
+                            parseNonNegativeDecimal(
+                              e.target.value,
+                              otFactor,
+                            ),
+                          )
                         }
                         className="w-20 border rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-200 px-2 py-1 text-sm bg-white"
                       />

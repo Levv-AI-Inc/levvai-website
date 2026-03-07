@@ -65,7 +65,31 @@ export default function UserRecordPage() {
      LOAD USER FROM TABLE
   ========================= */
 
+  const isReloadNavigation = () => {
+    if (typeof window === 'undefined') return false
+
+    const navigationEntries = window.performance.getEntriesByType(
+      'navigation',
+    ) as PerformanceNavigationTiming[]
+
+    if (navigationEntries.length > 0) {
+      return navigationEntries[0].type === 'reload'
+    }
+
+    const legacyPerformance = window.performance as Performance & {
+      navigation?: { type?: number }
+    }
+
+    return legacyPerformance.navigation?.type === 1
+  }
+
   useEffect(() => {
+    if (isReloadNavigation()) {
+      localStorage.removeItem('users')
+      router.replace('/admin/users')
+      return
+    }
+
     const stored = localStorage.getItem('users')
     if (!stored) return
 
@@ -80,7 +104,7 @@ export default function UserRecordPage() {
       setUser(found)
       setSupervisor(found.supervisor ?? '')
     }
-  }, [name])
+  }, [name, router])
 
   const filteredSupervisors = useMemo(() => {
     return SUPERVISORS.filter((s) =>

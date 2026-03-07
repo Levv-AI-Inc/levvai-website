@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useSOW } from '../context'
 import { novaImproveDescription } from '@/lib/intelligence'
 
-const VENDORS = [
+const SUPPLIERS = [
   'Acme Consulting',
   'BluePeak Solutions',
   'NorthStar Advisory',
@@ -20,7 +20,7 @@ export default function DefineSOWPage() {
   const workType = params.get('workType')
 
   const [name, setName] = useState(sow.name || '')
-  const [vendor, setVendor] = useState(sow.vendor || '')
+  const [supplier, setSupplier] = useState(sow.vendor || '')
   const [startDate, setStartDate] = useState(sow.startDate || '')
   const [endDate, setEndDate] = useState(sow.endDate || '')
   const [rawInput, setRawInput] = useState(sow.rawScope || '')
@@ -51,7 +51,7 @@ export default function DefineSOWPage() {
     setSOW({
       workType: workType || undefined,
       name,
-      vendor,
+      vendor: supplier,
       startDate,
       endDate,
       rawScope: rawInput,
@@ -113,15 +113,15 @@ export default function DefineSOWPage() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Vendor
+              Supplier
             </label>
             <select
-              value={vendor}
-              onChange={e => setVendor(e.target.value)}
+              value={supplier}
+              onChange={e => setSupplier(e.target.value)}
               className="text-sm w-full rounded-lg border border-slate-300 px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
             >
-              <option value="">Select vendor</option>
-              {VENDORS.map(v => (
+              <option value="">Select supplier</option>
+              {SUPPLIERS.map(v => (
                 <option key={v} value={v}>
                   {v}
                 </option>
