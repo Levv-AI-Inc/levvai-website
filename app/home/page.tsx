@@ -21,6 +21,92 @@ type SessionStatusResponse = {
   user?: SessionUser
 }
 
+type IntakeRequest = {
+  id: number | string
+  title: string
+  description: string
+  engagement_type: string
+  target_rate: string
+  rate_unit: string
+  currency: string
+  worker_count: number
+  created_at: string
+  submitted_at: string
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function readNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
+function normalizeIntakeRequest(row: Record<string, unknown>): IntakeRequest {
+  return {
+    id:
+      typeof row.id === 'string' || typeof row.id === 'number'
+        ? row.id
+        : '',
+    title: readString(row.title),
+    description: readString(row.description),
+    engagement_type: readString(row.engagement_type),
+    target_rate: readString(row.target_rate),
+    rate_unit: readString(row.rate_unit),
+    currency: readString(row.currency),
+    worker_count: readNumber(row.worker_count),
+    created_at: readString(row.created_at),
+    submitted_at: readString(row.submitted_at),
+  }
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function formatRequestSubtitle(request: IntakeRequest): string {
+  const parts: string[] = []
+
+  if (request.engagement_type) {
+    parts.push(toTitleCase(request.engagement_type))
+  }
+
+  if (request.target_rate) {
+    const currency = request.currency || 'USD'
+    const unit = request.rate_unit ? `/${request.rate_unit}` : ''
+    parts.push(`${currency} ${request.target_rate}${unit}`)
+  }
+
+  if (request.worker_count > 0) {
+    parts.push(
+      `${request.worker_count} worker${request.worker_count === 1 ? '' : 's'}`,
+    )
+  }
+
+  return parts.join(' - ')
+}
+
+function formatRequestDate(value: string): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
 function Card({
   title,
   children,
@@ -51,6 +137,13 @@ export default function Home() {
   const [openWorker, setOpenWorker] = useState<string | null>(
     null
   )
+  const [pendingRequests, setPendingRequests] = useState<
+    IntakeRequest[]
+  >([])
+  const [loadingPendingRequests, setLoadingPendingRequests] =
+    useState(true)
+  const [pendingRequestsError, setPendingRequestsError] =
+    useState('')
 
   /* ================= NOVA (HARD-CODED MVP) ================= */
   const [novaInput, setNovaInput] = useState('')
@@ -105,6 +198,105 @@ export default function Home() {
     return () => controller.abort()
   }, [router])
 
+  useEffect(() => {
+    if (checkingSession) return
+
+    const controller = new AbortController()
+
+    const loadPendingRequests = async () => {
+      setLoadingPendingRequests(true)
+      setPendingRequestsError('')
+
+      try {
+        const response = await fetch(
+          '/api/intake?status=submitted&mine=true',
+          {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal,
+          },
+        )
+
+        const payload = (await response
+          .json()
+          .catch(() => ({}))) as {
+          detail?: unknown
+          results?: unknown[]
+        }
+
+        if (response.status === 401) {
+          router.replace('/auth/login?next=/home')
+          return
+        }
+
+        if (response.status === 400) {
+          setPendingRequests([])
+          setPendingRequestsError(
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : 'Tenant context is required to load pending requests.',
+          )
+          return
+        }
+
+        if (response.status === 403) {
+          setPendingRequests([])
+          setPendingRequestsError(
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : 'You are not an active member of this tenant.',
+          )
+          return
+        }
+
+        if (!response.ok) {
+          setPendingRequests([])
+          setPendingRequestsError(
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : `Failed to load pending requests (${response.status}).`,
+          )
+          return
+        }
+
+        const rows = Array.isArray(payload.results)
+          ? payload.results
+          : []
+
+        const normalized = rows
+          .filter(
+            (row): row is Record<string, unknown> =>
+              Boolean(row) && typeof row === 'object',
+          )
+          .map((row) => normalizeIntakeRequest(row))
+          .sort((a, b) => {
+            const aTime = new Date(
+              a.created_at || a.submitted_at,
+            ).getTime()
+            const bTime = new Date(
+              b.created_at || b.submitted_at,
+            ).getTime()
+            return bTime - aTime
+          })
+
+        setPendingRequests(normalized)
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') {
+          return
+        }
+        setPendingRequests([])
+        setPendingRequestsError('Unable to load pending requests.')
+      } finally {
+        setLoadingPendingRequests(false)
+      }
+    }
+
+    void loadPendingRequests()
+
+    return () => controller.abort()
+  }, [checkingSession, router])
+
   if (checkingSession) {
     return <main className="min-h-screen bg-slate-100" />
   }
@@ -121,7 +313,14 @@ export default function Home() {
               Hi {greetingName}, welcome back
             </h1>
             <p className="mt-2 text-base text-slate-500">
-              You have <strong>8 pending requests</strong> and{' '}
+              You have{' '}
+              <strong>
+                {loadingPendingRequests
+                  ? '...'
+                  : pendingRequests.length}{' '}
+                pending requests
+              </strong>{' '}
+              and{' '}
               <strong>3 workers</strong> nearing end date
             </p>
           </div>
@@ -130,24 +329,41 @@ export default function Home() {
         </div>
 
         {/* ================= PENDING REQUESTS ================= */}
-        <Card title="Pending Requests (8)">
-          <div className="divide-y">
-            {PENDING_REQUESTS.map((r) => {
-              const open = openRequest === r.id
+        <Card
+          title={`Pending Requests (${loadingPendingRequests ? '...' : pendingRequests.length})`}
+        >
+          {loadingPendingRequests ? (
+            <div className="text-sm text-slate-500">
+              Loading pending requests...
+            </div>
+          ) : pendingRequestsError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {pendingRequestsError}
+            </div>
+          ) : pendingRequests.length === 0 ? (
+            <div className="text-sm text-slate-500">
+              No pending requests.
+            </div>
+          ) : (
+            <div className="divide-y">
+              {pendingRequests.map((request) => {
+              const requestKey = String(request.id)
+              const open = openRequest === requestKey
               return (
-                <div key={r.id} className="py-4">
+                <div key={requestKey} className="py-4">
                   <button
                     onClick={() =>
-                      setOpenRequest(open ? null : r.id)
+                      setOpenRequest(open ? null : requestKey)
                     }
                     className="w-full flex justify-between items-center"
                   >
                     <div className="text-left">
                       <p className="text-sm font-medium text-slate-900">
-                        {r.title}
+                        {request.title || `Request #${requestKey}`}
                       </p>
                       <p className="text-sm text-slate-500">
-                        {r.subtitle}
+                        {formatRequestSubtitle(request) ||
+                          `Request ID ${requestKey}`}
                       </p>
                     </div>
                     {open ? (
@@ -159,34 +375,32 @@ export default function Home() {
 
                   {open && (
                     <div className="mt-4 ml-4 space-y-3 text-sm">
-                      {r.issues.map((i, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center"
-                        >
-                          <span className="text-slate-700">
-                            {i.text}
-                          </span>
-                          <a
-                            href="#"
-                            className="font-medium underline text-slate-900 hover:text-slate-700"
-                          >
-                            {i.action}
-                          </a>
-                        </div>
-                      ))}
-                      <a
-                        href="#"
-                        className="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline"
-                      >
-                        Open request →
-                      </a>
+                      {request.description ? (
+                        <p className="text-slate-700">
+                          {request.description}
+                        </p>
+                      ) : (
+                        <p className="text-slate-500">
+                          No description provided.
+                        </p>
+                      )}
+                      {(request.submitted_at ||
+                        request.created_at) && (
+                        <p className="text-xs text-slate-500">
+                          Submitted{' '}
+                          {formatRequestDate(
+                            request.submitted_at ||
+                              request.created_at,
+                          )}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
               )
-            })}
-          </div>
+              })}
+            </div>
+          )}
         </Card>
 
         {/* ================= METRICS ================= */}
@@ -196,7 +410,9 @@ export default function Home() {
               Pending Requests
             </p>
             <p className="mt-1 text-3xl font-semibold text-slate-900">
-              8
+              {loadingPendingRequests
+                ? '...'
+                : pendingRequests.length}
             </p>
           </div>
 
@@ -462,28 +678,6 @@ export default function Home() {
 }
 
 /* ================= MOCK DATA ================= */
-
-const PENDING_REQUESTS = [
-  {
-    id: 'JP-1021',
-    title: 'JP-1021 · Senior Data Analyst',
-    subtitle: 'Finance · $145/hr · New hire',
-    issues: [
-      { text: 'Missing JP owner', action: 'Assign owner' },
-      { text: 'Rate exceeds policy threshold', action: 'Review rate' },
-      
-    ],
-  },
-  {
-    id: 'JP-1044',
-    title: 'JP-1044 · Cloud Engineer',
-    subtitle: 'IT · Contract extension',
-    issues: [
-      { text: 'Extension dates not confirmed', action: 'Confirm dates' },
-    
-    ],
-  },
-]
 
 const NEARING_END = [
   { id: 'W1', name: 'S. Ahmed', role: 'Senior Developer', days: 5 },

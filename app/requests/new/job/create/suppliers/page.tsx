@@ -3,36 +3,25 @@
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useCWRequest } from '../../context/CWRequestContext'
+import {
+  ApiError,
+  getSuppliers,
+  type SupplierRecord,
+} from '@/lib/api/suppliers'
 
-/* -----------------------------
-   Mock supplier universe
--------------------------------- */
-const SUPPLIERS = [
-  {
-    id: 'SUP-001',
-    name: 'Northstar Consulting',
-    specialties: ['Data Analyst', 'BI'],
-    regions: ['US'],
-  },
-  {
-    id: 'SUP-002',
-    name: 'Vertex IT Services',
-    specialties: ['Software Engineer', 'Data Analyst'],
-    regions: ['US', 'CA'],
-  },
-  {
-    id: 'SUP-003',
-    name: 'Apex Workforce',
-    specialties: ['Finance', 'Accounting'],
-    regions: ['US'],
-  },
-]
+function supplierKey(supplier: SupplierRecord) {
+  return String(supplier.id ?? supplier.supplier_id)
+}
 
 export default function CWSuppliersPage() {
   const router = useRouter()
   const { request, update } = useCWRequest()
 
-  const [selected, setSelected] = useState<string[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true)
+  const [suppliersError, setSuppliersError] = useState('')
+
+  const [selected, setSelected] = useState<string[]>(request.suppliers || [])
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -54,17 +43,58 @@ export default function CWSuppliersPage() {
       document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const recommendedSuppliers = SUPPLIERS.filter(s =>
-    request.role &&
-    s.specialties.some(sp =>
-      request.role.toLowerCase().includes(sp.toLowerCase())
-    )
-  )
+  useEffect(() => {
+    let cancelled = false
 
-  const filteredSuppliers = SUPPLIERS.filter(
-    s =>
-      s.name.toLowerCase().includes(search.toLowerCase()) &&
-      !selected.includes(s.id)
+    const loadSuppliers = async () => {
+      setLoadingSuppliers(true)
+      setSuppliersError('')
+
+      try {
+        const rows = await getSuppliers()
+        if (cancelled) return
+        setSuppliers(rows)
+      } catch (error) {
+        if (cancelled) return
+        const message =
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : 'Unable to load suppliers.'
+        setSuppliersError(message)
+        setSuppliers([])
+      } finally {
+        if (!cancelled) {
+          setLoadingSuppliers(false)
+        }
+      }
+    }
+
+    void loadSuppliers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const roleQuery = request.role?.trim().toLowerCase() || ''
+
+  const recommendedSuppliers = suppliers.filter((supplier) => {
+    if (!roleQuery) return false
+    const searchable = [
+      supplier.name,
+      supplier.category,
+      supplier.supplier_type,
+    ]
+      .join(' ')
+      .toLowerCase()
+
+    return searchable.includes(roleQuery)
+  })
+
+  const filteredSuppliers = suppliers.filter(
+    (supplier) =>
+      supplier.name.toLowerCase().includes(search.toLowerCase()) &&
+      !selected.includes(supplierKey(supplier))
   )
 
   const toggleSupplier = (id: string) => {
@@ -107,7 +137,7 @@ export default function CWSuppliersPage() {
 
         <ul className="text-sm list-disc pl-5">
           {recommendedSuppliers.map(s => (
-            <li key={s.id}>{s.name}</li>
+            <li key={supplierKey(s)}>{s.name}</li>
           ))}
         </ul>
       </div>
@@ -125,23 +155,37 @@ export default function CWSuppliersPage() {
           type="text"
           placeholder="Search suppliers"
           value={search}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            if (!loadingSuppliers && !suppliersError) {
+              setOpen(true)
+            }
+          }}
           onChange={e => setSearch(e.target.value)}
           className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
         />
 
-        {open && (
+        {loadingSuppliers && (
+          <div className="text-sm text-gray-500">Loading suppliers...</div>
+        )}
+
+        {!loadingSuppliers && suppliersError && (
+          <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {suppliersError}
+          </div>
+        )}
+
+        {open && !loadingSuppliers && !suppliersError && (
           <div className="absolute left-6 right-6 top-[92px] z-20 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
             {filteredSuppliers.map(s => (
               <button
-                key={s.id}
+                key={supplierKey(s)}
                 type="button"
-                onClick={() => toggleSupplier(s.id)}
+                onClick={() => toggleSupplier(supplierKey(s))}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-cyan-50"
               >
                 <div className="font-medium">{s.name}</div>
                 <div className="text-xs text-gray-500">
-                  Regions: {s.regions.join(', ')}
+                  Type: {s.supplier_type || 'N/A'} - Category: {s.category || 'N/A'}
                 </div>
               </button>
             ))}
@@ -158,15 +202,14 @@ export default function CWSuppliersPage() {
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-2">
             {selected.map(id => {
-              const supplier = SUPPLIERS.find(s => s.id === id)
-              if (!supplier) return null
+              const supplier = suppliers.find(s => supplierKey(s) === id)
 
               return (
                 <div
                   key={id}
                   className="flex items-center gap-2 bg-cyan-50 text-sm px-3 py-1.5 rounded-full"
                 >
-                  <span>{supplier.name}</span>
+                  <span>{supplier?.name || id}</span>
                   <button
                     onClick={() => removeSupplier(id)}
                     className="text-gray-500 hover:text-gray-700"

@@ -20,6 +20,10 @@ type SessionStatusResponse = {
   authenticated?: boolean
 }
 
+type RegisterResponse = {
+  linked_existing_user?: boolean
+}
+
 type JsonLike =
   | string
   | number
@@ -69,6 +73,9 @@ function cleanNextPath(nextPath: string | null | undefined, fallback = '/home'):
 export default function TenantLoginPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const modeParam = searchParams.get('mode')
+  const inviteToken = searchParams.get('invite_token')?.trim() || ''
+  const inviteEmail = searchParams.get('email')?.trim() || ''
   const [mode, setMode] = useState<Mode>('login')
   const [origin, setOrigin] = useState('')
   const [tenantName, setTenantName] = useState<string | null>(null)
@@ -99,6 +106,17 @@ export default function TenantLoginPage() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (modeParam === 'register') {
+      setMode('register')
+    }
+  }, [modeParam])
+
+  useEffect(() => {
+    if (!inviteEmail) return
+    setEmail(inviteEmail)
+  }, [inviteEmail])
 
 
   useEffect(() => {
@@ -145,16 +163,23 @@ export default function TenantLoginPage() {
     })
   }, [searchParams])
 
+  const isInviteRegistration =
+    mode === 'register' && Boolean(inviteToken)
+
   const endpoint =
     mode === 'login'
       ? '/auth/password/login-user'
-      : '/auth/password/register-user'
+      : isInviteRegistration
+        ? '/auth/password/register'
+        : '/auth/password/register-user'
 
   const submitLabel = mode === 'login' ? 'Sign in' : 'Create account'
   const ssoLabel = mode === 'login' ? 'Continue with SSO' : 'Sign up with SSO'
   const helperCopy =
     mode === 'login'
       ? 'Use your work email to sign in.'
+      : isInviteRegistration
+      ? 'Create your supplier account to access this tenant.'
       : 'Create your account to get started.'
   const passwordMismatch =
     mode === 'register' &&
@@ -182,7 +207,7 @@ export default function TenantLoginPage() {
       return
     }
 
-    if (mode === 'register' && (!firstName || !lastName)) {
+    if (mode === 'register' && !isInviteRegistration && (!firstName || !lastName)) {
       setFeedback({
         status: 'error',
         title: 'Add your name',
@@ -207,6 +232,8 @@ export default function TenantLoginPage() {
       const payload =
         mode === 'login'
           ? { email, password }
+          : isInviteRegistration
+          ? { email, password, invite_token: inviteToken }
           : { email, password, first_name: firstName, last_name: lastName }
 
       const target = `${origin}${endpoint}`
@@ -228,6 +255,11 @@ export default function TenantLoginPage() {
       }
 
       if (mode === 'register') {
+        const registerResponse =
+          body && typeof body === 'object'
+            ? (body as RegisterResponse)
+            : {}
+
         setMode('login')
         setPassword('')
         setConfirmPassword('')
@@ -235,8 +267,14 @@ export default function TenantLoginPage() {
         setLastName('')
         setFeedback({
           status: 'success',
-          title: 'Registered successfully',
-          detail: 'Your account has been created. Please sign in.',
+          title:
+            registerResponse.linked_existing_user === true
+              ? 'Access added to this tenant'
+              : 'Registered successfully',
+          detail:
+            registerResponse.linked_existing_user === true
+              ? 'Please sign in with your existing password.'
+              : 'Your account has been created. Please sign in.',
         })
       } else {
         const nextPath = cleanNextPath(searchParams.get('next'), '/home')
@@ -310,7 +348,12 @@ export default function TenantLoginPage() {
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setMode(option)}
+                  onClick={() => {
+                    setMode(option)
+                    if (option === 'register' && inviteEmail) {
+                      setEmail(inviteEmail)
+                    }
+                  }}
                   className={cn(
                     'flex-1 rounded-lg px-3 py-2 transition',
                     mode === option
@@ -355,11 +398,20 @@ export default function TenantLoginPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
-                  className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  readOnly={isInviteRegistration}
+                  className={cn(
+                    'flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none',
+                    isInviteRegistration && 'cursor-not-allowed text-slate-500'
+                  )}
                   placeholder="user@yourco.com"
                   required
                 />
               </div>
+              {isInviteRegistration && (
+                <p className="text-xs text-slate-500">
+                  Email is locked to the invited supplier contact.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -411,7 +463,7 @@ export default function TenantLoginPage() {
               </div>
             )}
 
-            {mode === 'register' && (
+            {mode === 'register' && !isInviteRegistration && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-800">First name</label>
