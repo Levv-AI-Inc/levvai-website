@@ -25,7 +25,10 @@ type SessionUser = {
   last_name?: string
   email?: string
   username?: string
+  role?: string
 }
+
+const ROLE_ADMIN = 'admin'
 
 function readOptionalString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -48,6 +51,11 @@ function parseSessionUser(payload: unknown): SessionUser | null {
       ? (topLevel.user as Record<string, unknown>)
       : null
 
+  const membership =
+    typeof topLevel.membership === 'object' && topLevel.membership
+      ? (topLevel.membership as Record<string, unknown>)
+      : null
+
   if (!candidate) {
     return null
   }
@@ -60,12 +68,16 @@ function parseSessionUser(payload: unknown): SessionUser | null {
     readOptionalString(candidate.lastName)
   const email = readOptionalString(candidate.email)
   const username = readOptionalString(candidate.username)
+  const role =
+    readOptionalString(membership?.role) ||
+    readOptionalString(candidate.role)
 
   return {
     first_name: firstName,
     last_name: lastName,
     email,
     username,
+    role,
   }
 }
 
@@ -81,6 +93,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  const isAdmin =
+    (sessionUser?.role || '').trim().toLowerCase() === ROLE_ADMIN
 
   const isStandalone =
     pathname === '/' ||
@@ -285,7 +299,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             <div className="my-5 border-t border-white/10" />
 
-            <NavItem label="Settings" href="/admin" icon={Settings} />
+            {isAdmin && (
+              <NavItem label="Settings" href="/admin" icon={Settings} />
+            )}
           </nav>
         </aside>
 

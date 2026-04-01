@@ -1,8 +1,33 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { useEffect, useState } from 'react'
+
+const ROLE_ADMIN = 'admin'
+
+type SessionResponse = {
+  authenticated?: boolean
+  user?: {
+    role?: string
+  }
+  membership?: {
+    role?: string
+  }
+}
+
+function readOptionalString(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim()
+}
+
+function parseRole(payload: SessionResponse): string {
+  return (
+    readOptionalString(payload.membership?.role) ||
+    readOptionalString(payload.user?.role)
+  ).toLowerCase()
+}
 
 const ADMIN_NAV = [
   { label: 'Users', href: '/admin/users' },
@@ -20,7 +45,65 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const pathname = usePathname()
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [checkingAccess, setCheckingAccess] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const verifyAccess = async () => {
+      setCheckingAccess(true)
+
+      try {
+        const response = await fetch('/api/session', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+
+        if (response.status === 401) {
+          router.replace(`/auth/login?next=${encodeURIComponent(pathname || '/admin')}`)
+          return
+        }
+
+        const payload =
+          (await response.json().catch(() => ({}))) as SessionResponse
+
+        if (!response.ok || payload.authenticated !== true) {
+          router.replace(`/auth/login?next=${encodeURIComponent(pathname || '/admin')}`)
+          return
+        }
+
+        if (parseRole(payload) !== ROLE_ADMIN) {
+          router.replace('/home')
+          return
+        }
+
+        setIsAuthorized(true)
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+        router.replace('/home')
+      } finally {
+        if (!controller.signal.aborted) {
+          setCheckingAccess(false)
+        }
+      }
+    }
+
+    void verifyAccess()
+    return () => controller.abort()
+  }, [pathname, router])
+
+  if (checkingAccess || !isAuthorized) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+        Checking access...
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-1 bg-gray-100">
