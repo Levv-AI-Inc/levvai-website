@@ -1,8 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import {
+  BusinessUnitsApiError,
+  createBusinessUnit,
+  getBusinessUnits,
+  type BusinessUnitRecord,
+} from '@/lib/api/businessUnits'
+import {
+  CostCentersApiError,
+  getCostCenters,
+  type CostCenterRecord,
+} from '@/lib/api/costCenters'
 
 type BackendUser = {
   membership_id?: number | string | null
@@ -50,6 +61,17 @@ type AddUserFormState = {
   status: string
 }
 
+type AddBusinessUnitFormState = {
+  code: string
+  name: string
+  parent: string
+  description: string
+  legalEntityId: string
+  glAccountId: string
+  status: string
+  company: string
+}
+
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'manager', label: 'Manager' },
@@ -64,6 +86,26 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'disabled', label: 'Disabled' },
 ]
+
+const BUSINESS_UNIT_STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'closed', label: 'Closed' },
+]
+
+const EMPTY_ADD_BUSINESS_UNIT_FORM: AddBusinessUnitFormState = {
+  code: '',
+  name: '',
+  parent: '',
+  description: '',
+  legalEntityId: '',
+  glAccountId: '',
+  status: 'active',
+  company: '',
+}
+
+function businessUnitValue(unit: BusinessUnitRecord): string {
+  return unit.code || String(unit.id)
+}
 
 function readOptionalString(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -166,6 +208,12 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [forbidden, setForbidden] = useState(false)
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnitRecord[]>([])
+  const [businessUnitsLoading, setBusinessUnitsLoading] = useState(false)
+  const [businessUnitsError, setBusinessUnitsError] = useState('')
+  const [costCenters, setCostCenters] = useState<CostCenterRecord[]>([])
+  const [costCentersLoading, setCostCentersLoading] = useState(false)
+  const [costCentersError, setCostCentersError] = useState('')
 
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -185,6 +233,12 @@ export default function AdminUsersPage() {
     role: 'viewer',
     status: 'invited',
   })
+  const [isAddBusinessUnitModalOpen, setIsAddBusinessUnitModalOpen] =
+    useState(false)
+  const [addBusinessUnitError, setAddBusinessUnitError] = useState('')
+  const [creatingBusinessUnit, setCreatingBusinessUnit] = useState(false)
+  const [addBusinessUnitForm, setAddBusinessUnitForm] =
+    useState<AddBusinessUnitFormState>(EMPTY_ADD_BUSINESS_UNIT_FORM)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -193,6 +247,90 @@ export default function AdminUsersPage() {
 
     return () => window.clearTimeout(timer)
   }, [searchInput])
+
+  const loadBusinessUnits = useCallback(async () => {
+    setBusinessUnitsLoading(true)
+    setBusinessUnitsError('')
+
+    try {
+      const rows = await getBusinessUnits()
+      setBusinessUnits(rows)
+    } catch (requestError) {
+      if (
+        requestError instanceof BusinessUnitsApiError &&
+        requestError.status === 401
+      ) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+
+      if (
+        requestError instanceof BusinessUnitsApiError &&
+        requestError.status === 403
+      ) {
+        setBusinessUnits([])
+        setBusinessUnitsError(
+          'You do not have permission to view business units.',
+        )
+        return
+      }
+
+      setBusinessUnits([])
+      setBusinessUnitsError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to load business units.',
+      )
+    } finally {
+      setBusinessUnitsLoading(false)
+    }
+  }, [router])
+
+  useEffect(() => {
+    void loadBusinessUnits()
+  }, [loadBusinessUnits])
+
+  const loadCostCenters = useCallback(async () => {
+    setCostCentersLoading(true)
+    setCostCentersError('')
+
+    try {
+      const rows = await getCostCenters()
+      setCostCenters(rows)
+    } catch (requestError) {
+      if (
+        requestError instanceof CostCentersApiError &&
+        requestError.status === 401
+      ) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+
+      if (
+        requestError instanceof CostCentersApiError &&
+        requestError.status === 403
+      ) {
+        setCostCenters([])
+        setCostCentersError(
+          'You do not have permission to view cost centers.',
+        )
+        return
+      }
+
+      setCostCenters([])
+      setCostCentersError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to load cost centers.',
+      )
+    } finally {
+      setCostCentersLoading(false)
+    }
+  }, [router])
+
+  useEffect(() => {
+    void loadCostCenters()
+  }, [loadCostCenters])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -203,14 +341,20 @@ export default function AdminUsersPage() {
 
       try {
         const params = new URLSearchParams()
+        const businessUnitFilterValue = businessUnitFilter.trim()
+        const costCenterFilterValue = costCenterFilter.trim()
+
         if (search) params.set('search', search)
         if (statusFilter) params.set('status', statusFilter)
         if (roleFilter) params.set('role', roleFilter)
-        if (businessUnitFilter.trim()) {
-          params.set('business_unit_id', businessUnitFilter.trim())
+        if (
+          businessUnitFilterValue &&
+          /^\d+$/.test(businessUnitFilterValue)
+        ) {
+          params.set('business_unit_id', businessUnitFilterValue)
         }
-        if (costCenterFilter.trim()) {
-          params.set('cost_center_id', costCenterFilter.trim())
+        if (costCenterFilterValue) {
+          params.set('cost_center_id', costCenterFilterValue)
         }
 
         const url = params.toString()
@@ -275,6 +419,92 @@ export default function AdminUsersPage() {
     return () => controller.abort()
   }, [router, search, statusFilter, roleFilter, businessUnitFilter, costCenterFilter])
 
+  const businessUnitOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const options = businessUnits
+      .map((unit) => {
+        const value = businessUnitValue(unit)
+        const label = unit.code
+          ? `${unit.name} (${unit.code})`
+          : unit.name
+        return {
+          value,
+          label,
+          unit,
+        }
+      })
+      .filter((option) => {
+        if (!option.value) return false
+        if (seen.has(option.value)) return false
+        seen.add(option.value)
+        return true
+      })
+
+    options.sort((a, b) => a.label.localeCompare(b.label))
+    return options
+  }, [businessUnits])
+
+  const costCenterOptions = useMemo(() => {
+    const seen = new Set<string>()
+
+    const selectedBusinessUnit = businessUnitOptions.find(
+      (option) => option.value === addUserForm.businessUnit,
+    )
+    const selectedBusinessUnitCode =
+      selectedBusinessUnit?.unit.code?.toLowerCase() || ''
+
+    const options = costCenters
+      .filter((costCenter) => {
+        if (!selectedBusinessUnitCode) return true
+        return (
+          (costCenter.business_unit || '').toLowerCase() ===
+          selectedBusinessUnitCode
+        )
+      })
+      .map((costCenter) => {
+        const value = costCenter.code || String(costCenter.id)
+        const label = costCenter.code
+          ? `${costCenter.name} (${costCenter.code})`
+          : costCenter.name
+
+        return {
+          value,
+          label,
+          center: costCenter,
+        }
+      })
+      .filter((option) => {
+        if (!option.value) return false
+        if (seen.has(option.value)) return false
+        seen.add(option.value)
+        return true
+      })
+
+    options.sort((a, b) => a.label.localeCompare(b.label))
+    return options
+  }, [addUserForm.businessUnit, businessUnitOptions, costCenters])
+
+  const usersForTable = useMemo(() => {
+    const selected = businessUnitFilter.trim().toLowerCase()
+    if (!selected) return users
+
+    const selectedOption = businessUnitOptions.find(
+      (option) => option.value.toLowerCase() === selected,
+    )
+    const selectedCode = selectedOption?.unit.code.toLowerCase() || ''
+    const selectedName = selectedOption?.unit.name.toLowerCase() || ''
+
+    return users.filter((row) => {
+      const rowBuId = row.businessUnitId.toLowerCase()
+      const rowBuName = row.businessUnit.toLowerCase()
+
+      if (rowBuId === selected) return true
+      if (selectedCode && rowBuId === selectedCode) return true
+      if (selectedName && rowBuName === selectedName) return true
+      return false
+    })
+  }, [businessUnitFilter, businessUnitOptions, users])
+
   const usersForDetails = useMemo(
     () =>
       users.map((row) => ({
@@ -323,6 +553,91 @@ export default function AdminUsersPage() {
     setAddUserError('')
   }
 
+  const openAddBusinessUnitModal = () => {
+    setAddBusinessUnitError('')
+    setAddBusinessUnitForm(EMPTY_ADD_BUSINESS_UNIT_FORM)
+    setIsAddBusinessUnitModalOpen(true)
+  }
+
+  const closeAddBusinessUnitModal = () => {
+    if (creatingBusinessUnit) return
+    setIsAddBusinessUnitModalOpen(false)
+    setAddBusinessUnitError('')
+  }
+
+  const submitAddBusinessUnit = async () => {
+    const code = addBusinessUnitForm.code.trim()
+    const name = addBusinessUnitForm.name.trim()
+    const parent = addBusinessUnitForm.parent.trim()
+
+    if (!code) {
+      setAddBusinessUnitError('Business unit code is required.')
+      return
+    }
+
+    if (!name) {
+      setAddBusinessUnitError('Business unit name is required.')
+      return
+    }
+
+    setCreatingBusinessUnit(true)
+    setAddBusinessUnitError('')
+
+    try {
+      const companyValue = addBusinessUnitForm.company.trim()
+      const companyNumber = companyValue ? Number(companyValue) : NaN
+      const created = await createBusinessUnit({
+        code,
+        name,
+        parent: parent || null,
+        description:
+          addBusinessUnitForm.description.trim() || undefined,
+        legal_entity_id:
+          addBusinessUnitForm.legalEntityId.trim() || undefined,
+        gl_account_id:
+          addBusinessUnitForm.glAccountId.trim() || undefined,
+        status:
+          addBusinessUnitForm.status.trim() || undefined,
+        company: Number.isFinite(companyNumber)
+          ? companyNumber
+          : undefined,
+      })
+
+      setIsAddBusinessUnitModalOpen(false)
+      await loadBusinessUnits()
+      setAddUserForm((current) => ({
+        ...current,
+        businessUnit: businessUnitValue(created),
+      }))
+    } catch (requestError) {
+      if (
+        requestError instanceof BusinessUnitsApiError &&
+        requestError.status === 401
+      ) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+
+      if (
+        requestError instanceof BusinessUnitsApiError &&
+        requestError.status === 403
+      ) {
+        setAddBusinessUnitError(
+          'You do not have permission to add business units.',
+        )
+        return
+      }
+
+      setAddBusinessUnitError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to add business unit.',
+      )
+    } finally {
+      setCreatingBusinessUnit(false)
+    }
+  }
+
   const submitAddUser = () => {
     const name = addUserForm.name.trim()
     const email = addUserForm.email.trim()
@@ -343,6 +658,13 @@ export default function AdminUsersPage() {
       return
     }
 
+    const selectedBusinessUnit = businessUnitOptions.find(
+      (option) => option.value === addUserForm.businessUnit,
+    )
+    const selectedCostCenter = costCenterOptions.find(
+      (option) => option.value === addUserForm.costCenter,
+    )
+
     const localUser: UserRow = {
       membershipId: `local-${Date.now()}`,
       userId: '',
@@ -350,11 +672,20 @@ export default function AdminUsersPage() {
       email,
       status: normalizeStatus(addUserForm.status),
       role: normalizeRole(addUserForm.role),
-      businessUnitId: '',
-      businessUnit: addUserForm.businessUnit.trim(),
-      costCenterId: '',
-      costCenter: addUserForm.costCenter.trim(),
-      costCenterName: '',
+      businessUnitId:
+        selectedBusinessUnit?.unit.code ||
+        selectedBusinessUnit?.value ||
+        '',
+      businessUnit:
+        selectedBusinessUnit?.unit.name ||
+        addUserForm.businessUnit.trim(),
+      costCenterId: selectedCostCenter
+        ? String(selectedCostCenter.center.id)
+        : '',
+      costCenter:
+        selectedCostCenter?.center.code ||
+        addUserForm.costCenter.trim(),
+      costCenterName: selectedCostCenter?.center.name || '',
       ssoEnabled: addUserForm.ssoEnabled,
       isActive: normalizeStatus(addUserForm.status) === 'active',
     }
@@ -441,7 +772,7 @@ export default function AdminUsersPage() {
                 <label className="mb-1 block text-sm font-medium text-gray-800">
                   Business Unit
                 </label>
-                <input
+                <select
                   value={addUserForm.businessUnit}
                   onChange={(event) =>
                     setAddUserForm((current) => ({
@@ -450,13 +781,30 @@ export default function AdminUsersPage() {
                     }))
                   }
                   className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="Finance"
-                />
+                  disabled={businessUnitsLoading}
+                >
+                  <option value="">Select business unit</option>
+                  {businessUnitOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {businessUnitsLoading && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Loading business units...
+                  </p>
+                )}
+                {businessUnitsError && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {businessUnitsError}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-800">Cost Center</label>
-                <input
+                <select
                   value={addUserForm.costCenter}
                   onChange={(event) =>
                     setAddUserForm((current) => ({
@@ -465,8 +813,25 @@ export default function AdminUsersPage() {
                     }))
                   }
                   className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="CC-1001"
-                />
+                  disabled={costCentersLoading}
+                >
+                  <option value="">Select cost center</option>
+                  {costCenterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {costCentersLoading && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Loading cost centers...
+                  </p>
+                )}
+                {costCentersError && (
+                  <p className="mt-1 text-xs text-rose-600">
+                    {costCentersError}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -553,6 +918,215 @@ export default function AdminUsersPage() {
         </div>
       )}
 
+      {isAddBusinessUnitModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Add Business Unit
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Create a business unit for this tenant.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeAddBusinessUnitModal}
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                aria-label="Close add business unit modal"
+                disabled={creatingBusinessUnit}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Code
+                </label>
+                <input
+                  value={addBusinessUnitForm.code}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      code: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="FIN"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Name
+                </label>
+                <input
+                  value={addBusinessUnitForm.name}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="Finance"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Parent Business Unit
+                </label>
+                <select
+                  value={addBusinessUnitForm.parent}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      parent: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                >
+                  <option value="">None</option>
+                  {businessUnits
+                    .filter((unit) => unit.code)
+                    .map((unit) => (
+                      <option key={String(unit.id)} value={unit.code}>
+                        {unit.name} ({unit.code})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Status
+                </label>
+                <select
+                  value={addBusinessUnitForm.status}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                >
+                  {BUSINESS_UNIT_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Description
+                </label>
+                <textarea
+                  value={addBusinessUnitForm.description}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="Finance business unit"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Legal Entity ID
+                </label>
+                <input
+                  value={addBusinessUnitForm.legalEntityId}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      legalEntityId: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="LE-001"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  GL Account ID
+                </label>
+                <input
+                  value={addBusinessUnitForm.glAccountId}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      glAccountId: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="GL-1000"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  Company ID
+                </label>
+                <input
+                  value={addBusinessUnitForm.company}
+                  onChange={(event) =>
+                    setAddBusinessUnitForm((current) => ({
+                      ...current,
+                      company: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="2"
+                />
+              </div>
+
+              {addBusinessUnitError && (
+                <p className="md:col-span-2 text-sm text-rose-600">
+                  {addBusinessUnitError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t px-6 py-4">
+              <button
+                type="button"
+                onClick={closeAddBusinessUnitModal}
+                className="rounded-md border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={creatingBusinessUnit}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitAddBusinessUnit()}
+                className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
+                  creatingBusinessUnit
+                    ? 'cursor-not-allowed bg-gray-400'
+                    : 'bg-black hover:bg-gray-900'
+                }`}
+                disabled={creatingBusinessUnit}
+              >
+                {creatingBusinessUnit
+                  ? 'Creating...'
+                  : 'Create Business Unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border bg-white p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <input
@@ -588,12 +1162,19 @@ export default function AdminUsersPage() {
             ))}
           </select>
 
-          <input
+          <select
             value={businessUnitFilter}
             onChange={(event) => setBusinessUnitFilter(event.target.value)}
-            placeholder="Business unit ID"
             className="rounded-md border px-3 py-2 text-sm"
-          />
+            disabled={businessUnitsLoading}
+          >
+            <option value="">All business units</option>
+            {businessUnitOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
 
           <input
             value={costCenterFilter}
@@ -611,6 +1192,18 @@ export default function AdminUsersPage() {
             Clear filters
           </button>
         </div>
+
+        {businessUnitsLoading && (
+          <p className="mt-3 text-xs text-gray-500">
+            Loading business units...
+          </p>
+        )}
+
+        {businessUnitsError && (
+          <p className="mt-3 text-xs text-rose-600">
+            {businessUnitsError}
+          </p>
+        )}
       </div>
 
       {forbidden && (
@@ -649,7 +1242,7 @@ export default function AdminUsersPage() {
               </tr>
             )}
 
-            {!loading && !forbidden && users.length === 0 && (
+            {!loading && !forbidden && usersForTable.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
                   No users found.
@@ -659,7 +1252,7 @@ export default function AdminUsersPage() {
 
             {!loading &&
               !forbidden &&
-              users.map((user) => (
+              usersForTable.map((user) => (
                 <tr
                   key={`${user.membershipId || user.userId || user.email}-${user.name}`}
                   className="hover:bg-gray-50"
