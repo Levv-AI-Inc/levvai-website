@@ -32,7 +32,7 @@ function parseRole(payload: SessionResponse): string {
 const ADMIN_NAV = [
   { label: 'Users', href: '/admin/users' },
   { label: 'Company', href: '/admin/company' },
-  { label: 'Approval', href: '/admin/approval' },
+  { label: 'Approval Chains', href: '/admin/approval-chains' },
   { label: 'Financial', href: '/admin/financial' },
   { label: 'Rates', href: '/admin/rates' }, // ← ADDED
   { label: 'Suppliers', href: '/admin/suppliers' },
