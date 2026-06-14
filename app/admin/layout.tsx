@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 const ROLE_ADMIN = 'admin'
 
@@ -32,6 +33,7 @@ function parseRole(payload: SessionResponse): string {
 const ADMIN_NAV = [
   { label: 'Users', href: '/admin/users' },
   { label: 'Company', href: '/admin/company' },
+  { label: 'Roles', href: '/admin/roles' },
   { label: 'Approval Chains', href: '/admin/approval-chains' },
   { label: 'Financial', href: '/admin/financial' },
   { label: 'Rates', href: '/admin/rates' }, // ← ADDED
@@ -99,8 +101,20 @@ export default function AdminLayout({
 
   if (checkingAccess || !isAuthorized) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
-        Checking access...
+      <div className="flex flex-1 items-center justify-center bg-gray-100 px-6">
+        <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                Checking access...
+              </p>
+              <p className="text-xs text-gray-500">
+                Verifying your admin session.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

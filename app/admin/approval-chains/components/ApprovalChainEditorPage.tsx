@@ -31,15 +31,15 @@ import {
   type CostCenterRecord,
 } from '@/lib/api/costCenters'
 import {
-  IntakeApiError,
-  getIntakeJobTemplates,
-  type JobTemplateOption,
-} from '@/lib/api/intake'
-import {
   LegalEntitiesApiError,
   getLegalEntities,
   type LegalEntityRecord,
 } from '@/lib/api/legalEntities'
+import {
+  getRoles,
+  RolesApiError,
+  type RoleRecord,
+} from '@/lib/api/roles'
 import {
   SitesApiError,
   getSites,
@@ -63,7 +63,7 @@ type LookupResourceKey =
   | 'sites'
   | 'legalEntities'
   | 'suppliers'
-  | 'jobTitles'
+  | 'roles'
 
 type LookupDataState = {
   businessUnits: BusinessUnitRecord[]
@@ -71,7 +71,7 @@ type LookupDataState = {
   sites: SiteRecord[]
   legalEntities: LegalEntityRecord[]
   suppliers: SupplierRecord[]
-  jobTitles: JobTemplateOption[]
+  roles: RoleRecord[]
 }
 
 type LookupLoadingState = Record<LookupResourceKey, boolean>
@@ -122,7 +122,7 @@ const EMPTY_LOOKUP_DATA: LookupDataState = {
   sites: [],
   legalEntities: [],
   suppliers: [],
-  jobTitles: [],
+  roles: [],
 }
 
 const EMPTY_LOOKUP_LOADING: LookupLoadingState = {
@@ -131,7 +131,7 @@ const EMPTY_LOOKUP_LOADING: LookupLoadingState = {
   sites: false,
   legalEntities: false,
   suppliers: false,
-  jobTitles: false,
+  roles: false,
 }
 
 const EMPTY_LOOKUP_LOADED: LookupLoadedState = {
@@ -140,7 +140,7 @@ const EMPTY_LOOKUP_LOADED: LookupLoadedState = {
   sites: false,
   legalEntities: false,
   suppliers: false,
-  jobTitles: false,
+  roles: false,
 }
 
 const EMPTY_LOOKUP_ERRORS: LookupErrorState = {
@@ -149,7 +149,7 @@ const EMPTY_LOOKUP_ERRORS: LookupErrorState = {
   sites: '',
   legalEntities: '',
   suppliers: '',
-  jobTitles: '',
+  roles: '',
 }
 
 const DEFAULT_SIMULATION_INPUT = `{
@@ -524,7 +524,7 @@ function getLookupResourceForField(
   }
 
   if (fieldKey === 'job_title') {
-    return 'jobTitles'
+    return 'roles'
   }
 
   return null
@@ -653,9 +653,9 @@ function getLookupOptionsForField(
       )
     case 'job_title':
       return uniqueOptions(
-        lookupData.jobTitles.map((template) => ({
-          value: template.role,
-          label: template.role,
+        lookupData.roles.map((role) => ({
+          value: role.name,
+          label: role.name,
         })),
       )
     default:
@@ -767,11 +767,11 @@ export default function ApprovalChainEditorPage({
             }))
             break
           }
-          case 'jobTitles': {
-            const rows = await getIntakeJobTemplates()
+          case 'roles': {
+            const rows = await getRoles()
             setLookupData((current) => ({
               ...current,
-              jobTitles: rows,
+              roles: rows,
             }))
             break
           }
@@ -794,7 +794,7 @@ export default function ApprovalChainEditorPage({
             requestError instanceof SitesApiError ||
             requestError instanceof LegalEntitiesApiError ||
             requestError instanceof SuppliersApiError ||
-            requestError instanceof IntakeApiError) &&
+            requestError instanceof RolesApiError) &&
           requestError.status === 401
 
         if (isUnauthorized) {
