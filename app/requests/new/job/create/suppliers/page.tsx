@@ -8,6 +8,12 @@ import {
   getSuppliers,
   type SupplierRecord,
 } from '@/lib/api/suppliers'
+import {
+  IntakeApiError,
+  createIntakeDraft,
+  patchIntake,
+  submitIntake,
+} from '@/lib/api/intake'
 
 function supplierKey(supplier: SupplierRecord) {
   return String(supplier.id ?? supplier.supplier_id)
@@ -21,9 +27,16 @@ export default function CWSuppliersPage() {
   const [loadingSuppliers, setLoadingSuppliers] = useState(true)
   const [suppliersError, setSuppliersError] = useState('')
 
-  const [selected, setSelected] = useState<string[]>(request.suppliers || [])
+  const [selectedSupplierId, setSelectedSupplierId] = useState(
+    request.supplierId !== undefined &&
+      request.supplierId !== null
+      ? String(request.supplierId)
+      : request.suppliers?.[0] || '',
+  )
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -46,12 +59,15 @@ export default function CWSuppliersPage() {
   useEffect(() => {
     let cancelled = false
 
-    const loadSuppliers = async () => {
+    const loadSuppliers = async (searchTerm: string) => {
       setLoadingSuppliers(true)
       setSuppliersError('')
 
       try {
-        const rows = await getSuppliers()
+        const rows = await getSuppliers({
+          status: 'active',
+          search: searchTerm || undefined,
+        })
         if (cancelled) return
         setSuppliers(rows)
       } catch (error) {
@@ -69,12 +85,15 @@ export default function CWSuppliersPage() {
       }
     }
 
-    void loadSuppliers()
+    const timer = window.setTimeout(() => {
+      void loadSuppliers(search.trim())
+    }, 250)
 
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [])
+  }, [search])
 
   const roleQuery = request.role?.trim().toLowerCase() || ''
 
@@ -91,28 +110,114 @@ export default function CWSuppliersPage() {
     return searchable.includes(roleQuery)
   })
 
-  const filteredSuppliers = suppliers.filter(
-    (supplier) =>
-      supplier.name.toLowerCase().includes(search.toLowerCase()) &&
-      !selected.includes(supplierKey(supplier))
-  )
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    if (!search.trim()) return true
+    return supplier.name
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  })
 
-  const toggleSupplier = (id: string) => {
-    setSelected(prev =>
-      prev.includes(id)
-        ? prev.filter(s => s !== id)
-        : [...prev, id]
-    )
+  const chooseSupplier = (id: string) => {
+    setSelectedSupplierId(id)
     setSearch('')
+    setOpen(false)
   }
 
-  const removeSupplier = (id: string) => {
-    setSelected(prev => prev.filter(s => s !== id))
+  const clearSupplier = () => {
+    setSelectedSupplierId('')
   }
 
-  const handleContinue = () => {
-    update({ suppliers: selected })
-    router.push('/requests/new/job/create/review')
+  const handleContinue = async () => {
+    if (!selectedSupplierId) return
+    setSubmitError('')
+    setSubmitting(true)
+
+    const supplierId = Number(selectedSupplierId)
+    if (!Number.isFinite(supplierId)) {
+      setSubmitting(false)
+      setSubmitError('Selected supplier is invalid.')
+      return
+    }
+
+    try {
+      let intakeId = request.intakeId
+
+      if (!intakeId) {
+        const created = await createIntakeDraft({
+          engagementType: 'staffing',
+          title: request.role?.trim() || undefined,
+          description: request.description?.trim() || undefined,
+          startDate: request.startDate || undefined,
+          endDate: request.endDate || undefined,
+          workerCount:
+            typeof request.positions === 'number' &&
+            request.positions > 0
+              ? request.positions
+              : undefined,
+          costCenter: request.costCenterId,
+          site: request.siteId,
+          supplier: supplierId,
+          roleDefinition: request.roleId,
+          legalEntity: request.legalEntityId,
+          targetRate:
+            typeof request.targetRate === 'number'
+              ? request.targetRate.toFixed(2)
+              : undefined,
+          rateUnit: request.rateUnit || 'hourly',
+          budgetAmount:
+            typeof request.budgetAmount === 'number'
+              ? request.budgetAmount.toFixed(2)
+              : undefined,
+          currency: request.currency || 'USD',
+          country: request.country || undefined,
+          stateProvince:
+            request.stateProvince || request.region || undefined,
+          city: request.city || undefined,
+          rateCard: request.selectedRateCardId,
+          overtimeEnabled: request.overtimeEnabled,
+          overtimeMultiplier:
+            typeof request.overtimeFactor === 'number'
+              ? request.overtimeFactor.toFixed(2)
+              : undefined,
+          customFields: request.customFields || {},
+          qualificationsEnabled: request.qualificationsEnabled,
+          qualifications: request.qualifications,
+        })
+        intakeId = created.id
+        update({ intakeId: created.id })
+      } else {
+        await patchIntake(intakeId, { supplier: supplierId })
+      }
+
+      const submitted = await submitIntake(intakeId)
+
+      update({
+        intakeId: submitted.id,
+        supplierId,
+        suppliers: [selectedSupplierId],
+      })
+      router.push(
+        `/requests/new/job/submitted?id=${encodeURIComponent(
+          String(submitted.id),
+        )}`,
+      )
+    } catch (error) {
+      if (
+        error instanceof IntakeApiError &&
+        error.status === 401
+      ) {
+        router.replace('/auth/login?next=/requests/new/job/create/suppliers')
+        return
+      }
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit intake.'
+      setSubmitError(message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -148,7 +253,7 @@ export default function CWSuppliersPage() {
         className="border rounded-xl p-6 bg-white space-y-3 relative shadow-sm"
       >
         <label className="block font-medium text-sm">
-          Select suppliers
+          Select supplier
         </label>
 
         <input
@@ -180,7 +285,7 @@ export default function CWSuppliersPage() {
               <button
                 key={supplierKey(s)}
                 type="button"
-                onClick={() => toggleSupplier(supplierKey(s))}
+                onClick={() => chooseSupplier(supplierKey(s))}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-cyan-50"
               >
                 <div className="font-medium">{s.name}</div>
@@ -199,29 +304,31 @@ export default function CWSuppliersPage() {
         )}
 
         {/* Selected chips */}
-        {selected.length > 0 && (
+        {selectedSupplierId && (
           <div className="flex flex-wrap gap-2 pt-2">
-            {selected.map(id => {
-              const supplier = suppliers.find(s => supplierKey(s) === id)
-
-              return (
-                <div
-                  key={id}
-                  className="flex items-center gap-2 bg-cyan-50 text-sm px-3 py-1.5 rounded-full"
-                >
-                  <span>{supplier?.name || id}</span>
-                  <button
-                    onClick={() => removeSupplier(id)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )
-            })}
+            <div className="flex items-center gap-2 bg-cyan-50 text-sm px-3 py-1.5 rounded-full">
+              <span>
+                {suppliers.find(
+                  (supplier) =>
+                    supplierKey(supplier) === selectedSupplierId,
+                )?.name || selectedSupplierId}
+              </span>
+              <button
+                onClick={clearSupplier}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {submitError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {submitError}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex justify-between">
@@ -243,16 +350,16 @@ export default function CWSuppliersPage() {
         </button>
 
         <button
-          disabled={selected.length === 0}
-          onClick={handleContinue}
+          disabled={!selectedSupplierId || submitting}
+          onClick={() => void handleContinue()}
           className={`px-6 py-2.5 rounded-full text-sm font-medium text-white 
            ${
-              selected.length === 0
+              !selectedSupplierId || submitting
                 ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-black hover:bg-gray-900'
             }
           `}>
-          Submit
+          {submitting ? 'Submitting...' : 'Submit'}
         </button>
       </div>
     </div>
