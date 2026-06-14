@@ -17,7 +17,6 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
 
 type SessionUser = {
@@ -263,6 +262,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               items={[
                 { label: 'Job Postings', href: '/cw/job-postings' },
                 { label: 'Candidates', href: '/cw/candidates' },
+                { label: 'Work Orders', href: '/cw/work-orders' },
               ]}
             />
 
@@ -488,8 +488,4 @@ function NavGroup({
       </div>
     </div>
   )
-}
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <CWRequestProvider>{children}</CWRequestProvider>
 }
