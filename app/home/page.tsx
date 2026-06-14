@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import {
   ChevronDown,
@@ -394,6 +395,17 @@ export default function Home() {
                           )}
                         </p>
                       )}
+                      <div>
+                        <Link
+                          href={`/my-items/jobs/${encodeURIComponent(
+                            String(request.id),
+                          )}`}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                        >
+                          View request details
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
