@@ -184,6 +184,8 @@ Open decision:
 
 Purpose: preserve the branch's richer request wizard UI while using `main` intake draft APIs and state model.
 
+Implementation note: completed on the reconciliation branch as a backend-preservation phase. The current wizard keeps `main`'s expanded `CWRequestContext`, sessionStorage persistence, `lib/api/intake` draft writes, rate card loading, supplier loading, and submit behavior. No UI-branch mock wizard files were restored over these backend-connected pages.
+
 Prompt:
 
 ```text
