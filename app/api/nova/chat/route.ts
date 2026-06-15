@@ -107,12 +107,12 @@ Do NOT ask "do you know which vehicle?" — they just told you. Instead, acknowl
 Example for SOW:
 "Got it — a Statement of Work. Quick gut-check before we open the form: SOWs work best when the vendor owns a specific deliverable or outcome with fixed pricing. If you're really just adding a body to your team for ongoing work, a Job Posting is usually the better path. Still want SOW?"
 
-[NOVA_ACTIONS: Yes, SOW|/requests/new/sow; Actually JP|/requests/new/job_posting; Not sure|Walk me through the SOW vs JP decision]
+[NOVA_ACTIONS: Yes, SOW|/requests/sow/create; Actually JP|/requests/new/job; Not sure|Walk me through the SOW vs JP decision]
 
 Example for Job Posting:
 "Got it — a Job Posting. Quick gut-check before we open the form: Job Postings are right when you're augmenting your team with someone working alongside your FTEs, hourly. If this is actually a vendor delivering a specific outcome with fixed pricing, you'd want an SOW. Still going with JP?"
 
-[NOVA_ACTIONS: Yes, JP|/requests/new/job_posting; Actually SOW|/requests/new/sow; Not sure|Walk me through the SOW vs JP decision]
+[NOVA_ACTIONS: Yes, JP|/requests/new/job; Actually SOW|/requests/sow/create; Not sure|Walk me through the SOW vs JP decision]
 
 ═══ PATH B — User is generic about vehicle ═══
 
@@ -143,7 +143,7 @@ Then recommend:
 
 Want me to start the creation flow?"
 
-[NOVA_ACTIONS: Start Job Posting|/requests/new/job_posting; Explain why|Walk me through why this is a Job Posting; I disagree|I think this should be a SOW]
+[NOVA_ACTIONS: Start Job Posting|/requests/new/job; Explain why|Walk me through why this is a Job Posting; I disagree|I think this should be a SOW]
 
 ═══════════════════════════════════════════════════════════════
 SCENARIO 2 — WORKER LOOKUP, EXTENSION & POLICY
@@ -206,7 +206,7 @@ Worth noting: IBM SOW-2024-0033 already governs 3 AI agents and has the DPIA + s
 
 If user picks "New vendor" → ask Q3b:
 "For a new vendor, you'll need a fresh SOW with AI governance baked in from the start. Want to begin SOW creation now, or finalize the agent details here first?"
-[NOVA_ACTIONS: Start SOW|/requests/new/sow; Finalize agent first|Let me finalize the agent details first]
+[NOVA_ACTIONS: Start SOW|/requests/sow/create; Finalize agent first|Let me finalize the agent details first]
 
 If user picks "Internal build" → respond:
 "Internal AI builds with no vendor are IT's domain, not procurement's. Loop in your AI Center of Excellence for the technical implementation. The governance artifacts (DPIA, security review) still apply if it processes regulated data, but they're handled inside IT rather than through a vendor SOW. Want me to outline the IT handoff?"
@@ -325,12 +325,12 @@ When NOT to include action chips:
 • Information-only responses with no obvious next step
 
 Common routes:
-• /requests/new/sow — Start SOW creation
-• /requests/new/job_posting — Start Job Posting creation
+• /requests/sow/create — Start SOW creation
+• /requests/new/job — Start Job Posting creation
 • /workers/[WO-NUMBER] — View a worker (e.g., /workers/WO-2024-0089)
-• /sow/[SOW-NUMBER] — View a SOW
+• /services/sow/[SOW-NUMBER] — View a SOW
 • /recertification — Start recertification flow
-• /spend — Open spend dashboard
+• /payments/invoices — Open spend dashboard
 
 ═══════════════════════════════════════════════════════════════
 RESPONSE STYLE
@@ -360,8 +360,6 @@ function buildSystemPrompt() {
 
   return SYSTEM
     .replace('{TODAY}', today)
-    .replaceAll('/requests/new/sow', '/requests/sow/create')
-    .replaceAll('/requests/new/job_posting', '/requests/new/job')
 }
 
 function normalizeMessages(messages: unknown[]) {

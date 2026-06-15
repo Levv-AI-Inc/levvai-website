@@ -92,11 +92,11 @@ export default function RecommendationPage() {
    */
   const handleInitiate = () => {
     if (recommendedPath === "SOW") {
-      router.push("/requests/new/sow")
+      router.push("/requests/sow/create")
     } else if (recommendedPath === "SOURCE") {
       router.push("/requests/new/source")
     } else {
-      router.push("/requests/new/job_posting")
+      router.push("/requests/new/job")
     }
   }
 
