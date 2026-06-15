@@ -12,6 +12,11 @@ interface ChatMessage {
   actions?: { label: string; prompt: string }[]
 }
 
+type IntakeListResponse = {
+  detail?: unknown
+  results?: unknown[]
+}
+
 // ─── Nova's observations ──────────────────────────────────────────────────────
 
 const OBSERVATIONS = [
@@ -88,11 +93,16 @@ export default function Home() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [pendingRequestCount, setPendingRequestCount] = useState(0)
+  const [loadingPendingRequests, setLoadingPendingRequests] = useState(true)
+  const [pendingRequestsError, setPendingRequestsError] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const conversationRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const hasChat = chatMessages.length > 0
+  const pendingRequestLabel = loadingPendingRequests ? '...' : String(pendingRequestCount)
+  const pendingRequestText = `pending request${pendingRequestCount === 1 ? '' : 's'}`
 
   // Clock
   useEffect(() => {
@@ -102,6 +112,65 @@ export default function Home() {
     const id = setInterval(tick, 15_000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const loadPendingRequests = async () => {
+      setLoadingPendingRequests(true)
+      setPendingRequestsError('')
+
+      try {
+        const response = await fetch('/api/intake?status=submitted&mine=true', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+
+        const payload = (await response.json().catch(() => ({}))) as IntakeListResponse
+
+        if (response.status === 401) {
+          router.replace('/auth/login?next=/home')
+          return
+        }
+
+        if (response.status === 400 || response.status === 403) {
+          setPendingRequestCount(0)
+          setPendingRequestsError(
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : 'Unable to load pending requests for this tenant.',
+          )
+          return
+        }
+
+        if (!response.ok) {
+          setPendingRequestCount(0)
+          setPendingRequestsError(
+            typeof payload.detail === 'string'
+              ? payload.detail
+              : `Failed to load pending requests (${response.status}).`,
+          )
+          return
+        }
+
+        setPendingRequestCount(Array.isArray(payload.results) ? payload.results.length : 0)
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return
+        setPendingRequestCount(0)
+        setPendingRequestsError('Unable to load pending requests.')
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingPendingRequests(false)
+        }
+      }
+    }
+
+    void loadPendingRequests()
+
+    return () => controller.abort()
+  }, [router])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -368,10 +437,18 @@ export default function Home() {
           {greeting}
         </h1>
         <p className="text-[17px] text-slate-500 font-normal animate-in fade-in duration-300">
-          <span className="text-slate-700 font-medium">Three things</span> need your attention today
+          <span className="text-slate-700 font-medium">
+            {pendingRequestLabel} {pendingRequestText}
+          </span>{' '}
+          need your attention today
           {' . '}
           <span className="text-rose-600 font-medium">One critical</span>,{' '}two advisories.
         </p>
+        {pendingRequestsError && (
+          <p className="mt-2 text-sm font-medium text-amber-700">
+            {pendingRequestsError}
+          </p>
+        )}
       </div>
 
       {/* Nova input */}

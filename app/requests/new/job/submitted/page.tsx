@@ -242,7 +242,7 @@ export default function CWRequestSubmittedPage() {
             </p>
             <div className="mt-5">
               <Link
-                href="/my-items"
+                href="/my-items/jobs"
                 className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
               >
                 Go to My Items

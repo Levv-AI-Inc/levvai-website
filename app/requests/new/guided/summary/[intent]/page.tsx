@@ -94,7 +94,7 @@ export default function RecommendationPage() {
     if (recommendedPath === "SOW") {
       router.push("/requests/sow/create")
     } else if (recommendedPath === "SOURCE") {
-      router.push("/requests/new/source")
+      router.push("/requests/new/guided")
     } else {
       router.push("/requests/new/job")
     }
