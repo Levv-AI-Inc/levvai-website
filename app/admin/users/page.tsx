@@ -694,10 +694,6 @@ export default function AdminUsersPage() {
     closeAddUserModal()
   }
 
-  const openUserDetails = (user: UserRow) => {
-    router.push(`/admin/users/${encodeURIComponent(user.name)}`)
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -1288,10 +1284,10 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => openUserDetails(user)}
-                      className="rounded-md border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      disabled
+                      className="cursor-not-allowed rounded-md border px-3 py-1.5 text-xs font-medium text-gray-400"
                     >
-                      View
+                      Details pending
                     </button>
                   </td>
                 </tr>
