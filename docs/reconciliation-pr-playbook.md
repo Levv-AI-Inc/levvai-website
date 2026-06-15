@@ -459,6 +459,8 @@ Likely files:
 
 Purpose: make the reconciliation safe to merge back to `main`.
 
+Implementation note: completed on the reconciliation branch. Final checks found no tracked `.next` files and no stale references to the old UI-only routes/APIs listed below. `npm run build` passes. `npm run lint` currently opens Next's ESLint setup prompt because the repo does not have an ESLint config, so lint was not changed or configured as part of this reconciliation.
+
 Prompt:
 
 ```text
