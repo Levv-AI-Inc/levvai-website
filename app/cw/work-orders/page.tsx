@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, Loader2, Users } from 'lucide-react'
 import { getEngagementStatusLabel } from '@/lib/api/engagements'
 import {
   getWorkOrders,
@@ -107,6 +107,28 @@ export default function WorkOrdersPage() {
   const [pagination, setPagination] =
     useState<WorkOrderListPagination>(DEFAULT_PAGINATION)
 
+  const workOrderStats = useMemo(() => {
+    return workOrders.reduce(
+      (totals, workOrder) => {
+        const status = workOrder.status?.trim().toLowerCase()
+        const approvalStatus = workOrder.approvalStatus?.trim().toLowerCase()
+
+        if (status === 'active' || status === 'approved') totals.active += 1
+        if (approvalStatus === 'processing' || approvalStatus === 'submitted') {
+          totals.awaitingApproval += 1
+        }
+        if (workOrder.workerFullName) totals.assignedWorkers += 1
+
+        return totals
+      },
+      {
+        active: 0,
+        awaitingApproval: 0,
+        assignedWorkers: 0,
+      },
+    )
+  }, [workOrders])
+
   useEffect(() => {
     let cancelled = false
 
@@ -163,6 +185,44 @@ export default function WorkOrdersPage() {
         </div>
         <div className="text-sm text-slate-500">
           {pagination.total_count} total work orders
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Active
+            </span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {workOrderStats.active}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Awaiting approval
+            </span>
+            <Clock3 className="h-4 w-4 text-cyan-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {workOrderStats.awaitingApproval}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Assigned workers
+            </span>
+            <Users className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {workOrderStats.assignedWorkers}
+          </div>
         </div>
       </div>
 

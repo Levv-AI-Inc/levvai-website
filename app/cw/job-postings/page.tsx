@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, Briefcase, CheckCircle2, Loader2, Users } from 'lucide-react'
 import {
   IntakeApiError,
   getIntakes,
@@ -87,6 +87,26 @@ export default function ContingentJobPostingsPage() {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('approved')
 
+  const requestStats = useMemo(() => {
+    return requests.reduce(
+      (totals, request) => {
+        const status = request.status?.trim().toLowerCase()
+        const positions = Number(request.workerCount || 0)
+
+        if (status === 'approved') totals.approved += 1
+        if (status === 'submitted' || status === 'processing') totals.inFlight += 1
+        if (Number.isFinite(positions)) totals.positions += positions
+
+        return totals
+      },
+      {
+        approved: 0,
+        inFlight: 0,
+        positions: 0,
+      },
+    )
+  }, [requests])
+
   useEffect(() => {
     let cancelled = false
 
@@ -152,6 +172,44 @@ export default function ContingentJobPostingsPage() {
             <option value="rejected">Rejected</option>
           </select>
         </label>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Current view
+            </span>
+            <Briefcase className="h-4 w-4 text-cyan-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {requests.length}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Approved
+            </span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {requestStats.approved}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Positions
+            </span>
+            <Users className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {requestStats.positions}
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
