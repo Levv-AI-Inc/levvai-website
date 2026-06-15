@@ -3,11 +3,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Building2,
   Check,
   Copy,
   Loader2,
   Plus,
   Search,
+  ShieldAlert,
+  Users,
   X,
 } from 'lucide-react'
 
@@ -60,6 +63,12 @@ const EMPTY_SUPPLIER_FORM: SupplierFormState = {
   compliance_status: 'compliant',
   active_workers: '0',
   active_sows: '0',
+}
+
+function readCount(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') return toNonNegativeInt(value)
+  return 0
 }
 
 export default function SuppliersPage() {
@@ -121,6 +130,35 @@ export default function SuppliersPage() {
     }
 
     return Array.from(values)
+  }, [suppliers])
+
+  const supplierStats = useMemo(() => {
+    return suppliers.reduce(
+      (totals, supplier) => {
+        const risk = normalizeRole(supplier.risk_level)
+        const compliance = normalizeRole(supplier.compliance_status)
+        const status = normalizeRole(supplier.status)
+
+        totals.activeWorkers += readCount(supplier.active_workers)
+        totals.activeSows += readCount(supplier.active_sows)
+
+        if (status === 'active') {
+          totals.activeSuppliers += 1
+        }
+
+        if (risk === 'high' || (compliance && compliance !== 'compliant')) {
+          totals.riskFlags += 1
+        }
+
+        return totals
+      },
+      {
+        activeSuppliers: 0,
+        activeWorkers: 0,
+        activeSows: 0,
+        riskFlags: 0,
+      },
+    )
   }, [suppliers])
 
   useEffect(() => {
@@ -482,10 +520,12 @@ export default function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Suppliers</h1>
-          <p className="mt-1 text-sm text-slate-500">Supplier master records</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Suppliers</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Manage vendor relationships, compliance health, and operational footprint.
+          </p>
         </div>
 
         <div className="group relative inline-flex">
@@ -518,7 +558,62 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Active suppliers
+            </span>
+            <Building2 className="h-4 w-4 text-cyan-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {supplierStats.activeSuppliers}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Active workers
+            </span>
+            <Users className="h-4 w-4 text-cyan-600" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {supplierStats.activeWorkers}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Active SOWs
+            </span>
+            <Building2 className="h-4 w-4 text-slate-500" />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {supplierStats.activeSows}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Risk flags
+            </span>
+            <ShieldAlert
+              className={cn(
+                'h-4 w-4',
+                supplierStats.riskFlags > 0 ? 'text-rose-500' : 'text-emerald-500',
+              )}
+            />
+          </div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">
+            {supplierStats.riskFlags}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-3">
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
             <Search className="h-4 w-4 text-slate-400" />
