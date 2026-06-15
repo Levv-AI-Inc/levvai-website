@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
+import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 
 type SessionUser = {
   first_name?: string
@@ -86,6 +87,40 @@ function getCookie(name: string) {
   const parts = value.split(`; ${name}=`)
   if (parts.length === 2) return parts.pop()?.split(';').shift() || ''
   return ''
+}
+
+function getSessionDisplay(user: SessionUser | null) {
+  if (!user) {
+    return {
+      name: 'Levv',
+      label: 'Workspace',
+      initials: 'L',
+    }
+  }
+
+  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim()
+  const name = fullName || user.username || user.email || 'Account'
+  const label = user.role || user.email || user.username || 'Signed-in account'
+  const initialsSource = fullName || user.username || user.email || 'Levv'
+  const initials = initialsSource
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'L'
+
+  return {
+    name,
+    label,
+    initials,
+  }
+}
+
+function formatCurrentPage(pathname: string) {
+  if (pathname === '/home') return 'DASHBOARD'
+  const segment = pathname.split('/').filter(Boolean).pop()
+  if (!segment) return 'LEVV'
+  return segment.replace(/-/g, ' ').toUpperCase()
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -227,7 +262,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (isStandalone) {
     return (
       <html lang="en">
-        <body className="min-h-screen bg-slate-50 text-slate-900">
+        <body className="min-h-screen bg-slate-50 text-slate-900 font-sans">
           {children}
         </body>
       </html>
@@ -236,89 +271,137 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen bg-slate-100 text-slate-900">
-        {/* Sidebar */}
-        <aside className="w-64 min-w-[16rem] flex-shrink-0 bg-[#0b1023] text-slate-300 border-r border-white/10">
-          <div className="px-6 py-6 text-lg font-semibold tracking-wide text-slate-100">
-            LEVV
-          </div>
+      <body className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+        <aside className="w-64 min-w-[16rem] flex flex-col bg-[#0f172a] text-slate-200 border-r border-slate-800 shadow-2xl">
+          <SidebarAccount user={sessionUser} />
 
-          <nav className="px-3 space-y-1">
-            <NavItem label="Home" href="/home" icon={Home} />
-
-            <NavGroup
-              label="My Items"
-              icon={Folder}
-              items={[
-                { label: 'My SOWs', href: '/my-items/sow' },
-                { label: 'My Job Postings', href: '/my-items/jobs' },
-                { label: 'Approvals', href: '/my-items/approvals' },
-              ]}
-            />
-
-            <NavGroup
-              label="Contingent Workforce"
-              icon={Users}
-              items={[
-                { label: 'Job Postings', href: '/cw/job-postings' },
-                { label: 'Candidates', href: '/cw/candidates' },
-                { label: 'Work Orders', href: '/cw/work-orders' },
-              ]}
-            />
-
-            <NavGroup
-              label="Services"
-              icon={FileText}
-              items={[
-                { label: 'Statement of Work', href: '/services/sow' },
-                { label: 'RFx', href: '/services/rfx' },
-              ]}
-            />
-
-            <NavGroup
-              label="Workers"
-              icon={Briefcase}
-              items={[
-                { label: 'Workers', href: '/workers/workers' },
-                { label: 'Engagements', href: '/workers/123/engagements' },
-                { label: 'Timesheets', href: '/workers/timesheets' },
-                { label: 'Expenses', href: '/workers/expenses' },
-              ]}
-            />
-
-            <NavItem label="Suppliers" href="/suppliers" icon={Building2} />
-
-            <NavGroup
-              label="Payments"
-              icon={CreditCard}
-              items={[
-                { label: 'Invoices', href: '/payments/invoices' },
-                { label: 'Payments', href: '/payments/payments' },
-              ]}
-            />
-
-            <div className="my-5 border-t border-white/10" />
-
-            {isAdmin && (
-              <NavItem label="Settings" href="/admin" icon={Settings} />
-            )}
-          </nav>
-        </aside>
-
-        <main className="flex-1 px-8 py-6">
-          {sessionUser && (
-            <div className="mb-6 flex justify-end">
-              <AccountMenu
-                user={sessionUser}
-                signingOut={signingOut}
-                onSignOut={handleSignOut}
+          <nav className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
+            <NavSection label="Main">
+              <NavItem label="Home" href="/home" icon={Home} />
+              <NavGroup
+                label="My Items"
+                icon={Folder}
+                items={[
+                  { label: 'My SOWs', href: '/my-items/sow' },
+                  { label: 'My Job Postings', href: '/my-items/jobs' },
+                  { label: 'Approvals', href: '/my-items/approvals' },
+                ]}
               />
+            </NavSection>
+
+            <NavSection label="Management">
+              <NavGroup
+                label="Contingent Workforce"
+                icon={Users}
+                items={[
+                  { label: 'Work Orders', href: '/cw/work-orders' },
+                  { label: 'Job Postings', href: '/cw/job-postings' },
+                  { label: 'Candidates', href: '/cw/candidates' },
+                ]}
+              />
+              <NavGroup
+                label="Services"
+                icon={FileText}
+                items={[
+                  { label: 'Statement of Work', href: '/services/sow' },
+                  { label: 'RFx', href: '/services/rfx' },
+                ]}
+              />
+              <NavGroup
+                label="Workers"
+                icon={Briefcase}
+                items={[
+                  { label: 'Workers', href: '/workers/workers' },
+                  { label: 'Worker Lifecycle', href: '/workers/123/engagements' },
+                  { label: 'Timesheets', href: '/workers/timesheets' },
+                  { label: 'Expenses', href: '/workers/expenses' },
+                ]}
+              />
+              <NavItem label="Suppliers" href="/suppliers" icon={Building2} />
+            </NavSection>
+
+            <NavSection label="System">
+              <NavGroup
+                label="Finance"
+                icon={CreditCard}
+                items={[
+                  { label: 'Invoices', href: '/payments/invoices' },
+                  { label: 'Payments', href: '/payments/payments' },
+                ]}
+              />
+              {isAdmin && (
+                <NavItem label="Settings" href="/admin" icon={Settings} />
+              )}
+            </NavSection>
+          </nav>
+
+          {sessionUser && (
+            <div className="p-4 border-t border-white/5">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="flex items-center gap-3 px-3 py-2 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all text-sm font-medium disabled:opacity-60"
+              >
+                <LogOut className="w-4 h-4" />
+                {signingOut ? 'Signing Out...' : 'Sign Out'}
+              </button>
             </div>
           )}
-          {children}
-        </main>
+        </aside>
+
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 justify-between sticky top-0 z-10">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center font-bold text-white text-[10px]">
+                L
+              </div>
+              <span className="text-sm font-bold tracking-[0.2em] text-slate-900">
+                LEVV
+              </span>
+            </div>
+
+            <div className="flex items-center gap-5">
+              <div className="text-xs font-medium text-slate-400 flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                {formatCurrentPage(pathname)}
+              </div>
+              {sessionUser && (
+                <AccountMenu
+                  user={sessionUser}
+                  signingOut={signingOut}
+                  onSignOut={handleSignOut}
+                />
+              )}
+            </div>
+          </header>
+
+          <main className="flex-1 p-8">
+            <CWRequestProvider>{children}</CWRequestProvider>
+          </main>
+        </div>
       </body>
     </html>
+  )
+}
+
+function SidebarAccount({ user }: { user: SessionUser | null }) {
+  const display = getSessionDisplay(user)
+
+  return (
+    <div className="flex items-center gap-3 px-6 h-20 border-b border-white/5 bg-black/10">
+      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+        {display.initials}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate">
+          {display.name}
+        </p>
+        <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">
+          {display.label}
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -333,10 +416,7 @@ function AccountMenu({
 }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
-
-  const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim()
-  const displayName = fullName || user.username || user.email || 'Account'
-  const accountLabel = user.email || user.username || 'Signed-in account'
+  const display = getSessionDisplay(user)
 
   useEffect(() => {
     if (!open) return
@@ -360,15 +440,15 @@ function AccountMenu({
         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
       >
         <UserCircle2 className="h-4 w-4 text-slate-500" />
-        <span>{displayName}</span>
+        <span>{display.name}</span>
         <ChevronDown className={open ? 'h-4 w-4 rotate-180 text-slate-500' : 'h-4 w-4 text-slate-500'} />
       </button>
 
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-slate-100 shadow-2xl">
           <div className="border-b border-white/10 px-4 py-3">
-            <div className="text-sm font-semibold text-white">{displayName}</div>
-            <div className="mt-1 text-xs text-slate-300">{accountLabel}</div>
+            <div className="text-sm font-semibold text-white">{display.name}</div>
+            <div className="mt-1 text-xs text-slate-300">{display.label}</div>
           </div>
 
           <button
@@ -382,6 +462,23 @@ function AccountMenu({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function NavSection({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <p className="px-3 mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400/80">
+        {label}
+      </p>
+      <div className="space-y-1">{children}</div>
     </div>
   )
 }
@@ -405,17 +502,21 @@ function NavItem({
     <Link
       href={href}
       className={`
-        group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
-        transition-colors
+        group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+        transition-all duration-200
         ${
           isActive
-            ? 'bg-white/5 text-white shadow-[inset_3px_0_0_0_rgba(34,211,238,0.9)]'
-            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+            ? 'bg-cyan-500/15 text-white shadow-sm'
+            : 'text-slate-300 hover:bg-white/10 hover:text-white'
         }
       `}
     >
-      <Icon className="w-4 h-4 opacity-80" />
+      <Icon className={`w-[18px] h-[18px] transition-colors ${isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
       {label}
+
+      {isActive && (
+        <span className="absolute left-[-12px] top-2 bottom-2 w-1 bg-cyan-400 rounded-r-full shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+      )}
     </Link>
   )
 }
@@ -436,35 +537,39 @@ function NavGroup({
   const isAnyActive = items.some((i) => pathname.startsWith(i.href))
   const [open, setOpen] = useState(isAnyActive)
 
+  useEffect(() => {
+    if (isAnyActive) setOpen(true)
+  }, [isAnyActive])
+
   return (
-    <div>
+    <div className="space-y-1">
       <button
         onClick={() => setOpen(!open)}
         className={`
-          w-full flex items-center justify-between px-3 py-2.5 rounded-md
-          text-sm font-medium transition-colors
+          w-full flex items-center justify-between px-3 py-2.5 rounded-lg
+          text-sm font-medium transition-all duration-200
           ${
             isAnyActive
-              ? 'bg-white/5 text-white'
-              : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+              ? 'text-white'
+              : 'text-slate-300 hover:bg-white/10 hover:text-white'
           }
         `}
       >
         <span className="flex items-center gap-3">
-          <Icon className="w-4 h-4 opacity-80" />
+          <Icon className={`w-[18px] h-[18px] ${isAnyActive ? 'text-cyan-400' : 'text-slate-400'}`} />
           {label}
         </span>
         <ChevronDown
-          className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-slate-500'}`}
         />
       </button>
 
       <div
-        className={`overflow-hidden transition-all ${
-          open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          open ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="ml-7 mt-1 space-y-1">
+        <div className="ml-5 pl-4 border-l border-slate-700/60 my-1 space-y-1">
           {items.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -472,11 +577,11 @@ function NavGroup({
                 key={item.href}
                 href={item.href}
                 className={`
-                  block px-3 py-1.5 rounded-md text-sm transition-colors
+                  block px-3 py-2 rounded-md text-[13px] transition-colors
                   ${
                     isActive
-                      ? 'text-cyan-300'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'text-cyan-400 font-bold bg-cyan-400/5'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
