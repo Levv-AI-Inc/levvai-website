@@ -9,7 +9,7 @@ const onboardingRows = [
     workerId: '123',
     name: 'John Smith',
     startDate: 'Sep 23, 2026',
-    readiness: 14, // Changed to number for progress bar logic
+    readiness: 50, // Changed to number for progress bar logic
     status: 'In Progress',
     pendingWith: 'IT', // Maps to our ApproverGroups
     currentTask: 'Laptop Provisioning',

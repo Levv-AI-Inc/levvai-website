@@ -1,8 +1,8 @@
 {
-  "/workers/[workerId]/engagements/onboarding/workspace/page": "app/workers/[workerId]/engagements/onboarding/workspace/page.js",
   "/page": "app/page.js",
+  "/workers/[workerId]/engagements/onboarding/workspace/page": "app/workers/[workerId]/engagements/onboarding/workspace/page.js",
   "/admin/compliance/policies/[policyID]/page": "app/admin/compliance/policies/[policyID]/page.js",
-  "/admin/users/page": "app/admin/users/page.js",
   "/admin/page": "app/admin/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
   "/admin/workers/requirements/page": "app/admin/workers/requirements/page.js"
 }

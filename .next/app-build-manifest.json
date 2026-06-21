@@ -1,30 +1,45 @@
 {
   "pages": {
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
+    ],
     "/requests/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/requests/layout.js"
+    ],
+    "/requests/new/[intent]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/requests/new/[intent]/page.js"
     ],
     "/requests/new/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/requests/new/layout.js"
     ],
-    "/requests/new/[intent]/page": [
+    "/requests/sow/create/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/[intent]/page.js"
+      "static/chunks/app/requests/sow/create/page.js"
+    ],
+    "/requests/sow/create/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/requests/sow/create/layout.js"
+    ],
+    "/requests/sow/create/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/requests/sow/create/loading.js"
     ],
     "/requests/new/job/layout": [
       "static/chunks/webpack.js",
@@ -41,10 +56,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/requests/new/job/create/define/page.js"
     ],
-    "/requests/new/job/create/financials/page": [
+    "/cw/work-orders/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/job/create/financials/page.js"
+      "static/chunks/app/cw/work-orders/page.js"
+    ],
+    "/workers/[workerId]/engagements/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/workers/[workerId]/engagements/page.js"
+    ],
+    "/workers/[workerId]/engagements/onboarding/workspace/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/workers/[workerId]/engagements/onboarding/workspace/page.js"
     ],
     "/admin/page": [
       "static/chunks/webpack.js",
@@ -61,15 +86,75 @@
       "static/chunks/main-app.js",
       "static/chunks/app/admin/users/page.js"
     ],
-    "/admin/company/page": [
+    "/admin/configuration/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/company/page.js"
+      "static/chunks/app/admin/configuration/page.js"
     ],
-    "/services/sow/page": [
+    "/admin/workers/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/services/sow/page.js"
+      "static/chunks/app/admin/workers/page.js"
+    ],
+    "/admin/workers/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/workers/layout.js"
+    ],
+    "/admin/workers/onboarding/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/workers/onboarding/page.js"
+    ],
+    "/admin/compliance/policies/[policyID]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/compliance/policies/[policyID]/page.js"
+    ],
+    "/admin/workers/requirements/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/workers/requirements/page.js"
+    ],
+    "/admin/workers/offboarding/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/workers/offboarding/page.js"
+    ],
+    "/admin/tenant-docs/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/tenant-docs/page.js"
+    ],
+    "/admin/financial/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/financial/page.js"
+    ],
+    "/admin/rates/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/rates/page.js"
+    ],
+    "/admin/rates/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/rates/layout.js"
+    ],
+    "/admin/suppliers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/suppliers/page.js"
+    ],
+    "/workers/workers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/workers/workers/page.js"
+    ],
+    "/workers/digital-workers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/workers/digital-workers/page.js"
     ]
   }
 }

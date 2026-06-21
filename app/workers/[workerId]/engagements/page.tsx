@@ -31,7 +31,7 @@ const onboardingRows = [
     role: 'Senior React Developer',
     supplier: 'TEKsystems',
     startDate: 'Sep 23, 2026',
-    readiness: 14,
+    readiness: 50,
     status: 'In Progress',
     pendingWith: 'IT',
     currentBlockerTask: 'Hardware Provisioning',
