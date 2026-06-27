@@ -38,6 +38,7 @@ const ADMIN_NAV = [
   { label: 'Financial', href: '/admin/financial' },
   { label: 'Rates', href: '/admin/rates' }, // ← ADDED
   { label: 'Suppliers', href: '/admin/suppliers' },
+  { label: 'Workers', href: '/admin/workers' },
   { label: 'Integrations', href: '/admin/integrations' },
   { label: 'Configuration', href: '/admin/configuration' },
 ]

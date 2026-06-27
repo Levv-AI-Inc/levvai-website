@@ -12,6 +12,9 @@ import AddCostCenterModal, {
 import AddLegalEntityModal, {
   type AddLegalEntityFormValues,
 } from './components/AddLegalEntityModal'
+import AddLocationModal, {
+  type AddLocationFormValues,
+} from './components/AddLocationModal'
 import AddSiteModal, {
   type AddSiteFormValues,
 } from './components/AddSiteModal'
@@ -21,6 +24,7 @@ import CompanyTabs from './components/CompanyTabs'
 import WorksiteActionsDropdown from './components/WorksiteActionsDropdown'
 import { getTableConfig } from './config'
 import { TABS, type RowStatus, type Tab } from './types'
+import { Pencil, Trash2 } from 'lucide-react'
 import {
   BusinessUnitsApiError,
   createBusinessUnit,
@@ -42,6 +46,17 @@ import {
   type LegalEntityCreatePayload,
   type LegalEntityRecord,
 } from '@/lib/api/legalEntities'
+import {
+  createLocation,
+  deleteLocation,
+  getLocations,
+  LocationsApiError,
+  type LocationCreatePayload,
+  type LocationRecord,
+  type LocationStatus,
+  type LocationUpdatePayload,
+  updateLocation,
+} from '@/lib/api/locations'
 import {
   createSite,
   getSites,
@@ -71,6 +86,17 @@ function mapCostCentersToRows(rows: CostCenterRecord[]) {
       : center.name,
     erpId: center.erp_code || '-',
     status: toRowStatus(center.status),
+  }))
+}
+
+function mapLocationsToRows(rows: LocationRecord[]) {
+  return rows.map((location) => ({
+    id: location.id,
+    location: location.name,
+    country: location.country || '-',
+    region: location.region || '-',
+    status: toRowStatus(location.status),
+    locationRecord: location,
   }))
 }
 
@@ -157,6 +183,42 @@ function toCreateLegalEntityPayload(
   }
 }
 
+function toLocationStatus(value: string): LocationStatus {
+  return value.trim().toLowerCase() === 'inactive' ? 'inactive' : 'active'
+}
+
+function isLocationStatus(value: string): value is LocationStatus {
+  return value === 'active' || value === 'inactive'
+}
+
+function toLocationPayload(
+  values: AddLocationFormValues,
+): LocationCreatePayload {
+  return {
+    name: values.name.trim(),
+    country: values.country.trim(),
+    region: values.region.trim(),
+    status: toLocationStatus(values.status),
+  }
+}
+
+function toLocationUpdatePayload(
+  values: AddLocationFormValues,
+): LocationUpdatePayload {
+  return toLocationPayload(values)
+}
+
+function toLocationFormValues(
+  location: LocationRecord,
+): AddLocationFormValues {
+  return {
+    name: location.name || '',
+    country: location.country || '',
+    region: location.region || '',
+    status: location.status || 'active',
+  }
+}
+
 function toCreateSitePayload(values: AddSiteFormValues): SiteCreatePayload {
   const taxConfig = {
     vat: values.taxVat.trim() || undefined,
@@ -239,6 +301,10 @@ export default function CompanyPage() {
   const [costCentersLoading, setCostCentersLoading] = useState(false)
   const [costCentersError, setCostCentersError] = useState('')
   const [costCentersLoaded, setCostCentersLoaded] = useState(false)
+  const [locations, setLocations] = useState<LocationRecord[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+  const [locationsError, setLocationsError] = useState('')
+  const [locationsLoaded, setLocationsLoaded] = useState(false)
   const [sites, setSites] = useState<SiteRecord[]>([])
   const [sitesLoading, setSitesLoading] = useState(false)
   const [sitesError, setSitesError] = useState('')
@@ -255,6 +321,14 @@ export default function CompanyPage() {
   const [showAddCostCenterModal, setShowAddCostCenterModal] = useState(false)
   const [creatingCostCenter, setCreatingCostCenter] = useState(false)
   const [addCostCenterError, setAddCostCenterError] = useState('')
+  const [showAddLocationModal, setShowAddLocationModal] = useState(false)
+  const [creatingLocation, setCreatingLocation] = useState(false)
+  const [addLocationError, setAddLocationError] = useState('')
+  const [editingLocation, setEditingLocation] =
+    useState<LocationRecord | null>(null)
+  const [deletingLocationId, setDeletingLocationId] = useState<number | null>(
+    null,
+  )
   const [showAddSiteModal, setShowAddSiteModal] = useState(false)
   const [creatingSite, setCreatingSite] = useState(false)
   const [addSiteError, setAddSiteError] = useState('')
@@ -337,6 +411,41 @@ export default function CompanyPage() {
   useEffect(() => {
     void refreshCostCenters()
   }, [refreshCostCenters])
+
+  const refreshLocations = useCallback(async () => {
+    setLocationsLoading(true)
+    setLocationsError('')
+
+    try {
+      const rows = await getLocations()
+      setLocations(rows)
+      setLocationsLoaded(true)
+    } catch (error) {
+      setLocationsLoaded(true)
+
+      if (error instanceof LocationsApiError && error.status === 401) {
+        router.replace('/auth/login?next=/admin/company')
+        return
+      }
+
+      if (error instanceof LocationsApiError && error.status === 403) {
+        setLocationsError('You do not have permission to view locations.')
+        return
+      }
+
+      setLocationsError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load locations.',
+      )
+    } finally {
+      setLocationsLoading(false)
+    }
+  }, [router])
+
+  useEffect(() => {
+    void refreshLocations()
+  }, [refreshLocations])
 
   const refreshSites = useCallback(async () => {
     setSitesLoading(true)
@@ -434,6 +543,20 @@ export default function CompanyPage() {
       }
     }
 
+    if (activeTab === 'Locations') {
+      if (!locationsLoaded || locationsError) {
+        return {
+          ...base,
+          rows: [],
+        }
+      }
+
+      return {
+        ...base,
+        rows: mapLocationsToRows(locations),
+      }
+    }
+
     if (activeTab === 'Worksites') {
       if (!sitesLoaded || sitesError) return base
 
@@ -461,6 +584,9 @@ export default function CompanyPage() {
     costCenters,
     costCentersError,
     costCentersLoaded,
+    locations,
+    locationsError,
+    locationsLoaded,
     legalEntities,
     legalEntitiesError,
     legalEntitiesLoaded,
@@ -479,6 +605,13 @@ export default function CompanyPage() {
     if (activeTab === 'Cost Centers') {
       setAddCostCenterError('')
       setShowAddCostCenterModal(true)
+      return
+    }
+
+    if (activeTab === 'Locations') {
+      setAddLocationError('')
+      setEditingLocation(null)
+      setShowAddLocationModal(true)
       return
     }
 
@@ -608,6 +741,121 @@ export default function CompanyPage() {
       )
     } finally {
       setCreatingCostCenter(false)
+    }
+  }
+
+  const handleCloseLocationModal = () => {
+    if (creatingLocation) return
+    setEditingLocation(null)
+    setShowAddLocationModal(false)
+    setAddLocationError('')
+  }
+
+  const handleEditLocation = (location: LocationRecord) => {
+    setAddLocationError('')
+    setEditingLocation(location)
+    setShowAddLocationModal(true)
+  }
+
+  const handleSubmitLocation = async (values: AddLocationFormValues) => {
+    const name = values.name.trim()
+    const country = values.country.trim()
+    const region = values.region.trim()
+    const status = values.status.trim().toLowerCase()
+
+    if (!name) {
+      setAddLocationError('Location name is required.')
+      return
+    }
+    if (!country) {
+      setAddLocationError('Country is required.')
+      return
+    }
+    if (!region) {
+      setAddLocationError('Region is required.')
+      return
+    }
+    if (!isLocationStatus(status)) {
+      setAddLocationError('Status must be active or inactive.')
+      return
+    }
+
+    setCreatingLocation(true)
+    setAddLocationError('')
+
+    try {
+      if (editingLocation) {
+        await updateLocation(
+          editingLocation.id,
+          toLocationUpdatePayload(values),
+        )
+      } else {
+        await createLocation(toLocationPayload(values))
+      }
+
+      setEditingLocation(null)
+      setShowAddLocationModal(false)
+      await refreshLocations()
+    } catch (error) {
+      if (error instanceof LocationsApiError && error.status === 401) {
+        router.replace('/auth/login?next=/admin/company')
+        return
+      }
+
+      if (error instanceof LocationsApiError && error.status === 403) {
+        setAddLocationError(
+          editingLocation
+            ? 'You do not have permission to edit locations.'
+            : 'You do not have permission to add locations.',
+        )
+        return
+      }
+
+      setAddLocationError(
+        error instanceof Error
+          ? error.message
+          : editingLocation
+            ? 'Unable to update location.'
+            : 'Unable to create location.',
+      )
+    } finally {
+      setCreatingLocation(false)
+    }
+  }
+
+  const handleDeleteLocation = async (location: LocationRecord) => {
+    if (
+      !window.confirm(
+        `Delete ${location.name}? This location will be removed permanently.`,
+      )
+    ) {
+      return
+    }
+
+    setDeletingLocationId(location.id)
+    setLocationsError('')
+
+    try {
+      await deleteLocation(location.id)
+      await refreshLocations()
+    } catch (error) {
+      if (error instanceof LocationsApiError && error.status === 401) {
+        router.replace('/auth/login?next=/admin/company')
+        return
+      }
+
+      if (error instanceof LocationsApiError && error.status === 403) {
+        setLocationsError('You do not have permission to delete locations.')
+        return
+      }
+
+      setLocationsError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete location.',
+      )
+    } finally {
+      setDeletingLocationId(null)
     }
   }
 
@@ -868,6 +1116,18 @@ export default function CompanyPage() {
         </div>
       )}
 
+      {activeTab === 'Locations' && locationsLoading && (
+        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+          Loading locations...
+        </div>
+      )}
+
+      {activeTab === 'Locations' && locationsError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+          {locationsError}
+        </div>
+      )}
+
       {activeTab === 'Worksites' && sitesLoading && (
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
           Loading worksites...
@@ -896,7 +1156,39 @@ export default function CompanyPage() {
         config={config}
         onAdd={handleAddClick}
         renderActions={
-          activeTab === 'Worksites'
+          activeTab === 'Locations'
+            ? (row) =>
+                row.locationRecord ? (
+                  <div className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEditLocation(row.locationRecord as LocationRecord)
+                      }
+                      className="inline-flex items-center justify-center rounded-md p-2 transition hover:bg-gray-100"
+                      aria-label="Edit location"
+                    >
+                      <Pencil className="h-4 w-4 text-gray-600" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleDeleteLocation(
+                          row.locationRecord as LocationRecord,
+                        )
+                      }
+                      disabled={
+                        deletingLocationId ===
+                        (row.locationRecord as LocationRecord).id
+                      }
+                      className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      aria-label="Delete location"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null
+            : activeTab === 'Worksites'
             ? (row) =>
                 row.siteRecord ? (
                   <WorksiteActionsDropdown
@@ -923,6 +1215,18 @@ export default function CompanyPage() {
         businessUnits={businessUnits}
         onClose={handleCloseCostCenterModal}
         onSubmit={handleSubmitCostCenter}
+      />
+
+      <AddLocationModal
+        isOpen={showAddLocationModal}
+        isSubmitting={creatingLocation}
+        error={addLocationError}
+        mode={editingLocation ? 'edit' : 'create'}
+        initialValues={
+          editingLocation ? toLocationFormValues(editingLocation) : null
+        }
+        onClose={handleCloseLocationModal}
+        onSubmit={handleSubmitLocation}
       />
 
       <AddSiteModal
