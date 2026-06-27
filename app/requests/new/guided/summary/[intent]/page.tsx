@@ -96,7 +96,7 @@ export default function RecommendationPage() {
     } else if (recommendedPath === "SOURCE") {
       router.push("/requests/new/guided")
     } else {
-      router.push("/requests/new/job")
+      router.push("/requests/new/job/create/define")
     }
   }
 

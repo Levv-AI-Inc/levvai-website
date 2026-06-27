@@ -32,29 +32,29 @@ export default function SuppliersList({
   onDeleteSupplier,
 }: SuppliersListProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[1120px] w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-3 font-medium">Supplier ID</th>
-              <th className="px-4 py-3 font-medium">Supplier Name</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Active Workers</th>
-              <th className="px-4 py-3 font-medium">Active SOWs</th>
-              <th className="px-4 py-3 font-medium">Owner</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Risk</th>
-              <th className="px-4 py-3 font-medium">Compliance</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+        <table className="min-w-[1120px] w-full border-separate border-spacing-0 text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Supplier ID</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Supplier Name</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Type</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Category</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Workers</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">SOWs</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Owner</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Risk</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Compliance</th>
+              <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Actions</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={11} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
                   <div className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading suppliers...
@@ -63,41 +63,41 @@ export default function SuppliersList({
               </tr>
             ) : suppliers.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={11} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
                   No suppliers found.
                 </td>
               </tr>
             ) : (
               suppliers.map((supplier) => (
-                <tr key={String(toSupplierKey(supplier))} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-900">{supplier.supplier_id}</td>
-                  <td className="px-4 py-3 text-slate-800">{supplier.name}</td>
-                  <td className="px-4 py-3 text-slate-700">{toTitleCase(supplier.supplier_type)}</td>
-                  <td className="px-4 py-3 text-slate-700">{supplier.category || '-'}</td>
-                  <td className="px-4 py-3 text-slate-700">{supplier.active_workers}</td>
-                  <td className="px-4 py-3 text-slate-700">{supplier.active_sows}</td>
-                  <td className="px-4 py-3 text-slate-700">{supplier.owner_name || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('rounded-full px-2 py-1 text-xs font-medium', statusBadgeClass(supplier.status))}>
+                <tr key={String(toSupplierKey(supplier))} className="group transition-all hover:bg-cyan-50/40">
+                  <td className="px-8 py-6 font-black text-cyan-600">{supplier.supplier_id}</td>
+                  <td className="px-8 py-6 font-bold text-slate-900">{supplier.name}</td>
+                  <td className="px-8 py-6 text-slate-700">{toTitleCase(supplier.supplier_type)}</td>
+                  <td className="px-8 py-6 text-slate-700">{supplier.category || '-'}</td>
+                  <td className="px-8 py-6 text-slate-700">{supplier.active_workers}</td>
+                  <td className="px-8 py-6 text-slate-700">{supplier.active_sows}</td>
+                  <td className="px-8 py-6 text-slate-700">{supplier.owner_name || '-'}</td>
+                  <td className="px-8 py-6">
+                    <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', statusBadgeClass(supplier.status))}>
                       {toTitleCase(supplier.status || 'Unknown')}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={cn('rounded-full px-2 py-1 text-xs font-medium', riskBadgeClass(supplier.risk_level))}>
+                  <td className="px-8 py-6">
+                    <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', riskBadgeClass(supplier.risk_level))}>
                       {toTitleCase(supplier.risk_level || 'Unknown')}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-8 py-6">
                     <span
                       className={cn(
-                        'rounded-full px-2 py-1 text-xs font-medium',
+                        'rounded-full px-2.5 py-1 text-xs font-bold',
                         complianceBadgeClass(supplier.compliance_status),
                       )}
                     >
                       {toTitleCase(supplier.compliance_status || 'Unknown')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-8 py-6 text-right">
                     <SupplierRowActions
                       canManage={canManageSuppliers}
                       onEdit={() => onEditSupplier(supplier)}

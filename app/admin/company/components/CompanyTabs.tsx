@@ -10,15 +10,15 @@ export default function CompanyTabs({
   onTabChange: (tab: Tab) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-6 border-b text-sm font-medium">
+    <div className="flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm text-sm font-bold">
       {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onTabChange(tab)}
-          className={`pb-3 transition ${
+          className={`rounded-2xl px-4 py-2.5 transition ${
             activeTab === tab
-              ? 'border-b-2 border-black text-black'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-slate-950 text-white shadow-lg shadow-cyan-900/10'
+              : 'text-slate-500 hover:bg-cyan-50 hover:text-cyan-700'
           }`}
         >
           {tab}

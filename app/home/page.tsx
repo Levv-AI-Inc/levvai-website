@@ -466,7 +466,7 @@ export default function Home() {
           Create SOW
         </button>
         <button
-          onClick={() => router.push('/requests/new/job')}
+          onClick={() => router.push('/requests/new/job/create/define')}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.08)]"
         >
           <Briefcase className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />

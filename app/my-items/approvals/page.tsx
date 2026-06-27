@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle2, Clock3, Sparkles } from 'lucide-react'
 
 type ApprovalItem = {
   id: string
@@ -265,20 +266,29 @@ function decisionFallbackMessage(
 
 function Card({
   title,
+  description,
   children,
 }: {
   title: string
+  description?: string
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-6 py-5">
+        <h2 className="text-lg font-black tracking-tight text-slate-900">
           {title}
-        </h1>
+        </h2>
+        {description ? (
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            {description}
+          </p>
+        ) : null}
       </div>
+      <div className="p-6">
       {children}
-    </div>
+      </div>
+    </section>
   )
 }
 
@@ -595,13 +605,68 @@ export default function MyApprovalsPage() {
   }, [decisionModal, loadData, router])
 
   return (
-    <div className="space-y-10">
-      <Card title="My Queue">
-        <p className="text-sm text-gray-500">
-          {queueDescription}
-        </p>
+    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+              My Approvals
+            </h1>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Review approval queue, make decisions, and audit your completed
+              approvals.
+            </p>
+          </div>
+
+          <div className="group relative w-full md:w-96">
+            <div className="absolute inset-0 rounded-3xl bg-cyan-400/10 blur-xl transition-all group-hover:bg-cyan-400/20" />
+            <div className="relative flex items-center overflow-hidden rounded-2xl border border-cyan-100 bg-white p-1 shadow-sm">
+              <div className="ml-1 rounded-xl bg-slate-950 p-2.5 text-cyan-400 shadow-lg shadow-cyan-900/10">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="px-3 py-2 text-sm font-semibold text-slate-500">
+                Tenant approval workload
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Pending queue
+              </span>
+              <Clock3 className="h-5 w-5 text-cyan-500" />
+            </div>
+            <div className="mt-2 text-3xl font-black text-slate-900">
+              {pending.length}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Completed
+              </span>
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div className="mt-2 text-3xl font-black text-slate-900">
+              {history.length}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Tenant submitted
+            </span>
+            <div className="mt-2 text-3xl font-black text-slate-900">
+              {tenantPendingSubmittedCount ?? '-'}
+            </div>
+          </div>
+        </div>
+
+      <Card title="My Queue" description={queueDescription}>
         {!isApprover && !loadingQueue && !queueError && (
-          <p className="text-sm text-amber-700">
+          <p className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
             You are not marked as an approver for this tenant.
           </p>
         )}
@@ -616,10 +681,10 @@ export default function MyApprovalsPage() {
         />
       </Card>
 
-      <Card title="My Approvals">
-        <p className="text-sm text-gray-500">
-          Requests you have approved or rejected
-        </p>
+      <Card
+        title="Decision History"
+        description="Requests you have approved or rejected"
+      >
         <ApprovalTable
           data={history}
           showActions={false}
@@ -648,6 +713,7 @@ export default function MyApprovalsPage() {
           onConfirm={() => void confirmDecision()}
         />
       )}
+      </div>
     </div>
   )
 }
@@ -763,22 +829,22 @@ function ApprovalTable({
   ) => void
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-y-2 text-sm">
+        <table className="w-full border-separate border-spacing-0 text-left text-sm">
           <thead>
-            <tr className="text-left text-gray-500">
-              <th className="px-4 py-3">Request ID</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Title</th>
-              <th className="px-4 py-3">Requested By</th>
-              <th className="px-4 py-3">Supplier</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Approval Type</th>
-              <th className="px-4 py-3">
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Request ID</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Type</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Title</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Requested By</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Supplier</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Amount</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Approval Type</th>
+              <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 {showActions ? 'Submitted' : 'Decision'}
               </th>
-              <th className="px-4 py-3 text-right">
+              <th className="px-6 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 {showActions ? 'Action' : ''}
               </th>
             </tr>
@@ -789,7 +855,7 @@ function ApprovalTable({
               <tr>
                 <td
                   colSpan={9}
-                  className="px-4 py-8 text-center text-gray-500"
+                  className="px-6 py-12 text-center text-sm font-medium text-slate-500"
                 >
                   Loading...
                 </td>
@@ -800,7 +866,7 @@ function ApprovalTable({
               <tr>
                 <td
                   colSpan={9}
-                  className="px-4 py-8 text-center text-rose-600"
+                  className="px-6 py-12 text-center text-sm font-medium text-rose-600"
                 >
                   {error}
                 </td>
@@ -811,7 +877,7 @@ function ApprovalTable({
               <tr>
                 <td
                   colSpan={9}
-                  className="px-4 py-8 text-center text-gray-500"
+                  className="px-6 py-12 text-center text-sm font-medium text-slate-500"
                 >
                   {emptyMessage}
                 </td>
@@ -823,25 +889,25 @@ function ApprovalTable({
               data.map((item) => (
                 <tr
                   key={`${item.id}-${item.intakeId ?? ''}`}
-                  className="bg-gray-50 hover:bg-gray-100 transition rounded-lg"
+                  className="group transition-all hover:bg-cyan-50/40"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900 rounded-l-lg">
+                  <td className="px-6 py-5 font-bold text-slate-900">
                     {item.id}
                   </td>
-                  <td className="px-4 py-3">{item.type}</td>
-                  <td className="px-4 py-3">{item.title}</td>
-                  <td className="px-4 py-3">{item.requester}</td>
-                  <td className="px-4 py-3">{item.supplier}</td>
-                  <td className="px-4 py-3">{item.amount}</td>
-                  <td className="px-4 py-3">{item.approvalType}</td>
+                  <td className="px-6 py-5 text-slate-700">{item.type}</td>
+                  <td className="px-6 py-5 font-semibold text-slate-800">{item.title}</td>
+                  <td className="px-6 py-5 text-slate-700">{item.requester}</td>
+                  <td className="px-6 py-5 text-slate-700">{item.supplier}</td>
+                  <td className="px-6 py-5 text-slate-700">{item.amount}</td>
+                  <td className="px-6 py-5 text-slate-700">{item.approvalType}</td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-5">
                     {showActions ? (
                       item.submitted
                     ) : (
                       <div className="space-y-1">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                             item.decision === 'Approved'
                               ? 'bg-cyan-100 text-cyan-700'
                               : 'bg-red-100 text-red-700'
@@ -849,14 +915,14 @@ function ApprovalTable({
                         >
                           {item.decision}
                         </span>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-slate-500">
                           {item.decidedOn}
                         </div>
                       </div>
                     )}
                   </td>
 
-                  <td className="px-4 py-3 text-right rounded-r-lg">
+                  <td className="px-6 py-5 text-right">
                     {showActions && onDecision && (
                       <div className="flex justify-end gap-2">
                         {(() => {
@@ -888,7 +954,7 @@ function ApprovalTable({
                                     ? 'Missing intake ID'
                                     : undefined
                                 }
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                                   disabled
                                     ? 'bg-cyan-100 text-cyan-700 opacity-60 cursor-not-allowed'
                                     : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
@@ -911,7 +977,7 @@ function ApprovalTable({
                                     ? 'Missing intake ID'
                                     : undefined
                                 }
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                                   disabled
                                     ? 'bg-red-100 text-red-700 opacity-60 cursor-not-allowed'
                                     : 'bg-red-100 text-red-700 hover:bg-red-200'
