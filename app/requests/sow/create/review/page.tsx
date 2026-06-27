@@ -20,6 +20,7 @@ export default function ReviewPage() {
   const { name, vendor, startDate, endDate, rawScope } = sow
   const financials: any = sow.financials || {}
   const commercials: any = sow.commercials || {}
+  const aiAutomation = sow.aiAutomation || []
   const attachments: any[] = sow.attachments || []
 
   /* -----------------------------------------
@@ -222,6 +223,44 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
           )}
         </Section>
 
+        {/* AI AUTOMATION */}
+        <Section title="AI & Automation">
+          {aiAutomation.length ? (
+            <ul className="space-y-3 text-sm">
+              {aiAutomation.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="font-medium text-slate-900">
+                        {item.name || 'Unnamed automation'}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {item.category}
+                        {item.aiPlatform ? ` · ${item.aiPlatform}` : ''}
+                      </div>
+                    </div>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+                      {item.riskLevel || 'Unrated'} risk
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                    <div>Owner: {item.businessOwner || '—'}</div>
+                    <div>Technical: {item.technicalOwner || '—'}</div>
+                    <div>Data: {item.dataClassification || '—'}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-slate-500">
+              No AI or automation items registered.
+            </div>
+          )}
+        </Section>
+
         {/* ATTACHMENTS */}
         <Section title="Attachments">
           {attachments.length ? (
@@ -254,11 +293,11 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
         <div className="flex justify-between pt-4">
           <button
             onClick={() =>
-              router.push('/requests/sow/create/define')
+              router.push('/requests/sow/create/ai-automation')
             }
             className="text-sm text-cyan-700 border border-cyan-200 px-4 py-2 rounded-full hover:bg-cyan-50 transition"
           >
-            Edit
+            Back
           </button>
 
           <button
@@ -283,6 +322,7 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
         <StatusItem label="Description" status="complete" />
         <StatusItem label="Financials" status="complete" />
         <StatusItem label="Commercials" status="complete" />
+        <StatusItem label="AI Automation" status="complete" />
         <StatusItem label="Review" status="active" />
       </div>
     </div>
@@ -325,7 +365,7 @@ function NovaScanner({ signals }: { signals: NovaSignal[] }) {
       </div>
 
       <div className="text-xs text-slate-500 pt-2">
-        
+
       </div>
     </div>
   )

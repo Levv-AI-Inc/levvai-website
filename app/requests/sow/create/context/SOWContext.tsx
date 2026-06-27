@@ -22,6 +22,40 @@ export type ContractTerms = {
   sowStatus?: 'draft' | 'signed' | 'uploaded' | 'not_provided'
 }
 
+export type OveragePolicy = 'hard_stop' | 'escalate' | 'continue_flag'
+export type ReviewCadence = 'monthly' | 'quarterly' | 'at_renewal'
+export type CostModel =
+  | 'API Usage'
+  | 'Usage Based'
+  | 'Subscription'
+  | 'Fixed Fee'
+  | 'Included in SOW'
+
+export type AIAutomationItem = {
+  id: string
+  name: string
+  category: 'AI Agent' | 'Automation Bot' | 'AI Platform' | 'Workflow Assistant'
+  aiPlatform?: string
+  businessOwner?: string
+  technicalOwner?: string
+  purpose?: string
+  dataClassification?: 'Public' | 'Internal' | 'Confidential' | 'PII' | 'Financial Data'
+  accessScope?: string[]
+  riskLevel?: 'Low' | 'Medium' | 'High'
+  costModel?: CostModel
+  spendCap?: number
+  alertThreshold?: number
+  overpagePolicy?: OveragePolicy
+  spendApprover?: string
+  reviewCadence?: ReviewCadence
+  deploymentModel?: 'your_tenant' | 'vendor_hosted' | 'hybrid'
+  oversightLevel?: 'autonomous' | 'human_in_loop' | 'human_on_loop'
+  vendorRetainsData?: boolean
+  vendorTrainsOnData?: boolean
+  complianceScope?: string[]
+  exitPlan?: 'decommission' | 'transition_internal' | 'continue_renewal'
+}
+
 export type FinancialAllocation = {
   costCenterId: string
   costCenterName: string
@@ -76,6 +110,8 @@ export type SOWData = {
   contractTerms?: ContractTerms
   financials?: Financials
   commercials?: Commercials
+  aiGateAnswer?: 'yes' | 'no' | null
+  aiAutomation?: AIAutomationItem[]
   attachments?: SOWAttachment[]
 }
 
@@ -114,6 +150,7 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
             ...data.commercials,
           }
         : prev.commercials,
+      aiAutomation: data.aiAutomation ?? prev.aiAutomation,
     }))
   }
 

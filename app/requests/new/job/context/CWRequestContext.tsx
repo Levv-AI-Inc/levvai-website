@@ -55,7 +55,7 @@ export type CWRequest = {
      Calculated / Derived (MVP)
   -------------------------------- */
   estimatedTotal?: number
-  
+
   stRate?: number
   otRate?: number
 }

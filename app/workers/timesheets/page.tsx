@@ -1,5 +1,26 @@
-"use client"
+"use client";
 
+import React, { useState, useMemo } from "react";
+import {
+  Search,
+  Clock,
+  X,
+  ChevronRight,
+  Sparkles,
+  ChevronDown,
+  Filter,
+  Eye,
+  ArrowRight,
+  DollarSign,
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  Wallet,
+  Receipt,
+  Briefcase // Added this to fix the ReferenceError
+} from "lucide-react";
+
+// --- Data ---
 const timesheets = [
   {
     id: "TS-2024-089",
@@ -9,10 +30,11 @@ const timesheets = [
     period: "Apr 1 – Apr 7, 2024",
     hours: 40,
     rate: "$105/hr",
-    total: "$4,200",
+    total: 4200,
     submitted: "Apr 8, 2024",
     approval: "Pending",
     payroll: "Not Processed",
+    description: "Regular weekly sprint tasks and API documentation."
   },
   {
     id: "TS-2024-083",
@@ -22,10 +44,11 @@ const timesheets = [
     period: "Apr 1 – Apr 7, 2024",
     hours: 38,
     rate: "$88/hr",
-    total: "$3,344",
+    total: 3344,
     submitted: "Apr 7, 2024",
     approval: "Approved",
     payroll: "Processed",
+    description: "Stakeholder requirements gathering and UAT coordination."
   },
   {
     id: "TS-2024-074",
@@ -35,107 +58,297 @@ const timesheets = [
     period: "Mar 25 – Mar 31, 2024",
     hours: 42,
     rate: "$80/hr",
-    total: "$3,360",
+    total: 3360,
     submitted: "Apr 1, 2024",
     approval: "Rejected",
     payroll: "On Hold",
+    description: "Regression testing suite execution. (Rejected due to missing overtime authorization)."
   },
-]
+  {
+    id: "TS-2024-091",
+    worker: "Elena Rossi",
+    role: "UX Designer",
+    supplier: "Aquent",
+    period: "Apr 1 – Apr 7, 2024",
+    hours: 40,
+    rate: "$95/hr",
+    total: 3800,
+    submitted: "Apr 8, 2024",
+    approval: "Pending",
+    payroll: "Not Processed",
+    description: "Mobile app prototype refinements and user testing sessions."
+  }
+];
 
 export default function TimesheetsPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [aiInput, setAiInput] = useState("");
+
+  const statuses = ["All", "Approved", "Pending", "Rejected"];
+
+  // --- Logic: Filtering ---
+  const filteredTimesheets = useMemo(() => {
+    return timesheets.filter((ts) => {
+      const matchesSearch =
+        ts.worker.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ts.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = selectedStatus === "All" || ts.approval === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [searchTerm, selectedStatus]);
+
+  const pendingTotal = timesheets.filter(ts => ts.approval === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Timesheets
-        </h1>
-        <p className="text-sm text-gray-500">
-          Timesheet records
-        </p>
-      </div>
+    <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
+      <div className="max-w-7xl mx-auto">
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full border-separate border-spacing-y-2 text-sm">
-            <thead>
-              <tr className="text-left text-gray-500">
-                <th className="px-4 py-3">Timesheet ID</th>
-                <th className="px-4 py-3">Worker</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Supplier</th>
-                <th className="px-4 py-3">Period</th>
-                <th className="px-4 py-3">Hours</th>
-                <th className="px-4 py-3">Bill Rate</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Submitted</th>
-                <th className="px-4 py-3">Approval</th>
-                <th className="px-4 py-3">Payroll</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
+        {/* Header */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Timesheets</h1>
+            <p className="text-slate-500 font-medium mt-1">Monitor workforce utilization and approval cycles.</p>
+          </div>
 
-            <tbody>
-              {timesheets.map((ts) => (
-                <tr
-                  key={ts.id}
-                  className="bg-gray-50 hover:bg-gray-100 transition rounded-lg"
+          {/* Nova AI Command Bar - Cyan / Dark Navy Theme */}
+          <div className="relative w-full md:w-96 group">
+            <div className="absolute inset-0 bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-all rounded-3xl" />
+            <div className="relative flex items-center bg-white border border-cyan-100 rounded-2xl shadow-sm overflow-hidden p-1 focus-within:ring-2 focus-within:ring-cyan-400/30 transition-all">
+              <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
+                <Sparkles size={18} />
+              </div>
+              <input
+                type="text"
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder="Ask Nova to analyze labor costs..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold px-3 py-2 placeholder:text-slate-400"
+              />
+              <button className="pr-3 text-cyan-500 font-bold text-xs uppercase hover:text-cyan-700 transition-colors">
+                Ask
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* METRICS & FILTERS */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Accrual</span>
+            <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
+              <Wallet size={24} className="text-amber-500" />
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(pendingTotal)}
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6">
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Approval Status</label>
+              <div className="relative">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900 rounded-l-lg">
-                    {ts.id}
-                  </td>
-                  <td className="px-4 py-3">{ts.worker}</td>
-                  <td className="px-4 py-3">{ts.role}</td>
-                  <td className="px-4 py-3">{ts.supplier}</td>
-                  <td className="px-4 py-3">{ts.period}</td>
-                  <td className="px-4 py-3">{ts.hours}</td>
-                  <td className="px-4 py-3">{ts.rate}</td>
-                  <td className="px-4 py-3">{ts.total}</td>
-                  <td className="px-4 py-3">{ts.submitted}</td>
+                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
 
-                  {/* Approval Status */}
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        ts.approval === "Approved"
-                          ? "bg-green-100 text-green-700"
-                          : ts.approval === "Pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {ts.approval}
-                    </span>
-                  </td>
+            <div className="flex-1 min-w-[300px]">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Records</label>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
+                <input
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                  placeholder="ID or Worker Name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
 
-                  {/* Payroll Status */}
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        ts.payroll === "Processed"
-                          ? "bg-cyan-100 text-cyan-700"
-                          : ts.payroll === "On Hold"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {ts.payroll}
-                    </span>
-                  </td>
+            <button
+              onClick={() => {setSearchTerm(""); setSelectedStatus("All");}}
+              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
+            >
+              <X size={14} /> Reset
+            </button>
+          </div>
+        </div>
 
-                  {/* Actions */}
-                  <td className="px-4 py-3 text-right rounded-r-lg">
-                    <button className="text-gray-400 hover:text-gray-600">
-                      ⋯
-                    </button>
-                  </td>
+        {/* TIMESHEET TABLE */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-separate border-spacing-0">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200">
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Worker & Period</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Hours & Utilization</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Financials</th>
+                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Workflow Status</th>
+                  <th className="px-8 py-5"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredTimesheets.map((ts) => (
+                  <tr
+                    key={ts.id}
+                    className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
+                    onClick={() => setSelectedRecord(ts)}
+                  >
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm border border-slate-200">
+                          {ts.worker.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900 leading-tight mb-0.5">{ts.worker}</div>
+                          <div className="text-[10px] font-black text-cyan-600 uppercase tracking-tight leading-none">ID: {ts.id}</div>
+                          <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase italic tracking-tighter">{ts.period}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="text-sm font-black text-slate-900 leading-none">{ts.hours}h</div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Weekly</span>
+                        </div>
+                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                           <div className={`h-full ${ts.hours > 40 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((ts.hours / 40) * 100, 100)}%` }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="text-sm font-black text-slate-900 leading-none">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(ts.total)}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 block italic">{ts.rate}</span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="flex flex-col gap-1.5">
+                        <div className={`w-fit inline-flex items-center gap-2 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border shadow-sm bg-white ${
+                          ts.approval === 'Approved' ? 'text-emerald-700 border-emerald-100' :
+                          ts.approval === 'Pending' ? 'text-amber-700 border-amber-100' : 'text-rose-700 border-rose-100'
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${ts.approval === 'Approved' ? 'bg-emerald-500' : ts.approval === 'Pending' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                          {ts.approval}
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase pl-1 tracking-tighter leading-none">
+                          Payroll: {ts.payroll}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-100/50 px-3 py-1.5 rounded-lg flex items-center gap-2 leading-none">
+                          <Eye size={12} /> Preview
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      {/* PREVIEW DRAWER */}
+      {selectedRecord && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={() => setSelectedRecord(null)} />
+          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-slate-200 flex flex-col">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center text-cyan-400 font-black text-2xl shadow-lg shadow-cyan-900/10">
+                  {selectedRecord.worker.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{selectedRecord.worker}</h2>
+                  <p className="text-sm font-bold text-cyan-600 uppercase tracking-widest leading-none mt-1">{selectedRecord.role}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {selectedRecord.approval === "Rejected" && (
+                  <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">
+                    <AlertCircle className="text-rose-600 shrink-0" size={20} />
+                    <div>
+                        <p className="text-sm font-bold text-rose-900">Rejection Note</p>
+                        <p className="text-xs text-rose-700 font-medium">Overtime (42h) exceeds the 40h standard cap. Please attach PM authorization for the additional 2 hours.</p>
+                    </div>
+                  </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Period Total</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedRecord.total)}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Hours Logged</p>
+                  <p className="text-2xl font-black text-cyan-600">{selectedRecord.hours} <span className="text-xs text-slate-400 tracking-tighter">Hrs</span></p>
+                </div>
+              </div>
+
+              <section>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Receipt size={14}/> Weekly Activity</h3>
+                <p className="text-slate-600 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100 italic">
+                  "{selectedRecord.description}"
+                </p>
+              </section>
+
+              <section className="grid grid-cols-2 gap-6 pt-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Briefcase size={14} /> Assignment</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Supplier</p>
+                  <p className="text-sm font-bold text-slate-900 leading-none mb-3">{selectedRecord.supplier}</p>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Approving Manager</p>
+                    <p className="text-sm font-bold text-slate-900 leading-none">Alex Morgan</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Calendar size={14} /> Submission</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Date Submitted</p>
+                  <p className="text-sm font-bold text-slate-900 leading-none mb-3">{selectedRecord.submitted}</p>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Payroll cycle</p>
+                    <p className="text-sm font-bold text-emerald-600 uppercase leading-none">Bi-Weekly Q2</p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="pt-6 border-t border-slate-100">
+                <button className="w-full bg-slate-950 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-xl shadow-slate-200">
+                    Full Audit Trail <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+                {selectedRecord.approval === 'Pending' && (
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <button className="bg-emerald-600 text-white py-3 rounded-2xl font-bold text-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20">
+                      <CheckCircle2 size={14} /> Approve
+                    </button>
+                    <button className="bg-white border border-slate-200 text-rose-600 py-3 rounded-2xl font-bold text-sm hover:bg-rose-50 transition-all flex items-center justify-center gap-2">
+                      <X size={14} /> Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
-  )
+  );
 }

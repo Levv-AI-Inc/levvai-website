@@ -8,7 +8,7 @@ export default function CompliancePage() {
   return (
     <div className="space-y-6">
       <OnboardingHeader />
-      <ReadinessScore score={40} status="In Progress" />
+      <ReadinessScore score={50} status="Blocked" />
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2">

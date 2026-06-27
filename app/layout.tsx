@@ -132,6 +132,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const isStandalone =
     pathname === '/' ||
+    pathname === '/security' ||
     pathname.startsWith('/external') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/demo') ||
@@ -312,6 +313,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 icon={Briefcase}
                 items={[
                   { label: 'Workers', href: '/workers/workers' },
+                  { label: 'Digital Workers', href: '/workers/digital-workers' },
                   { label: 'Worker Lifecycle', href: '/workers/123/engagements' },
                   { label: 'Timesheets', href: '/workers/timesheets' },
                   { label: 'Expenses', href: '/workers/expenses' },

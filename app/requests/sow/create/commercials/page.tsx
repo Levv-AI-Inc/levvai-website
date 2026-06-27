@@ -154,7 +154,7 @@ export default function CommercialsPage() {
       },
     })
 
-    router.push('/requests/sow/create/review')
+    router.push('/requests/sow/create/ai-automation')
   }
 
   return (
