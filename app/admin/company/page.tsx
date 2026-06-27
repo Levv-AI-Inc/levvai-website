@@ -138,6 +138,18 @@ function toCreatePayload(
   }
 }
 
+function readUploadString(
+  row: Record<string, unknown>,
+  keys: string[],
+): string {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+  return ''
+}
+
 function toCreateCostCenterPayload(
   values: AddCostCenterFormValues,
 ): CostCenterCreatePayload {
@@ -337,6 +349,8 @@ export default function CompanyPage() {
     useState(false)
   const [creatingLegalEntity, setCreatingLegalEntity] = useState(false)
   const [addLegalEntityError, setAddLegalEntityError] = useState('')
+  const [uploadingBusinessUnits, setUploadingBusinessUnits] = useState(false)
+  const [businessUnitUploadError, setBusinessUnitUploadError] = useState('')
 
   const refreshBusinessUnits = useCallback(async () => {
     setBusinessUnitsLoading(true)
@@ -679,6 +693,107 @@ export default function CompanyPage() {
       setCreatingBusinessUnit(false)
     }
   }
+
+  const handleBusinessUnitUpload = useCallback(
+    async (rows: Record<string, unknown>[]) => {
+      if (rows.length === 0) {
+        setBusinessUnitUploadError(
+          'No business unit rows were found in the uploaded file.',
+        )
+        return
+      }
+
+      setUploadingBusinessUnits(true)
+      setBusinessUnitUploadError('')
+
+      try {
+        let createdCount = 0
+
+        for (const row of rows) {
+          const code = readUploadString(row, [
+            'code',
+            'Code',
+            'businessUnit',
+            'Business Unit',
+            'business_unit',
+          ])
+          const name =
+            readUploadString(row, [
+              'name',
+              'Name',
+              'businessUnitName',
+              'Business Unit Name',
+              'business_unit_name',
+            ]) || code
+
+          if (!code || !name) continue
+
+          const companyValue = readUploadString(row, ['company', 'Company'])
+          const parsedCompany = companyValue ? Number(companyValue) : NaN
+
+          await createBusinessUnit({
+            code,
+            name,
+            parent:
+              readUploadString(row, ['parent', 'Parent', 'parent_code']) ||
+              null,
+            description:
+              readUploadString(row, ['description', 'Description']) ||
+              undefined,
+            legal_entity_id:
+              readUploadString(row, [
+                'legalEntityId',
+                'legal_entity_id',
+                'Legal Entity ID',
+              ]) || undefined,
+            gl_account_id:
+              readUploadString(row, [
+                'glAccountId',
+                'gl_account_id',
+                'GL Account ID',
+              ]) || undefined,
+            status:
+              readUploadString(row, ['status', 'Status']) || 'active',
+            company: Number.isFinite(parsedCompany)
+              ? parsedCompany
+              : undefined,
+          })
+          createdCount += 1
+        }
+
+        if (createdCount === 0) {
+          setBusinessUnitUploadError(
+            'No valid business unit rows were found. Include at least code and name columns.',
+          )
+          return
+        }
+
+        await refreshBusinessUnits()
+        setActiveTab('Business Units')
+      } catch (error) {
+        if (error instanceof BusinessUnitsApiError && error.status === 401) {
+          router.replace('/auth/login?next=/admin/company')
+          return
+        }
+
+        if (error instanceof BusinessUnitsApiError && error.status === 403) {
+          setBusinessUnitUploadError(
+            'You do not have permission to add business units.',
+          )
+          return
+        }
+
+        setBusinessUnitUploadError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to upload business units.',
+        )
+      } finally {
+        setUploadingBusinessUnits(false)
+      }
+    },
+    [refreshBusinessUnits, router],
+  )
 
   const handleCloseCostCenterModal = () => {
     if (creatingCostCenter) return
@@ -1085,7 +1200,11 @@ export default function CompanyPage() {
     <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-8">
       <CompanyHeader />
-      <AIRulesPanel />
+      <AIRulesPanel
+        onBusinessUnitUpload={handleBusinessUnitUpload}
+        uploadingBusinessUnits={uploadingBusinessUnits}
+        businessUnitUploadError={businessUnitUploadError}
+      />
 
       <CompanyTabs
         tabs={TABS}

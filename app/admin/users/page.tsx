@@ -1,8 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Sparkles, X } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from 'react'
+import { FileSpreadsheet, Plus, Search, Sparkles, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import * as XLSX from 'xlsx'
+import { parseUser } from '@/lib/intelligence'
 import {
   BusinessUnitsApiError,
   createBusinessUnit,
@@ -201,6 +210,61 @@ function upsertUser(existing: UserRow[], incoming: UserRow): UserRow[] {
   return updated
 }
 
+function readRowString(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return String(value)
+  }
+  return ''
+}
+
+function normalizeAssistantUser(raw: unknown, source: string): UserRow {
+  const row =
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const email = readRowString(row, ['email', 'Email', 'user_email'])
+  const name =
+    readRowString(row, ['name', 'Name', 'fullName', 'full_name']) ||
+    email ||
+    'Pending user'
+  const status = normalizeStatus(
+    readRowString(row, ['status', 'Status']) || 'invited',
+  )
+  const role = normalizeRole(readRowString(row, ['role', 'Role']) || 'viewer')
+  const businessUnit = readRowString(row, [
+    'businessUnit',
+    'business_unit',
+    'Business Unit',
+    'business_unit_name',
+  ])
+  const costCenter = readRowString(row, [
+    'costCenter',
+    'cost_center',
+    'Cost Center',
+    'cost_center_code',
+  ])
+  const ssoValue = readRowString(row, ['ssoEnabled', 'sso_enabled', 'SSO'])
+
+  return {
+    membershipId: `local-${source}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`,
+    userId: '',
+    name,
+    email,
+    status,
+    role,
+    businessUnitId: businessUnit,
+    businessUnit,
+    costCenterId: costCenter,
+    costCenter,
+    costCenterName: '',
+    ssoEnabled: ssoValue.toLowerCase() === 'true' || ssoValue === '1',
+    isActive: status === 'active',
+  }
+}
+
 export default function AdminUsersPage() {
   const router = useRouter()
 
@@ -221,6 +285,11 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('')
   const [businessUnitFilter, setBusinessUnitFilter] = useState('')
   const [costCenterFilter, setCostCenterFilter] = useState('')
+  const [assistantPrompt, setAssistantPrompt] = useState('')
+  const [assistantLoading, setAssistantLoading] = useState(false)
+  const [assistantError, setAssistantError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
   const [addUserError, setAddUserError] = useState('')
@@ -694,6 +763,71 @@ export default function AdminUsersPage() {
     closeAddUserModal()
   }
 
+  const handleAssistantGenerate = async () => {
+    if (!assistantPrompt.trim()) return
+
+    setAssistantLoading(true)
+    setAssistantError('')
+
+    try {
+      const result = await parseUser(assistantPrompt)
+      if (result?.error) {
+        throw new Error(String(result.error))
+      }
+
+      setUsers((current) =>
+        upsertUser(current, normalizeAssistantUser(result, 'nova')),
+      )
+      setAssistantPrompt('')
+    } catch (requestError) {
+      setAssistantError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to parse the user update.',
+      )
+    } finally {
+      setAssistantLoading(false)
+    }
+  }
+
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadError('')
+
+    const reader = new FileReader()
+    reader.onload = (readerEvent) => {
+      try {
+        const data = readerEvent.target?.result
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
+
+        setUsers((current) =>
+          rows.reduce(
+            (acc, row) => upsertUser(acc, normalizeAssistantUser(row, 'upload')),
+            current,
+          ),
+        )
+
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      } catch (parseError) {
+        setUploadError(
+          parseError instanceof Error
+            ? parseError.message
+            : 'Unable to read the uploaded user file.',
+        )
+      }
+    }
+
+    reader.onerror = () => {
+      setUploadError('Unable to read the uploaded user file.')
+    }
+
+    reader.readAsArrayBuffer(file)
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -719,6 +853,77 @@ export default function AdminUsersPage() {
             <Plus className="h-4 w-4" />
             Add User
           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="rounded-xl bg-slate-950 p-2 text-cyan-400">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                AI Assistant
+              </h2>
+              <p className="text-xs font-medium text-slate-500">
+                Describe a user update and Nova will stage it in the table.
+              </p>
+            </div>
+          </div>
+          <textarea
+            value={assistantPrompt}
+            onChange={(event) => setAssistantPrompt(event.target.value)}
+            className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            rows={3}
+            placeholder="Make Amy Schneider inactive and move her to Procurement"
+          />
+          {assistantError ? (
+            <p className="mt-2 text-xs font-medium text-rose-600">
+              {assistantError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void handleAssistantGenerate()}
+            disabled={assistantLoading || !assistantPrompt.trim()}
+            className="mt-3 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {assistantLoading ? 'Generating...' : 'Update via AI'}
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center shadow-sm">
+          <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
+            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+          </div>
+          <h2 className="text-sm font-black text-slate-900">
+            Mass User Upload
+          </h2>
+          <p className="mt-1 max-w-sm text-xs font-medium text-slate-500">
+            Upload an .xlsx, .xls, or .csv file with columns like name, email,
+            role, status, businessUnit, costCenter, and ssoEnabled.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
+            <Upload className="h-4 w-4" />
+            Select Excel File
+          </button>
+          {uploadError ? (
+            <p className="mt-2 text-xs font-medium text-rose-600">
+              {uploadError}
+            </p>
+          ) : null}
         </div>
       </div>
 
