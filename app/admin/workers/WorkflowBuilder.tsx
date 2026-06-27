@@ -147,6 +147,10 @@ function workflowTypeToApi(workflowType: WorkflowTypeLabel): ApiWorkflowType {
   return workflowType === 'Onboarding' ? 'onboarding' : 'offboarding'
 }
 
+function workflowListHref(workflowType: WorkflowTypeLabel) {
+  return `/admin/workers/${workflowTypeToApi(workflowType)}`
+}
+
 function randomId(prefix: string) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return `${prefix}-${crypto.randomUUID()}`
@@ -453,6 +457,7 @@ export default function WorkflowBuilder({
 }) {
   const router = useRouter()
   const apiWorkflowType = workflowTypeToApi(workflowType)
+  const listHref = workflowListHref(workflowType)
   const [scope, setScope] = useState<ScopeState>({
     name: '',
     workerType: 'contingent',
@@ -826,7 +831,7 @@ export default function WorkflowBuilder({
       setWorkflowStatus(savedWorkflow.status)
       setServerHealth(savedWorkflow.health)
       setSaveSuccess(true)
-      window.setTimeout(() => router.push('/admin/workers'), 600)
+      window.setTimeout(() => router.push(listHref), 600)
     } catch (error) {
       setSaveError(toErrorMessage(error, 'Failed to save workflow.'))
     } finally {
@@ -839,7 +844,7 @@ export default function WorkflowBuilder({
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-7 backdrop-blur">
         <div className="flex items-center gap-3">
           <Link
-            href="/admin/workers"
+            href={listHref}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-cyan-50 hover:text-cyan-700"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
