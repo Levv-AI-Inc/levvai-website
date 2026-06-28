@@ -16,6 +16,11 @@ export default function WorkersLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const showTabs = TABS.some((tab) => pathname === tab.href)
+
+  if (!showTabs) {
+    return <>{children}</>
+  }
 
   return (
     <div className="space-y-6">
