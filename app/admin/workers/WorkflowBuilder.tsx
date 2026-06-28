@@ -2833,6 +2833,22 @@ function WorkflowBuilderStyles() {
       .conn-arrow-ui.hard{border-top:6px solid #f87171;}
       .conn-arrow-ui.soft{border-top:6px solid #f59e0b;}
       .conn-arrow-ui.exit{border-top:6px solid #9ca3af;}
+      .pv-wrap{position:relative;min-width:max-content;overflow:visible;padding-bottom:2px;}
+      .pv-svg{display:block;overflow:visible;}
+      .pv-edge{fill:none;stroke:var(--pv-edge,#97a6c5);stroke-width:1.7;opacity:.98;}
+      .pv-edge.soft{stroke-dasharray:5 5;stroke:var(--pv-edge-soft,#b3c2da);}
+      .pv-term{font-size:10px;font-weight:500;fill:#94a3b8;letter-spacing:.01em;}
+      .pv-node{width:206px;height:60px;box-sizing:border-box;padding:9px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;display:flex;flex-direction:column;justify-content:center;gap:3px;box-shadow:0 1px 2px rgba(15,23,42,.06);}
+      .pv-node.hard{border-left:4px solid #dc2626;}
+      .pv-node.soft{border-left:4px solid #b45309;}
+      .pv-node.sys{background:#0f172a;border-color:#1e293b;border-left:4px solid #0e7490;color:#e2e8f0;box-shadow:0 1px 2px rgba(15,23,42,.2);}
+      .pv-node-name{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;font-weight:600;color:inherit;}
+      .pv-node-sub{display:flex;align-items:center;gap:6px;min-width:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#94a3b8;}
+      .pv-node.sys .pv-node-sub{color:#94a3b8;}
+      .pv-node-chiprow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+      .pv-node-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:2px 8px;border-radius:999px;border:1px solid #e5e7eb;background:#f3f4f6;font-size:9.5px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .pv-node.sys .pv-node-chip{border-color:#334155;background:#111827;color:#cbd5e1;}
+      .pv-node-chip .bx-ava{width:14px;height:14px;font-size:6px;}
       .m-block{border:1px solid #e5e7eb;border-radius:16px;background:#fff;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);overflow:hidden;position:relative;}
       .m-block:hover{border-color:rgba(0,122,138,.3);box-shadow:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);transform:translateY(-1px);}
       .m-block.sel{border-color:#007a8a;box-shadow:0 0 0 3px rgba(0,122,138,.14),0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px);}
@@ -2912,6 +2928,85 @@ function ProcessView({
   onModeChange: (mode: BuilderMode) => void
 }) {
   const isOffboarding = mode === 'offboarding'
+  const ordered = isOffboarding ? [...blocks].reverse() : blocks
+  const ids = ordered.map((block) => block.pipelineId)
+  const byId = new Map(ordered.map((block) => [block.pipelineId, block]))
+
+  const layers: string[][] = []
+  let currentLayer: string[] = []
+  for (const block of ordered) {
+    currentLayer.push(block.pipelineId)
+    if (block.gate === 'hard') {
+      layers.push(currentLayer)
+      currentLayer = []
+    }
+  }
+  if (currentLayer.length) layers.push(currentLayer)
+
+  if (layers.length === 0 && ids.length) layers.push(ids)
+
+  const barrierOf = (layer: string[]) => {
+    for (let index = layer.length - 1; index >= 0; index -= 1) {
+      if (byId.get(layer[index])?.gate === 'hard') return layer[index]
+    }
+    return layer[layer.length - 1]
+  }
+
+  type ProcessLink = { from: string; to: string; soft?: boolean }
+  const links: ProcessLink[] = []
+
+  layers.forEach((layer, index) => {
+    const next = layers[index + 1]
+    if (!next) return
+
+    const barrier = barrierOf(layer)
+    const nextBarrier = barrierOf(next)
+
+    next.forEach((target) => {
+      links.push({ from: barrier, to: target })
+    })
+
+    layer.forEach((source) => {
+      if (source !== barrier) {
+        links.push({ from: source, to: nextBarrier, soft: true })
+      }
+    })
+  })
+
+  const hasIn = new Set(links.map((link) => link.to))
+  const hasOut = new Set(links.map((link) => link.from))
+  const sources = ids.filter((id) => !hasIn.has(id))
+  const sinks = ids.filter((id) => !hasOut.has(id))
+
+  const NW = 206
+  const NH = 60
+  const HG = 78
+  const VG = 22
+  const MX = 84
+  const MY = 40
+
+  const maxRows = Math.max(1, ...layers.map((layer) => layer.length))
+  const pos = new Map<string, { x: number; y: number }>()
+  layers.forEach((layer, layerIndex) => {
+    const colTop = MY + ((maxRows - layer.length) * (NH + VG)) / 2
+    layer.forEach((id, rowIndex) => {
+      pos.set(id, {
+        x: MX + layerIndex * (NW + HG),
+        y: colTop + rowIndex * (NH + VG),
+      })
+    })
+  })
+
+  const contentRight = MX + layers.length * (NW + HG)
+  const W = contentRight + MX
+  const H = MY + maxRows * (NH + VG) + MY
+  const midY = H / 2
+  const startX = 30
+  const endX = contentRight + 6
+  const ep = (x1: number, y1: number, x2: number, y2: number) => {
+    const mx = (x1 + x2) / 2
+    return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`
+  }
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -2943,146 +3038,156 @@ function ProcessView({
         </div>
       ) : (
         <div className="overflow-x-auto px-4 py-5">
-          <div className="flex min-w-max items-center gap-4">
-            <ProcessEndpoint label={isOffboarding ? 'Exit' : 'Start'} />
-            {blocks.map((block, index) => (
-              <div key={block.pipelineId} className="flex items-center gap-4">
-                <ProcessNode block={block} mode={mode} />
-                {index < blocks.length - 1 && (
-                  <div
-                    className={
-                      block.gate === 'hard'
-                        ? 'h-px w-12 bg-red-300'
-                        : 'h-px w-12 border-t border-dashed border-amber-400'
-                    }
+          <div className="pv-wrap">
+            <svg className="pv-svg" viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
+              <defs>
+                <marker id="pv-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="4" orient="auto">
+                  <path d="M0,0 L7,4 L0,8" fill="none" stroke="#97a6c5" strokeWidth="1.4" />
+                </marker>
+              </defs>
+
+              {sources.map((id) => {
+                const point = pos.get(id)!
+                return (
+                  <path
+                    key={`start-${id}`}
+                    d={ep(startX + 9, midY, point.x, point.y + NH / 2)}
+                    className="pv-edge"
+                    markerEnd="url(#pv-arrow)"
                   />
-                )}
-              </div>
-            ))}
-            <ProcessEndpoint label={isOffboarding ? 'Offboarded' : 'Active'} hollow />
+                )
+              })}
+
+              {links.map((link, index) => {
+                const from = pos.get(link.from)!
+                const to = pos.get(link.to)!
+                return (
+                  <path
+                    key={`link-${index}`}
+                    d={ep(from.x + NW, from.y + NH / 2, to.x, to.y + NH / 2)}
+                    className={`pv-edge ${link.soft ? 'soft' : ''}`}
+                    markerEnd="url(#pv-arrow)"
+                  />
+                )
+              })}
+
+              {sinks.map((id) => {
+                const point = pos.get(id)!
+                return (
+                  <path
+                    key={`end-${id}`}
+                    d={ep(point.x + NW, point.y + NH / 2, endX, midY)}
+                    className="pv-edge"
+                    markerEnd="url(#pv-arrow)"
+                  />
+                )
+              })}
+
+              <circle cx={startX} cy={midY} r="9" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+              <text x={startX} y={midY + 24} textAnchor="middle" className="pv-term">
+                {isOffboarding ? 'Exit' : 'Start'}
+              </text>
+
+              <circle
+                cx={endX}
+                cy={midY}
+                r="9"
+                fill="none"
+                stroke={isOffboarding ? '#0a0a0a' : '#007a8a'}
+                strokeWidth="2"
+              />
+              <circle cx={endX} cy={midY} r="3.5" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+              <text x={endX} y={midY + 24} textAnchor="middle" className="pv-term">
+                {isOffboarding ? 'Offboarded' : 'Active'}
+              </text>
+
+              {ids.map((id) => {
+                const block = byId.get(id)!
+                const point = pos.get(id)!
+                return (
+                  <foreignObject key={id} x={point.x} y={point.y} width={NW} height={NH}>
+                    <div
+                      className={`pv-node ${
+                        block.type === 'system'
+                          ? 'sys'
+                          : block.gate === 'hard'
+                            ? 'hard'
+                            : 'soft'
+                      } ${isOffboarding ? 'exit' : ''}`}
+                    >
+                      <div className="pv-node-name">
+                        {block.type === 'system' ? (
+                          isOffboarding ? (
+                            <RotateCcw className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                          ) : (
+                            <Cog className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                          )
+                        ) : null}
+                        <span className="min-w-0 truncate">{block.name}</span>
+                      </div>
+                      <div className="pv-node-sub">
+                        {block.type === 'system' ? (
+                          <>
+                            <span>
+                              {isOffboarding
+                                ? block.systemUnwind?.action ?? 'reverse'
+                                : integrationMeta(block.systemIntegration)?.label ?? 'System'}
+                            </span>
+                            <span>·</span>
+                            <span>
+                              {isOffboarding
+                                ? 'system reversal'
+                                : block.push && block.pull
+                                  ? 'push · pull'
+                                  : block.push
+                                    ? 'push'
+                                    : 'pull'}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span>
+                              {block.requirements.length}{' '}
+                              {isOffboarding ? 'unwind' : 'req'}
+                              {block.requirements.length === 1 ? '' : 's'}
+                            </span>
+                            <span>·</span>
+                            <span>
+                              {block.gate === 'hard'
+                                ? 'hard gate'
+                                : 'soft gate · parallel'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {!block.accountableOwner && block.type !== 'system' ? null : (
+                        <div className="pv-node-chiprow">
+                          <span className="pv-node-chip">
+                            <PeopleStack
+                              names={
+                                block.accountableOwner
+                                  ? resolvePeople(block.accountableOwner).map((person) => person.name)
+                                  : []
+                              }
+                              max={2}
+                            />
+                            <span>
+                              {block.accountableOwner
+                                ? roleLabel(block.accountableOwner)
+                                : 'System'}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </foreignObject>
+                )
+              })}
+            </svg>
           </div>
         </div>
       )}
     </section>
-  )
-}
-
-function ProcessEndpoint({
-  label,
-  hollow = false,
-}: {
-  label: string
-  hollow?: boolean
-}) {
-  return (
-    <div className="flex min-w-20 flex-col items-center gap-2">
-      <div
-        className={
-          hollow
-            ? 'h-5 w-5 rounded-full border-2 border-cyan-700 bg-white shadow-[inset_0_0_0_4px_white] ring-4 ring-cyan-50'
-            : 'h-5 w-5 rounded-full bg-cyan-700 ring-4 ring-cyan-50'
-        }
-      />
-      <span className="font-mono text-[10px] font-medium text-slate-400">
-        {label}
-      </span>
-    </div>
-  )
-}
-
-function ProcessNode({
-  block,
-  mode,
-}: {
-  block: PipelineBlock
-  mode: BuilderMode
-}) {
-  const isSystem = block.type === 'system'
-  const isOffboarding = mode === 'offboarding'
-  const systemMeta = integrationMeta(block.systemIntegration)
-  const approverName = block.accountableOwner ? roleLabel(block.accountableOwner) : ''
-  const approverPeople = block.accountableOwner
-    ? resolvePeople(block.accountableOwner)
-    : []
-
-  return (
-    <div
-      className={
-        isSystem
-          ? 'w-56 rounded-xl border border-slate-800 bg-slate-950 p-3 text-slate-100 shadow-sm'
-          : block.gate === 'hard'
-            ? 'w-56 rounded-xl border border-slate-200 border-l-4 border-l-red-600 bg-white p-3 shadow-sm'
-            : 'w-56 rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-3 shadow-sm'
-      }
-    >
-      <div
-        className={
-          isSystem
-            ? 'flex items-start gap-2 truncate text-xs font-semibold text-slate-100'
-            : 'flex items-start gap-2 truncate text-xs font-semibold text-slate-950'
-        }
-      >
-        {isSystem ? (
-          isOffboarding ? (
-            <RotateCcw className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" />
-          ) : (
-            <Cog className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" />
-          )
-        ) : null}
-        <span className="min-w-0 truncate">{block.name}</span>
-      </div>
-
-      <div className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-slate-400">
-        {isSystem ? (
-          <>
-            <span>
-              {isOffboarding
-                ? block.systemUnwind?.action ?? 'reverse'
-                : systemMeta?.label ?? 'System'}
-            </span>
-            <span>·</span>
-            <span>
-              {isOffboarding
-                ? 'system reversal'
-                : block.push && block.pull
-                  ? 'push · pull'
-                  : block.push
-                    ? 'push'
-                    : 'pull'}
-            </span>
-          </>
-        ) : (
-          <>
-            <span>
-              {block.requirements.length}{' '}
-              {isOffboarding ? 'unwind' : 'req'}
-              {block.requirements.length === 1 ? '' : 's'}
-            </span>
-            <span>·</span>
-            <span>{block.gate === 'hard' ? 'hard gate' : 'soft gate'}</span>
-          </>
-        )}
-      </div>
-
-      {!isSystem && approverName && (
-        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-600">
-          <PeopleStack names={approverPeople.map((person) => person.name)} max={2} />
-          <span>{approverName}</span>
-        </div>
-      )}
-
-      {isSystem && !isOffboarding && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          <span className="s-chip ok">
-            <Plug className="h-3 w-3" />
-            {systemMeta?.label ?? 'API Call'}
-          </span>
-          {block.reconcile && (
-            <span className="s-chip ok">reconcile</span>
-          )}
-        </div>
-      )}
-    </div>
   )
 }
 
