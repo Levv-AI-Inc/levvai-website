@@ -34,6 +34,12 @@ import {
   Zap,
 } from 'lucide-react'
 import {
+  HUMAN_APPROVERS,
+  resolvePeople,
+  roleLabel,
+  type ApproverGroup,
+} from './requirements/requirementsStore'
+import {
   createComplianceWorkflow,
   getComplianceWorkflow,
   getComplianceWorkflowLookups,
@@ -60,6 +66,14 @@ type WorkflowTypeLabel = 'Onboarding' | 'Offboarding'
 type WorkerType = PolicyScope['worker_type']
 type BuilderMode = 'onboarding' | 'offboarding'
 type BuilderView = 'build' | 'process'
+type CompletionRule = 'ALL' | 'ANY' | 'N_OF'
+type SystemIntegrationKey = 'WORKDAY' | 'SERVICENOW' | 'SAP_FG' | 'ORACLE'
+
+type SystemUnwind = {
+  action: string
+  mode: 'automated' | 'manual'
+  reconcile?: boolean
+}
 
 type Requirement = {
   id: string
@@ -75,6 +89,16 @@ type LibraryBlock = {
   requirements: Requirement[]
   integrationType?: IntegrationType | ''
   config?: Record<string, unknown>
+  accountableOwner?: ApproverGroup
+  completionRule?: CompletionRule
+  completionN?: number
+  push?: boolean
+  pull?: boolean
+  reads?: string[]
+  writes?: string[]
+  reconcile?: boolean
+  systemIntegration?: SystemIntegrationKey
+  systemUnwind?: SystemUnwind
 }
 
 type PipelineBlock = LibraryBlock & {
@@ -108,6 +132,8 @@ const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
     name: 'Identity & Eligibility',
     type: 'requirement',
     gate: 'hard',
+    accountableOwner: 'HR',
+    completionRule: 'ALL',
     requirements: [
       { id: 'photo-id', name: 'Photo ID', owner: 'worker' },
       { id: 'rtw', name: 'Right to Work (I-9 / Visa)', owner: 'worker' },
@@ -118,6 +144,8 @@ const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
     name: 'Legal & Compliance',
     type: 'requirement',
     gate: 'hard',
+    accountableOwner: 'LEGAL',
+    completionRule: 'ALL',
     requirements: [
       { id: 'nda', name: 'Non-Disclosure Agreement', owner: 'worker' },
       { id: 'bg-check', name: 'Background Screening', owner: 'worker' },
@@ -128,6 +156,8 @@ const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
     name: 'Vendor Insurance',
     type: 'requirement',
     gate: 'soft',
+    accountableOwner: 'PROCUREMENT',
+    completionRule: 'ALL',
     requirements: [
       { id: 'coi', name: 'Certificate of Insurance (COI)', owner: 'supplier' },
     ],
@@ -139,6 +169,17 @@ const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
     gate: 'hard',
     requirements: [],
     integrationType: 'api_call',
+    systemIntegration: 'WORKDAY',
+    push: true,
+    pull: true,
+    reads: defaultReads(),
+    writes: defaultWrites(),
+    reconcile: true,
+    systemUnwind: {
+      action: 'Deactivate worker record',
+      mode: 'automated',
+      reconcile: true,
+    },
     config: {
       endpoint_key: 'workday_provisioning',
     },
@@ -305,6 +346,229 @@ function AvatarStack({ labels, max = 2 }: { labels: string[]; max?: number }) {
         <span className="bx-ava bx-ava-more">+{labels.length - max}</span>
       )}
     </span>
+  )
+}
+
+const LEVV_FIELDS = [
+  'Legal name',
+  'Work email',
+  'Start date',
+  'End date',
+  'Worker type',
+  'Job title',
+  'Manager',
+  'Cost center',
+  'Work location',
+  'SOW ID',
+  'Supplier',
+]
+
+const RETURN_FIELDS = ['Account ID', 'Status', 'External ID', 'Created date']
+
+const INTEGRATIONS: {
+  key: SystemIntegrationKey
+  label: string
+  blurb: string
+  push: boolean
+  pull: boolean
+  reverseAction?: string
+}[] = [
+  {
+    key: 'WORKDAY',
+    label: 'Workday',
+    blurb: 'HR record & system access',
+    push: true,
+    pull: true,
+    reverseAction: 'Deactivate worker record',
+  },
+  {
+    key: 'SERVICENOW',
+    label: 'ServiceNow',
+    blurb: 'Laptop / asset request',
+    push: true,
+    pull: true,
+    reverseAction: 'Open asset return ticket',
+  },
+  {
+    key: 'SAP_FG',
+    label: 'SAP Fieldglass',
+    blurb: 'Contingent worker record',
+    push: true,
+    pull: true,
+    reverseAction: 'Close worker assignment',
+  },
+  {
+    key: 'ORACLE',
+    label: 'Oracle',
+    blurb: 'HCM / ERP record',
+    push: true,
+    pull: true,
+    reverseAction: 'Deactivate HCM record',
+  },
+]
+
+function integrationMeta(key?: SystemIntegrationKey) {
+  return INTEGRATIONS.find((integration) => integration.key === key)
+}
+
+function defaultReads() {
+  return ['Legal name', 'Work email', 'Start date', 'Manager']
+}
+
+function defaultWrites() {
+  return ['Account ID', 'Status']
+}
+
+function systemReversalFor(
+  meta: ReturnType<typeof integrationMeta>,
+  push: boolean,
+): SystemUnwind | undefined {
+  if (!push || !meta?.reverseAction) return undefined
+  return {
+    action: meta.reverseAction,
+    mode: 'automated',
+    reconcile: true,
+  }
+}
+
+function completionLabel(
+  rule: CompletionRule,
+  n: number | undefined,
+  requiredTotal: number,
+) {
+  if (rule === 'ANY') return 'ANY one'
+  if (rule === 'N_OF') return `${n ?? 1} of ${requiredTotal}`
+  return null
+}
+
+function suggestedAccountable(requirements: Requirement[]): ApproverGroup {
+  const counts: Partial<Record<ApproverGroup, number>> = {}
+  for (const requirement of requirements) {
+    switch (requirement.owner) {
+      case 'it':
+        counts.IT = (counts.IT ?? 0) + 1
+        break
+      case 'supplier':
+        counts.PROCUREMENT = (counts.PROCUREMENT ?? 0) + 1
+        break
+      case 'hiring_manager':
+        counts.HR = (counts.HR ?? 0) + 1
+        break
+      case 'worker':
+        counts.HR = (counts.HR ?? 0) + 1
+        break
+      case 'system':
+        counts.IT = (counts.IT ?? 0) + 1
+        break
+    }
+  }
+
+  const top = (Object.entries(counts) as [ApproverGroup, number][])
+    .sort((a, b) => b[1] - a[1])[0]
+  return top?.[0] ?? 'HR'
+}
+
+function roleInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+function roleAvatarColor(name: string) {
+  let hash = 0
+  for (const character of name) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
+
+function PeopleStack({ names, max = 2 }: { names: string[]; max?: number }) {
+  const shown = names.slice(0, max)
+  return (
+    <span className="bx-ava-stack">
+      {shown.map((name) => (
+        <span
+          key={name}
+          className="bx-ava"
+          title={name}
+          style={{ background: roleAvatarColor(name) }}
+        >
+          {roleInitials(name)}
+        </span>
+      ))}
+      {names.length > max && (
+        <span className="bx-ava bx-ava-more">+{names.length - max}</span>
+      )}
+    </span>
+  )
+}
+
+function AccountableField({
+  value,
+  onChange,
+}: {
+  value: ApproverGroup
+  onChange: (group: ApproverGroup) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const people = resolvePeople(value)
+
+  return (
+    <div className="acctf">
+      <button
+        type="button"
+        className="acctf-trigger"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <PeopleStack names={people.map((person) => person.name)} max={3} />
+        <span className="acctf-role">{roleLabel(value)}</span>
+        <span className="acctf-names">
+          {people.map((person) => person.name).join(', ')}
+        </span>
+        <ChevronLeft
+          className={
+            open
+              ? 'ml-auto h-3 w-3 shrink-0 rotate-90 text-slate-400'
+              : 'ml-auto h-3 w-3 shrink-0 -rotate-90 text-slate-400'
+          }
+        />
+      </button>
+      {open && (
+        <div className="acctf-panel">
+          <div className="acctf-cap">Who is accountable?</div>
+          {HUMAN_APPROVERS.map((group) => {
+            const groupPeople = resolvePeople(group)
+            return (
+              <button
+                key={group}
+                type="button"
+                className={`acctf-opt ${group === value ? 'on' : ''}`}
+                onClick={() => {
+                  onChange(group)
+                  setOpen(false)
+                }}
+              >
+                <PeopleStack
+                  names={groupPeople.map((person) => person.name)}
+                  max={3}
+                />
+                <span className="acctf-opt-main">
+                  <span className="acctf-opt-role">{roleLabel(group)}</span>
+                  <span className="acctf-opt-people">
+                    {groupPeople.map((person) => person.name).join(', ')}
+                  </span>
+                </span>
+                {group === value && (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -606,10 +870,25 @@ export default function WorkflowBuilder({
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
   const [modalName, setModalName] = useState('')
   const [modalGate, setModalGate] = useState<GateType>('hard')
+  const [modalCompletionRule, setModalCompletionRule] =
+    useState<CompletionRule>('ALL')
+  const [modalCompletionN, setModalCompletionN] = useState(1)
+  const [modalAccountableOwner, setModalAccountableOwner] =
+    useState<ApproverGroup>('HR')
+  const [modalAccountableTouched, setModalAccountableTouched] = useState(false)
   const [modalRequirements, setModalRequirements] = useState<Requirement[]>([])
-  const [modalIntegrationType, setModalIntegrationType] = useState<
-    IntegrationType | ''
-  >('')
+  const [modalIntegration, setModalIntegration] =
+    useState<SystemIntegrationKey>('WORKDAY')
+  const [modalPush, setModalPush] = useState(true)
+  const [modalPull, setModalPull] = useState(true)
+  const [modalReads, setModalReads] = useState<string[]>(defaultReads())
+  const [modalWrites, setModalWrites] = useState<string[]>(defaultWrites())
+  const [modalReconcile, setModalReconcile] = useState(true)
+  const [modalApiConfig, setModalApiConfig] = useState({
+    endpoint: '',
+    authType: 'OAuth',
+    environment: 'Production',
+  })
   const [serverHealth, setServerHealth] = useState<WorkflowHealth | null>(null)
   const [saveError, setSaveError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -894,7 +1173,38 @@ export default function WorkflowBuilder({
     setModalName(block?.name ?? '')
     setModalGate(block?.gate ?? 'hard')
     setModalRequirements(block?.requirements ?? [])
-    setModalIntegrationType(block?.integrationType ?? '')
+    setModalCompletionRule(block?.completionRule ?? 'ALL')
+    setModalCompletionN(block?.completionN ?? 1)
+    setModalAccountableOwner(block?.accountableOwner ?? 'HR')
+    setModalAccountableTouched(Boolean(block?.accountableOwner))
+    setModalIntegration(block?.systemIntegration ?? 'WORKDAY')
+    setModalPush(block?.push ?? true)
+    setModalPull(block?.pull ?? true)
+    setModalReads(block?.reads ?? defaultReads())
+    setModalWrites(block?.writes ?? defaultWrites())
+    setModalReconcile(block?.reconcile ?? true)
+    setModalApiConfig(
+      block?.config && typeof block.config === 'object'
+        ? {
+            endpoint:
+              typeof block.config.endpoint === 'string'
+                ? block.config.endpoint
+                : '',
+            authType:
+              typeof block.config.authType === 'string'
+                ? block.config.authType
+                : 'OAuth',
+            environment:
+              typeof block.config.environment === 'string'
+                ? block.config.environment
+                : 'Production',
+          }
+        : {
+            endpoint: '',
+            authType: 'OAuth',
+            environment: 'Production',
+          },
+    )
   }
 
   function closeBlockModal() {
@@ -902,8 +1212,22 @@ export default function WorkflowBuilder({
     setEditingBlockId(null)
     setModalName('')
     setModalGate('hard')
+    setModalCompletionRule('ALL')
+    setModalCompletionN(1)
+    setModalAccountableOwner('HR')
+    setModalAccountableTouched(false)
     setModalRequirements([])
-    setModalIntegrationType('')
+    setModalIntegration('WORKDAY')
+    setModalPush(true)
+    setModalPull(true)
+    setModalReads(defaultReads())
+    setModalWrites(defaultWrites())
+    setModalReconcile(true)
+    setModalApiConfig({
+      endpoint: '',
+      authType: 'OAuth',
+      environment: 'Production',
+    })
   }
 
   function addLibraryBlockToPipeline(block: LibraryBlock) {
@@ -936,6 +1260,16 @@ export default function WorkflowBuilder({
           ...block,
           pipelineId,
           order: current.length + 1,
+          accountableOwner: block.accountableOwner,
+          completionRule: block.completionRule,
+          completionN: block.completionN,
+          push: block.push,
+          pull: block.pull,
+          reads: block.reads,
+          writes: block.writes,
+          reconcile: block.reconcile,
+          systemIntegration: block.systemIntegration,
+          systemUnwind: block.systemUnwind,
           requirements: block.requirements.map((requirement) => ({
             ...requirement,
           })),
@@ -947,22 +1281,100 @@ export default function WorkflowBuilder({
     setServerHealth(null)
   }
 
+  function addModalRequirement(requirement: Requirement) {
+    setModalRequirements((current) => {
+      if (current.some((candidate) => candidate.id === requirement.id)) {
+        return current
+      }
+
+      const next = [...current, requirement]
+      if (!modalAccountableTouched) {
+        setModalAccountableOwner(suggestedAccountable(next))
+      }
+      return next
+    })
+  }
+
+  function removeModalRequirement(requirementId: string) {
+    setModalRequirements((current) => {
+      const next = current.filter((candidate) => candidate.id !== requirementId)
+      if (next.length > 0 && !modalAccountableTouched) {
+        setModalAccountableOwner(suggestedAccountable(next))
+      }
+      return next
+    })
+  }
+
+  function pickIntegration(key: SystemIntegrationKey) {
+    setModalIntegration(key)
+    const meta = integrationMeta(key)
+    setModalPush(meta?.push ?? true)
+    setModalPull(meta?.pull ?? true)
+    setModalReads(defaultReads())
+    setModalWrites(defaultWrites())
+    setModalReconcile(Boolean(meta?.reverseAction))
+  }
+
+  function toggleRead(field: string) {
+    setModalReads((current) =>
+      current.includes(field)
+        ? current.filter((candidate) => candidate !== field)
+        : [...current, field],
+    )
+  }
+
+  function toggleWrite(field: string) {
+    setModalWrites((current) =>
+      current.includes(field)
+        ? current.filter((candidate) => candidate !== field)
+        : [...current, field],
+    )
+  }
+
   function createOrUpdateBlock() {
     if (!showBlockModal || !modalName.trim()) return
     if (showBlockModal === 'requirement' && modalRequirements.length === 0) {
       return
     }
-    if (showBlockModal === 'system' && !modalIntegrationType) return
+    if (showBlockModal === 'system' && !modalIntegration) return
+
+    const completionN =
+      modalCompletionRule === 'N_OF'
+        ? Math.max(1, Math.min(modalCompletionN, modalRequirements.length || 1))
+        : undefined
+    const selectedMeta = integrationMeta(modalIntegration)
 
     const nextBlock: LibraryBlock = {
       id: editingBlockId ?? randomId('library-block'),
       name: modalName.trim(),
       type: showBlockModal,
       gate: modalGate,
+      accountableOwner: modalAccountableOwner,
+      completionRule: modalCompletionRule,
+      completionN,
       requirements:
         showBlockModal === 'requirement' ? modalRequirements : [],
       integrationType:
-        showBlockModal === 'system' ? modalIntegrationType : undefined,
+        showBlockModal === 'system' ? 'api_call' : undefined,
+      systemIntegration:
+        showBlockModal === 'system' ? modalIntegration : undefined,
+      push: showBlockModal === 'system' ? modalPush : undefined,
+      pull: showBlockModal === 'system' ? modalPull : undefined,
+      reads: showBlockModal === 'system' && modalPush ? modalReads : undefined,
+      writes: showBlockModal === 'system' && modalPull ? modalWrites : undefined,
+      reconcile: showBlockModal === 'system' ? modalReconcile : undefined,
+      systemUnwind:
+        showBlockModal === 'system'
+          ? systemReversalFor(selectedMeta, modalPush)
+          : undefined,
+      config:
+        showBlockModal === 'system'
+          ? {
+              endpoint: modalApiConfig.endpoint.trim(),
+              authType: modalApiConfig.authType,
+              environment: modalApiConfig.environment,
+            }
+          : undefined,
     }
 
     setLibraryBlocks((current) => {
@@ -1767,7 +2179,7 @@ export default function WorkflowBuilder({
                   !modalName.trim() ||
                   (showBlockModal === 'requirement' &&
                     modalRequirements.length === 0) ||
-                  (showBlockModal === 'system' && !modalIntegrationType)
+                  (showBlockModal === 'system' && !modalIntegration)
                 }
                 className="rounded-lg bg-slate-950 px-5 py-2 text-xs font-semibold text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-400"
               >
@@ -1777,10 +2189,8 @@ export default function WorkflowBuilder({
           }
         >
           <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                Block Name
-              </label>
+            <div className="form-grp">
+              <label className="form-lbl">Block Name</label>
               <input
                 autoFocus
                 value={modalName}
@@ -1790,15 +2200,15 @@ export default function WorkflowBuilder({
                     ? 'e.g. Identity Verification'
                     : 'e.g. Workday Provisioning'
                 }
-                className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+                className="form-inp"
               />
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                Gate Type
+            <div className="form-grp">
+              <label className="form-lbl">
+                Gate Type <span className="lbl-hint">· does it hold up everything downstream?</span>
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="gate-grid">
                 <GateOption
                   gate="hard"
                   active={modalGate === 'hard'}
@@ -1812,120 +2222,432 @@ export default function WorkflowBuilder({
               </div>
             </div>
 
-            {showBlockModal === 'system' ? (
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                  Integration Type
-                </label>
-                <select
-                  value={modalIntegrationType}
-                  onChange={(event) =>
-                    setModalIntegrationType(
-                      isIntegrationType(event.target.value)
-                        ? event.target.value
-                        : '',
-                    )
-                  }
-                  className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
-                >
-                  <option value="">Select type</option>
-                  {integrationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                  Requirements
-                </label>
-                <div className="min-h-[54px] rounded-lg border border-slate-200 bg-slate-100 p-2">
-                  {modalRequirements.length === 0 ? (
-                    <span className="text-xs text-slate-400">
-                      Select from the list below
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {modalRequirements.map((requirement) => (
-                        <span
-                          key={requirement.id}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1 text-xs font-medium text-slate-700"
-                        >
-                          {requirement.name}
-                          <select
-                            value={requirement.owner}
-                            onChange={(event) =>
-                              setModalRequirements((current) =>
-                                current.map((candidate) =>
-                                  candidate.id === requirement.id
-                                    ? {
-                                        ...candidate,
-                                        owner: isRequirementOwner(
-                                          event.target.value,
-                                        )
-                                          ? event.target.value
-                                          : 'worker',
-                                      }
-                                    : candidate,
-                                ),
-                              )
-                            }
-                            className="bg-transparent text-[10px] text-slate-400 outline-none"
-                          >
-                            {ownerOptions.map((owner) => (
-                              <option key={owner.value} value={owner.value}>
-                                {owner.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setModalRequirements((current) =>
-                                current.filter(
-                                  (candidate) =>
-                                    candidate.id !== requirement.id,
-                                ),
-                              )
-                            }
-                            className="rounded-full p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
+            {showBlockModal === 'requirement' && (
+              <>
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Completion rule <span className="lbl-hint">· what makes this block satisfied</span>
+                  </label>
+                  <div className="comp-seg">
+                    <button
+                      type="button"
+                      className={modalCompletionRule === 'ALL' ? 'on' : ''}
+                      onClick={() => setModalCompletionRule('ALL')}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={modalCompletionRule === 'ANY' ? 'on' : ''}
+                      onClick={() => setModalCompletionRule('ANY')}
+                    >
+                      Any one
+                    </button>
+                    <button
+                      type="button"
+                      className={modalCompletionRule === 'N_OF' ? 'on' : ''}
+                      onClick={() => setModalCompletionRule('N_OF')}
+                    >
+                      N of M
+                    </button>
+                  </div>
+                  {modalCompletionRule === 'N_OF' && (
+                    <div className="comp-n">
+                      Needs
+                      <input
+                        type="number"
+                        min={1}
+                        max={Math.max(1, modalRequirements.length)}
+                        value={modalCompletionN}
+                        onChange={(event) =>
+                          setModalCompletionN(
+                            Math.max(
+                              1,
+                              Math.min(
+                                Number(event.target.value) || 1,
+                                Math.max(1, modalRequirements.length),
+                              ),
+                            ),
+                          )
+                        }
+                      />
+                      of {modalRequirements.length}
                     </div>
+                  )}
+                  <div className="comp-readout">
+                    <Info className="h-3 w-3" />
+                    {modalCompletionRule === 'ALL'
+                      ? `Clears when all ${modalRequirements.length || 0} requirement${
+                          modalRequirements.length === 1 ? ' is' : 's are'
+                        } satisfied.`
+                      : modalCompletionRule === 'ANY'
+                        ? 'Clears when any one of them is satisfied.'
+                        : `Clears when ${Math.min(
+                            modalCompletionN,
+                            modalRequirements.length || 1,
+                          )} of ${modalRequirements.length || 0} are satisfied.`}
+                  </div>
+                </div>
+
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Accountable <span className="lbl-hint">· who owns this gate — resolves to live people</span>
+                  </label>
+                  <AccountableField
+                    value={modalAccountableOwner}
+                    onChange={(group) => {
+                      setModalAccountableOwner(group)
+                      setModalAccountableTouched(true)
+                    }}
+                  />
+                  {!modalAccountableTouched && modalRequirements.length > 0 && (
+                    <span className="lbl-suggest">
+                      Suggested from this block’s approvers — change if needed
+                    </span>
                   )}
                 </div>
 
-                <div className="mt-3 space-y-2">
-                  {REQUIREMENTS.filter(
-                    (requirement) =>
-                      !modalRequirements.some(
-                        (selected) => selected.id === requirement.id,
-                      ),
-                  ).map((requirement) => (
-                    <button
-                      key={requirement.id}
-                      type="button"
-                      onClick={() =>
-                        setModalRequirements((current) => [
-                          ...current,
-                          requirement,
-                        ])
-                      }
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-700 hover:border-cyan-300 hover:bg-cyan-50"
-                    >
-                      <span>{requirement.name}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {ownerLabel(requirement.owner)}
-                      </span>
-                    </button>
-                  ))}
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Requirements <span className="lbl-hint">· owner, approver & unwind are inherited from the catalog</span>
+                  </label>
+                  <div className="msel-list">
+                    {modalRequirements.length === 0 && (
+                      <div className="msel-empty">
+                        Add from the catalog below. Each one brings its owner, approver and unwind.
+                      </div>
+                    )}
+                    {modalRequirements.map((requirement) => {
+                      const resolvedOwners = resolvePeople(
+                        requirement.owner === 'it'
+                          ? 'IT'
+                          : requirement.owner === 'supplier'
+                            ? 'PROCUREMENT'
+                            : 'HR',
+                      )
+                      return (
+                        <div key={requirement.id} className="msel-row">
+                          <div className="msel-main">
+                            <div className="msel-name">
+                              {requirement.name}
+                              <span className="msel-scope">
+                                {ownerLabel(requirement.owner)}
+                              </span>
+                            </div>
+                            <div className="msel-meta">
+                              <span
+                                className="msel-owner"
+                                style={{
+                                  background: '#eff6ff',
+                                  color: '#1d4ed8',
+                                  borderColor: '#bfdbfe',
+                                }}
+                              >
+                                {ownerLabel(requirement.owner)}
+                              </span>
+                              <span className="msel-dot">·</span>
+                              <span className="msel-approver">
+                                <PeopleStack
+                                  names={resolvedOwners.map((person) => person.name)}
+                                  max={2}
+                                />
+                                <span className="bx-role">Team sign-off</span>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="msel-right">
+                            <button
+                              type="button"
+                              className="chip-x"
+                              onClick={() => removeModalRequirement(requirement.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mavail">
+                    <div className="mavail-hd">Catalog</div>
+                    {REQUIREMENTS.filter(
+                      (requirement) =>
+                        !modalRequirements.some(
+                          (selected) => selected.id === requirement.id,
+                        ),
+                    ).map((requirement) => (
+                      <button
+                        key={requirement.id}
+                        type="button"
+                        onClick={() => addModalRequirement(requirement)}
+                        className="mavail-row"
+                      >
+                        <span className="mavail-name">
+                          <Plus className="h-3 w-3" />
+                          {requirement.name}
+                        </span>
+                        <span className="mavail-meta">
+                          <span className="msel-owner">
+                            {ownerLabel(requirement.owner)}
+                          </span>
+                          <span className="mavail-ap">
+                            {requirement.owner === 'it'
+                              ? roleLabel('IT')
+                              : requirement.owner === 'supplier'
+                                ? roleLabel('PROCUREMENT')
+                                : roleLabel('HR')}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                    {REQUIREMENTS.filter(
+                      (requirement) =>
+                        !modalRequirements.some(
+                          (selected) => selected.id === requirement.id,
+                        ),
+                    ).length === 0 && (
+                      <div className="msel-empty" style={{ margin: 0 }}>
+                        Every catalog requirement is in this block.
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
+            )}
+
+            {showBlockModal === 'system' && (
+              <>
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Accountable <span className="lbl-hint">· who owns the integration</span>
+                  </label>
+                  <AccountableField
+                    value={modalAccountableOwner}
+                    onChange={(group) => {
+                      setModalAccountableOwner(group)
+                      setModalAccountableTouched(true)
+                    }}
+                  />
+                </div>
+
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Connect a system <span className="lbl-hint">· pre-built — you finish the last 10%</span>
+                  </label>
+                  <div className="intg-grid">
+                    {INTEGRATIONS.map((integration) => (
+                      <button
+                        key={integration.key}
+                        type="button"
+                        className={`intg-card ${
+                          modalIntegration === integration.key ? 'on' : ''
+                        }`}
+                        onClick={() => pickIntegration(integration.key)}
+                      >
+                        <div className="intg-top">
+                          <span className="intg-name">{integration.label}</span>
+                        </div>
+                        <span className="intg-blurb">{integration.blurb}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {integrationMeta(modalIntegration) && (
+                  <>
+                    <div className="form-grp">
+                      <label className="form-lbl">
+                        Direction <span className="lbl-hint">· what this block does with {integrationMeta(modalIntegration)?.label}</span>
+                      </label>
+                      <div className="dir-row">
+                        <button
+                          type="button"
+                          className={`dir-toggle ${modalPush ? 'on' : ''}`}
+                          onClick={() => setModalPush((current) => !current)}
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" /> Push <span>send data out</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`dir-toggle ${modalPull ? 'on' : ''}`}
+                          onClick={() => setModalPull((current) => !current)}
+                        >
+                          <ArrowDown
+                            className="h-3.5 w-3.5 rotate-90"
+                          />{' '}
+                          Pull <span>get data back</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {(modalPush || modalPull) && (
+                      <div className="form-grp">
+                        <label className="form-lbl">
+                          Data flow <span className="lbl-hint">· which fields cross the boundary</span>
+                        </label>
+                        <div className="dataflow">
+                          {modalPush && (
+                            <>
+                              <div className="df-line">
+                                <span className="df-end levv">LEVV</span>
+                                <span className="df-arrow">
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="df-end sys">
+                                  {integrationMeta(modalIntegration)?.label}
+                                </span>
+                                <span className="df-cap">sends</span>
+                              </div>
+                              <div className="df-fields">
+                                {LEVV_FIELDS.map((field) => (
+                                  <button
+                                    key={field}
+                                    type="button"
+                                    className={`df-chip ${
+                                      modalReads.includes(field) ? 'on' : ''
+                                    }`}
+                                    onClick={() => toggleRead(field)}
+                                  >
+                                    {field}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          {modalPull && (
+                            <>
+                              <div className="df-line">
+                                <span className="df-end sys">
+                                  {integrationMeta(modalIntegration)?.label}
+                                </span>
+                                <span className="df-arrow">
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="df-end levv">LEVV</span>
+                                <span className="df-cap">writes back</span>
+                              </div>
+                              <div className="df-fields">
+                                {RETURN_FIELDS.map((field) => (
+                                  <button
+                                    key={field}
+                                    type="button"
+                                    className={`df-chip ${
+                                      modalWrites.includes(field) ? 'on' : ''
+                                    }`}
+                                    onClick={() => toggleWrite(field)}
+                                  >
+                                    {field}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          <div className="df-nova">
+                            <Zap className="mt-0.5 h-3 w-3 shrink-0" />
+                            Nova maps these to the connector’s fields and reads the response. It never decides whether to fire.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {systemReversalFor(integrationMeta(modalIntegration), modalPush) && (
+                      <div className="form-grp">
+                        <label className="form-lbl">
+                          On exit <span className="lbl-hint">· registered now, runs in offboarding</span>
+                        </label>
+                        <div className="sys-rev">
+                          <div className="sys-rev-body">
+                            <RotateCcw className="h-3 w-3" />
+                            <strong>
+                              {systemReversalFor(
+                                integrationMeta(modalIntegration),
+                                modalPush,
+                              )?.action}
+                            </strong>
+                            <span className="sys-rev-auto">
+                              <Zap className="h-2.5 w-2.5" />
+                              automated
+                            </span>
+                          </div>
+                          <label className="recon-row">
+                            <input
+                              type="checkbox"
+                              checked={modalReconcile}
+                              onChange={(event) =>
+                                setModalReconcile(event.target.checked)
+                              }
+                            />
+                            <span>
+                              <strong>Reconcile</strong> — poll the connector to
+                              confirm the action completed.
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-grp">
+                      <label className="form-lbl">
+                        Connection <span className="lbl-hint">· managed by the integration block</span>
+                      </label>
+                      <div className="api-box">
+                        <div className="api-grid">
+                          <div className="form-grp">
+                            <label className="form-lbl">Endpoint</label>
+                            <input
+                              value={modalApiConfig.endpoint}
+                              onChange={(event) =>
+                                setModalApiConfig((current) => ({
+                                  ...current,
+                                  endpoint: event.target.value,
+                                }))
+                              }
+                              className="form-inp"
+                              placeholder="https://api.example.com/provision"
+                            />
+                          </div>
+                          <div className="form-grp">
+                            <label className="form-lbl">Auth</label>
+                            <select
+                              value={modalApiConfig.authType}
+                              onChange={(event) =>
+                                setModalApiConfig((current) => ({
+                                  ...current,
+                                  authType: event.target.value,
+                                }))
+                              }
+                              className="form-sel"
+                            >
+                              <option>OAuth</option>
+                              <option>API Key</option>
+                              <option>Basic</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-grp">
+                          <label className="form-lbl">Environment</label>
+                          <select
+                            value={modalApiConfig.environment}
+                            onChange={(event) =>
+                              setModalApiConfig((current) => ({
+                                ...current,
+                                environment: event.target.value,
+                              }))
+                            }
+                            className="form-sel"
+                          >
+                            <option>Production</option>
+                            <option>Staging</option>
+                            <option>Sandbox</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         </Modal>
@@ -2004,6 +2726,99 @@ function WorkflowBuilderStyles() {
       .ms-opt.on{color:#0a0a0a;font-weight:600;}
       .ms-opt svg{color:#007a8a;}
       .ms-div{height:1px;background:#e5e7eb;margin:4px 0;}
+      .form-grp{display:flex;flex-direction:column;gap:5px;}
+      .form-lbl{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9ca3af;}
+      .form-inp,.form-sel{height:36px;padding:0 11px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:13px;color:#0a0a0a;font-family:inherit;outline:none;transition:all .15s;width:100%;}
+      .form-inp:focus,.form-sel:focus{border-color:#007a8a;box-shadow:0 0 0 3px rgba(0,122,138,.14);}
+      .form-inp::placeholder{color:#9ca3af;}
+      .lbl-hint{text-transform:none;letter-spacing:0;font-weight:400;color:#9ca3af;}
+      .lbl-suggest{font-size:10px;color:#007a8a;margin-top:5px;display:block;}
+      .gate-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      .gate-opt{padding:10px 11px;border-radius:8px;border:1.5px solid #e5e7eb;cursor:pointer;background:#fff;text-align:left;font-family:inherit;transition:all .15s;}
+      .gate-opt.h{border-color:#dc2626;background:#fef2f2;}
+      .gate-opt.s{border-color:#b45309;background:#fffbeb;}
+      .gate-opt-lbl{font-size:12px;font-weight:600;color:#0a0a0a;display:flex;align-items:center;gap:4px;}
+      .gate-opt-desc{font-size:10px;color:#9ca3af;margin-top:2px;}
+      .comp-pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:100px;font-size:9.5px;font-weight:700;background:rgba(0,122,138,.07);border:1px solid rgba(0,122,138,.3);color:#007a8a;letter-spacing:.02em;}
+      .comp-seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+      .comp-seg button{height:34px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;font-size:11.5px;font-weight:600;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .15s;}
+      .comp-seg button:hover{border-color:rgba(0,122,138,.3);color:#007a8a;}
+      .comp-seg button.on{border-color:#007a8a;background:rgba(0,122,138,.07);color:#007a8a;}
+      .comp-n{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#374151;}
+      .comp-n input{width:56px;height:32px;text-align:center;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:13px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;color:#0a0a0a;outline:none;}
+      .comp-n input:focus{border-color:#007a8a;box-shadow:0 0 0 3px rgba(0,122,138,.14);}
+      .comp-readout{display:flex;align-items:center;gap:5px;margin-top:9px;font-size:11px;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:7px;padding:7px 10px;}
+      .acctf{position:relative;}
+      .acctf-trigger{display:flex;align-items:center;gap:8px;width:100%;height:42px;padding:0 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-family:inherit;transition:all .15s;}
+      .acctf-trigger:hover{border-color:rgba(0,122,138,.3);}
+      .acctf-role{font-size:12.5px;font-weight:600;color:#0a0a0a;flex-shrink:0;}
+      .acctf-names{font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .acctf-panel{position:absolute;top:46px;left:0;right:0;z-index:20;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14),0 4px 8px rgba(15,23,42,.06);padding:6px;max-height:280px;overflow-y:auto;}
+      .acctf-cap{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;padding:6px 8px 8px;}
+      .acctf-opt{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border-radius:8px;border:none;background:none;cursor:pointer;text-align:left;font-family:inherit;transition:all .12s;}
+      .acctf-opt:hover{background:rgba(0,122,138,.07);}
+      .acctf-opt.on{background:rgba(0,122,138,.07);}
+      .acctf-opt-main{display:flex;flex-direction:column;flex:1;min-width:0;}
+      .acctf-opt-role{font-size:12.5px;font-weight:600;color:#0a0a0a;}
+      .acctf-opt-people{font-size:10.5px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .intg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      .intg-card{position:relative;display:flex;flex-direction:column;gap:3px;padding:11px 12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;text-align:left;font-family:inherit;transition:all .15s;}
+      .intg-card:hover{border-color:rgba(0,122,138,.3);background:rgba(0,122,138,.07);}
+      .intg-card.on{border-color:#007a8a;background:rgba(0,122,138,.07);box-shadow:0 0 0 3px rgba(0,122,138,.14);}
+      .intg-top{display:flex;align-items:center;justify-content:space-between;}
+      .intg-name{font-size:12.5px;font-weight:600;color:#0a0a0a;}
+      .intg-blurb{font-size:10.5px;color:#9ca3af;}
+      .dir-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      .dir-toggle{display:flex;align-items:center;gap:6px;height:42px;padding:0 13px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;font-size:12.5px;font-weight:600;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .15s;}
+      .dir-toggle span{font-size:10.5px;font-weight:400;color:#9ca3af;margin-left:2px;}
+      .dir-toggle:hover{border-color:rgba(0,122,138,.3);}
+      .dir-toggle.on{border-color:#007a8a;background:rgba(0,122,138,.07);color:#007a8a;}
+      .dir-toggle.on span{color:#007a8a;}
+      .api-box{padding:12px;border-radius:12px;border:1px solid #e5e7eb;background:#f3f4f6;display:flex;flex-direction:column;gap:10px;}
+      .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      .dataflow{border:1px solid #e5e7eb;border-radius:12px;background:#f3f4f6;padding:12px;display:flex;flex-direction:column;gap:9px;}
+      .df-line{display:flex;align-items:center;gap:7px;}
+      .df-end{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:100px;letter-spacing:.02em;}
+      .df-end.levv{background:rgba(0,122,138,.07);border:1px solid rgba(0,122,138,.3);color:#007a8a;}
+      .df-end.sys{background:#fff;border:1px solid #d1d5db;color:#374151;}
+      .df-arrow{color:#9ca3af;display:flex;}
+      .df-cap{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-left:2px;}
+      .df-fields{display:flex;flex-wrap:wrap;gap:5px;}
+      .df-chip{font-size:10.5px;font-weight:500;padding:3px 9px;border-radius:100px;border:1px solid #e5e7eb;background:#fff;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .12s;}
+      .df-chip:hover{border-color:rgba(0,122,138,.3);color:#007a8a;}
+      .df-chip.on{background:#007a8a;border-color:#007a8a;color:#fff;}
+      .df-nova{display:flex;align-items:flex-start;gap:5px;font-size:10.5px;color:#007a8a;line-height:1.45;margin-top:1px;}
+      .df-nova svg{flex-shrink:0;margin-top:1px;}
+      .sys-rev{border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:11px 12px;display:flex;flex-direction:column;gap:9px;}
+      .sys-rev-body{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#0a0a0a;}
+      .sys-rev-body strong{font-weight:600;}
+      .sys-rev-auto{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(0,122,138,.07);border:1px solid rgba(0,122,138,.3);color:#007a8a;margin-left:auto;}
+      .recon-row{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#374151;line-height:1.45;cursor:pointer;padding-top:9px;border-top:1px solid #e5e7eb;}
+      .recon-row input{margin-top:2px;accent-color:#007a8a;width:14px;height:14px;flex-shrink:0;cursor:pointer;}
+      .recon-row strong{color:#0a0a0a;font-weight:600;}
+      .msel-list{display:flex;flex-direction:column;gap:6px;}
+      .msel-empty{font-size:11.5px;color:#9ca3af;line-height:1.5;padding:10px 12px;border:1px dashed #d1d5db;border-radius:8px;background:#f3f4f6;}
+      .msel-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;transition:all .15s;}
+      .msel-row:hover{border-color:rgba(0,122,138,.3);}
+      .msel-main{flex:1;min-width:0;}
+      .msel-name{font-size:12.5px;font-weight:600;color:#0a0a0a;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
+      .msel-scope{font-size:9px;font-weight:600;padding:1px 6px;border-radius:100px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.2);color:#b45309;}
+      .msel-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+      .msel-owner{font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;border:1px solid;}
+      .msel-dot{color:#9ca3af;font-size:10px;}
+      .msel-approver{display:inline-flex;align-items:center;gap:5px;}
+      .msel-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+      .mavail{margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;display:flex;flex-direction:column;gap:4px;}
+      .mavail-hd{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:3px;}
+      .mavail-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 11px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-family:inherit;transition:all .15s;}
+      .mavail-row:hover{border-color:rgba(0,122,138,.3);background:rgba(0,122,138,.07);}
+      .mavail-name{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#0a0a0a;}
+      .mavail-name svg{color:#9ca3af;}
+      .mavail-row:hover .mavail-name svg{color:#007a8a;}
+      .mavail-meta{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+      .mavail-ap{font-size:10.5px;color:#9ca3af;font-weight:500;}
+      .chip-x{width:13px;height:13px;border:none;background:none;cursor:pointer;color:#9ca3af;display:flex;align-items:center;justify-content:center;padding:0;border-radius:50%;transition:all .15s;}
+      .chip-x:hover{background:#fef2f2;color:#dc2626;}
       .mode-seg-ui{display:inline-flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;background:#fff;}
       .mode-btn-ui{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:none;background:#fff;color:#9ca3af;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;}
       .mode-btn-ui+.mode-btn-ui{border-left:1px solid #e5e7eb;}
@@ -2097,7 +2912,6 @@ function ProcessView({
   onModeChange: (mode: BuilderMode) => void
 }) {
   const isOffboarding = mode === 'offboarding'
-  const terminalLabel = isOffboarding ? 'Offboarded' : 'Active'
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -2128,7 +2942,7 @@ function ProcessView({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto p-5">
+        <div className="overflow-x-auto px-4 py-5">
           <div className="flex min-w-max items-center gap-4">
             <ProcessEndpoint label={isOffboarding ? 'Exit' : 'Start'} />
             {blocks.map((block, index) => (
@@ -2145,7 +2959,7 @@ function ProcessView({
                 )}
               </div>
             ))}
-            <ProcessEndpoint label={terminalLabel} hollow />
+            <ProcessEndpoint label={isOffboarding ? 'Offboarded' : 'Active'} hollow />
           </div>
         </div>
       )}
@@ -2185,6 +2999,11 @@ function ProcessNode({
 }) {
   const isSystem = block.type === 'system'
   const isOffboarding = mode === 'offboarding'
+  const systemMeta = integrationMeta(block.systemIntegration)
+  const approverName = block.accountableOwner ? roleLabel(block.accountableOwner) : ''
+  const approverPeople = block.accountableOwner
+    ? resolvePeople(block.accountableOwner)
+    : []
 
   return (
     <div
@@ -2199,31 +3018,70 @@ function ProcessNode({
       <div
         className={
           isSystem
-            ? 'truncate text-xs font-semibold text-slate-100'
-            : 'truncate text-xs font-semibold text-slate-950'
+            ? 'flex items-start gap-2 truncate text-xs font-semibold text-slate-100'
+            : 'flex items-start gap-2 truncate text-xs font-semibold text-slate-950'
         }
       >
-        {block.name}
+        {isSystem ? (
+          isOffboarding ? (
+            <RotateCcw className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" />
+          ) : (
+            <Cog className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300" />
+          )
+        ) : null}
+        <span className="min-w-0 truncate">{block.name}</span>
       </div>
-      <div
-        className={
-          isSystem
-            ? 'mt-1 truncate text-[10px] text-slate-400'
-            : 'mt-1 truncate text-[10px] text-slate-400'
-        }
-      >
-        {isOffboarding
-          ? isSystem
-            ? 'system reversal'
-            : `${block.requirements.length} team unwind${
-                block.requirements.length === 1 ? '' : 's'
-              }`
-          : isSystem
-            ? optionLabel(FALLBACK_INTEGRATION_OPTIONS, block.integrationType || '')
-            : `${block.requirements.length} requirement${
-                block.requirements.length === 1 ? '' : 's'
-              } · ${gateLabel(block.gate).toLowerCase()}`}
+
+      <div className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-slate-400">
+        {isSystem ? (
+          <>
+            <span>
+              {isOffboarding
+                ? block.systemUnwind?.action ?? 'reverse'
+                : systemMeta?.label ?? 'System'}
+            </span>
+            <span>·</span>
+            <span>
+              {isOffboarding
+                ? 'system reversal'
+                : block.push && block.pull
+                  ? 'push · pull'
+                  : block.push
+                    ? 'push'
+                    : 'pull'}
+            </span>
+          </>
+        ) : (
+          <>
+            <span>
+              {block.requirements.length}{' '}
+              {isOffboarding ? 'unwind' : 'req'}
+              {block.requirements.length === 1 ? '' : 's'}
+            </span>
+            <span>·</span>
+            <span>{block.gate === 'hard' ? 'hard gate' : 'soft gate'}</span>
+          </>
+        )}
       </div>
+
+      {!isSystem && approverName && (
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-600">
+          <PeopleStack names={approverPeople.map((person) => person.name)} max={2} />
+          <span>{approverName}</span>
+        </div>
+      )}
+
+      {isSystem && !isOffboarding && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          <span className="s-chip ok">
+            <Plug className="h-3 w-3" />
+            {systemMeta?.label ?? 'API Call'}
+          </span>
+          {block.reconcile && (
+            <span className="s-chip ok">reconcile</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -2603,7 +3461,18 @@ function LibraryBlockCard({
   onRemove: () => void
 }) {
   const isSystem = block.type === 'system'
-  const owners = isSystem ? ['System'] : uniqueRequirementOwners(block.requirements)
+  const accountableLabel = block.accountableOwner
+    ? roleLabel(block.accountableOwner)
+    : blockSignoffLabel(block)
+  const accountablePeople = block.accountableOwner
+    ? resolvePeople(block.accountableOwner).map((person) => person.name)
+    : []
+  const completion = block.completionRule
+    ? completionLabel(block.completionRule, block.completionN, block.requirements.length)
+    : null
+  const integration = block.systemIntegration
+    ? integrationMeta(block.systemIntegration)
+    : undefined
 
   return (
     <div
@@ -2628,16 +3497,18 @@ function LibraryBlockCard({
             <span className="text-[9px] font-bold text-slate-950">
               {block.gate === 'hard' ? 'Hard' : 'Soft'}
             </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600">
-              {blockSignoffLabel(block)}
-            </span>
-            {owners.length > 0 && (
+            {completion && (
+              <span className="comp-pill" style={{ fontSize: 9 }}>
+                {completion}
+              </span>
+            )}
+            {block.accountableOwner && (
               <span
                 className="acct-pill"
-                title={`${blockSignoffLabel(block)}: ${owners.join(', ')}`}
+                title={`${accountableLabel}: ${accountablePeople.join(', ')}`}
               >
-                <AvatarStack labels={owners} max={2} />
-                {owners.length === 1 ? owners[0] : `${owners.length} owners`}
+                <PeopleStack names={accountablePeople} max={2} />
+                {accountableLabel}
               </span>
             )}
             {isSystem && (
@@ -2685,11 +3556,17 @@ function LibraryBlockCard({
       </div>
 
       {isSystem ? (
-        <p className="mt-2 text-[10px] text-slate-500">
-          {block.integrationType
-            ? optionLabel(integrationOptions, block.integrationType)
-            : 'System integration'}
-        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <span className="s-chip ok">
+            <Plug className="h-3 w-3" />
+            {integration?.label ??
+              optionLabel(integrationOptions, block.integrationType || '')}
+          </span>
+          {block.push && (
+            <span className="s-chip ok">{block.pull ? 'push · pull' : 'push'}</span>
+          )}
+          {block.reconcile && <span className="s-chip ok">reconcile</span>}
+        </div>
       ) : (
         <ul className="mt-2 space-y-1">
           {block.requirements.map((requirement) => (
@@ -2733,10 +3610,17 @@ function PipelineBlockCard({
   const isSystem = block.type === 'system'
   const isOffboarding = mode === 'offboarding'
   const gateTone = isOffboarding ? 'exit' : block.gate
-  const signoffOwners = isSystem
-    ? ['System']
-    : uniqueRequirementOwners(block.requirements)
   const signoffLabel = blockSignoffLabel(block)
+  const accountableLabel = block.accountableOwner
+    ? roleLabel(block.accountableOwner)
+    : signoffLabel
+  const accountablePeople = block.accountableOwner
+    ? resolvePeople(block.accountableOwner).map((person) => person.name)
+    : []
+  const completion = block.completionRule
+    ? completionLabel(block.completionRule, block.completionN, block.requirements.length)
+    : null
+  const systemMeta = integrationMeta(block.systemIntegration)
 
   return (
     <>
@@ -2774,7 +3658,7 @@ function PipelineBlockCard({
                 )}
                 {block.name}
                 <span className="s-kind">
-                  {isOffboarding ? 'Reverse' : signoffLabel}
+                  {isOffboarding ? 'Reverse' : accountableLabel}
                 </span>
               </span>
               {!readonly && (
@@ -2806,17 +3690,24 @@ function PipelineBlockCard({
                 <>
                   <span className="s-chip ok">
                     <Plug className="h-3 w-3" />
-                    {block.integrationType === 'api_call'
-                      ? 'API Call'
-                      : 'Integration'}
+                    {systemMeta?.label ??
+                      (block.integrationType === 'api_call'
+                        ? 'API Call'
+                        : 'Integration')}
                   </span>
                   <span className="s-chip ok">
-                    <AvatarStack labels={signoffOwners} max={1} />
-                    {signoffOwners.join(', ')}
+                    <PeopleStack names={accountablePeople} max={2} />
+                    {accountableLabel}
                   </span>
                   <span className="s-chip warn">
                     {gateLabel(block.gate)}
                   </span>
+                  {block.push && (
+                    <span className="s-chip ok">
+                      {block.pull ? 'push · pull' : 'push'}
+                    </span>
+                  )}
+                  {block.reconcile && <span className="s-chip ok">reconcile</span>}
                 </>
               )}
             </div>
@@ -2835,13 +3726,16 @@ function PipelineBlockCard({
                 {block.name}
               </span>
               <span className="blk-badges">
-                {!isOffboarding && signoffOwners.length > 0 && (
+                {completion && !isOffboarding && (
+                  <span className="comp-pill">{completion}</span>
+                )}
+                {!isOffboarding && block.accountableOwner && (
                   <span
                     className="acct-pill"
-                    title={`${signoffLabel}: ${signoffOwners.join(', ')}`}
+                    title={`${accountableLabel}: ${accountablePeople.join(', ')}`}
                   >
-                    <AvatarStack labels={signoffOwners} max={2} />
-                    {signoffLabel}
+                    <PeopleStack names={accountablePeople} max={2} />
+                    {accountableLabel}
                   </span>
                 )}
                 {!isOffboarding && (
@@ -2887,10 +3781,7 @@ function PipelineBlockCard({
                       </span>
                       <span className="bx-row-right">
                         <span className="bx-approver">
-                          <AvatarStack
-                            labels={[ownerLabel(requirement.owner)]}
-                            max={1}
-                          />
+                          <PeopleStack names={[ownerLabel(requirement.owner)]} max={1} />
                           <span
                             className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${ownerClass(
                               requirement.owner,
