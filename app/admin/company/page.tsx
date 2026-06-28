@@ -138,6 +138,18 @@ function toCreatePayload(
   }
 }
 
+function readUploadString(
+  row: Record<string, unknown>,
+  keys: string[],
+): string {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+  return ''
+}
+
 function toCreateCostCenterPayload(
   values: AddCostCenterFormValues,
 ): CostCenterCreatePayload {
@@ -337,6 +349,8 @@ export default function CompanyPage() {
     useState(false)
   const [creatingLegalEntity, setCreatingLegalEntity] = useState(false)
   const [addLegalEntityError, setAddLegalEntityError] = useState('')
+  const [uploadingBusinessUnits, setUploadingBusinessUnits] = useState(false)
+  const [businessUnitUploadError, setBusinessUnitUploadError] = useState('')
 
   const refreshBusinessUnits = useCallback(async () => {
     setBusinessUnitsLoading(true)
@@ -679,6 +693,107 @@ export default function CompanyPage() {
       setCreatingBusinessUnit(false)
     }
   }
+
+  const handleBusinessUnitUpload = useCallback(
+    async (rows: Record<string, unknown>[]) => {
+      if (rows.length === 0) {
+        setBusinessUnitUploadError(
+          'No business unit rows were found in the uploaded file.',
+        )
+        return
+      }
+
+      setUploadingBusinessUnits(true)
+      setBusinessUnitUploadError('')
+
+      try {
+        let createdCount = 0
+
+        for (const row of rows) {
+          const code = readUploadString(row, [
+            'code',
+            'Code',
+            'businessUnit',
+            'Business Unit',
+            'business_unit',
+          ])
+          const name =
+            readUploadString(row, [
+              'name',
+              'Name',
+              'businessUnitName',
+              'Business Unit Name',
+              'business_unit_name',
+            ]) || code
+
+          if (!code || !name) continue
+
+          const companyValue = readUploadString(row, ['company', 'Company'])
+          const parsedCompany = companyValue ? Number(companyValue) : NaN
+
+          await createBusinessUnit({
+            code,
+            name,
+            parent:
+              readUploadString(row, ['parent', 'Parent', 'parent_code']) ||
+              null,
+            description:
+              readUploadString(row, ['description', 'Description']) ||
+              undefined,
+            legal_entity_id:
+              readUploadString(row, [
+                'legalEntityId',
+                'legal_entity_id',
+                'Legal Entity ID',
+              ]) || undefined,
+            gl_account_id:
+              readUploadString(row, [
+                'glAccountId',
+                'gl_account_id',
+                'GL Account ID',
+              ]) || undefined,
+            status:
+              readUploadString(row, ['status', 'Status']) || 'active',
+            company: Number.isFinite(parsedCompany)
+              ? parsedCompany
+              : undefined,
+          })
+          createdCount += 1
+        }
+
+        if (createdCount === 0) {
+          setBusinessUnitUploadError(
+            'No valid business unit rows were found. Include at least code and name columns.',
+          )
+          return
+        }
+
+        await refreshBusinessUnits()
+        setActiveTab('Business Units')
+      } catch (error) {
+        if (error instanceof BusinessUnitsApiError && error.status === 401) {
+          router.replace('/auth/login?next=/admin/company')
+          return
+        }
+
+        if (error instanceof BusinessUnitsApiError && error.status === 403) {
+          setBusinessUnitUploadError(
+            'You do not have permission to add business units.',
+          )
+          return
+        }
+
+        setBusinessUnitUploadError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to upload business units.',
+        )
+      } finally {
+        setUploadingBusinessUnits(false)
+      }
+    },
+    [refreshBusinessUnits, router],
+  )
 
   const handleCloseCostCenterModal = () => {
     if (creatingCostCenter) return
@@ -1082,9 +1197,14 @@ export default function CompanyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-8">
       <CompanyHeader />
-      <AIRulesPanel />
+      <AIRulesPanel
+        onBusinessUnitUpload={handleBusinessUnitUpload}
+        uploadingBusinessUnits={uploadingBusinessUnits}
+        businessUnitUploadError={businessUnitUploadError}
+      />
 
       <CompanyTabs
         tabs={TABS}
@@ -1093,61 +1213,61 @@ export default function CompanyPage() {
       />
 
       {activeTab === 'Business Units' && businessUnitsLoading && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
           Loading business units...
         </div>
       )}
 
       {activeTab === 'Business Units' && businessUnitsError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
           {businessUnitsError}
         </div>
       )}
 
       {activeTab === 'Cost Centers' && costCentersLoading && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
           Loading cost centers...
         </div>
       )}
 
       {activeTab === 'Cost Centers' && costCentersError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
           {costCentersError}
         </div>
       )}
 
       {activeTab === 'Locations' && locationsLoading && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
           Loading locations...
         </div>
       )}
 
       {activeTab === 'Locations' && locationsError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
           {locationsError}
         </div>
       )}
 
       {activeTab === 'Worksites' && sitesLoading && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
           Loading worksites...
         </div>
       )}
 
       {activeTab === 'Worksites' && sitesError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
           {sitesError}
         </div>
       )}
 
       {activeTab === 'Legal Entities' && legalEntitiesLoading && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
           Loading legal entities...
         </div>
       )}
 
       {activeTab === 'Legal Entities' && legalEntitiesError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
           {legalEntitiesError}
         </div>
       )}
@@ -1165,10 +1285,10 @@ export default function CompanyPage() {
                       onClick={() =>
                         handleEditLocation(row.locationRecord as LocationRecord)
                       }
-                      className="inline-flex items-center justify-center rounded-md p-2 transition hover:bg-gray-100"
+                      className="inline-flex items-center justify-center rounded-xl p-2 transition hover:bg-cyan-50"
                       aria-label="Edit location"
                     >
-                      <Pencil className="h-4 w-4 text-gray-600" />
+                      <Pencil className="h-4 w-4 text-slate-600" />
                     </button>
                     <button
                       type="button"
@@ -1181,7 +1301,7 @@ export default function CompanyPage() {
                         deletingLocationId ===
                         (row.locationRecord as LocationRecord).id
                       }
-                      className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      className="inline-flex items-center justify-center rounded-xl p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                       aria-label="Delete location"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -1247,6 +1367,7 @@ export default function CompanyPage() {
         onClose={handleCloseLegalEntityModal}
         onSubmit={handleSubmitLegalEntity}
       />
+      </div>
     </div>
   )
 }

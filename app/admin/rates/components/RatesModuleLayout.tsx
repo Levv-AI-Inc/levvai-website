@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
 
 const RATE_TABS = [
+  { label: 'Units', href: '/admin/rates/units' },
+  { label: 'Categories', href: '/admin/rates/categories' },
+  { label: 'Structure Designer', href: '/admin/rates/structure' },
   { label: 'Rate Structures', href: '/admin/rates/structures' },
   { label: 'Rate Cards', href: '/admin/rates/cards' },
   { label: 'Rate Rules', href: '/admin/rates/rules' },

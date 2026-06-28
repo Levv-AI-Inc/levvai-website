@@ -92,11 +92,11 @@ export default function RecommendationPage() {
    */
   const handleInitiate = () => {
     if (recommendedPath === "SOW") {
-      router.push("/requests/new/sow")
+      router.push("/requests/sow/create")
     } else if (recommendedPath === "SOURCE") {
-      router.push("/requests/new/source")
+      router.push("/requests/new/guided")
     } else {
-      router.push("/requests/new/job_posting")
+      router.push("/requests/new/job/create/define")
     }
   }
 
@@ -134,9 +134,9 @@ export default function RecommendationPage() {
           {/* Compliance Signal */}
           {complianceRisk === "elevated" && (
             <div className="mt-4 rounded-lg border border-blue-300 bg-blue-100 p-4 text-sm text-amber-900">
-              <strong>Compliance signal:</strong> This request is structured as an ongoing, onsite role 
-              at a company location. Under company workforce policy, engagements with these 
-              characteristics are typically aligned to a Contingent Worker (CW) model. 
+              <strong>Compliance signal:</strong> This request is structured as an ongoing, onsite role
+              at a company location. Under company workforce policy, engagements with these
+              characteristics are typically aligned to a Contingent Worker (CW) model.
               Outcome-based, time-bound services are generally managed through a Statement of Work.
             </div>
           )}

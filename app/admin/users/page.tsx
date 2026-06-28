@@ -1,8 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from 'react'
+import { FileSpreadsheet, Plus, Search, Sparkles, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import * as XLSX from 'xlsx'
+import { parseUser } from '@/lib/intelligence'
 import {
   BusinessUnitsApiError,
   createBusinessUnit,
@@ -201,6 +210,61 @@ function upsertUser(existing: UserRow[], incoming: UserRow): UserRow[] {
   return updated
 }
 
+function readRowString(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return String(value)
+  }
+  return ''
+}
+
+function normalizeAssistantUser(raw: unknown, source: string): UserRow {
+  const row =
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const email = readRowString(row, ['email', 'Email', 'user_email'])
+  const name =
+    readRowString(row, ['name', 'Name', 'fullName', 'full_name']) ||
+    email ||
+    'Pending user'
+  const status = normalizeStatus(
+    readRowString(row, ['status', 'Status']) || 'invited',
+  )
+  const role = normalizeRole(readRowString(row, ['role', 'Role']) || 'viewer')
+  const businessUnit = readRowString(row, [
+    'businessUnit',
+    'business_unit',
+    'Business Unit',
+    'business_unit_name',
+  ])
+  const costCenter = readRowString(row, [
+    'costCenter',
+    'cost_center',
+    'Cost Center',
+    'cost_center_code',
+  ])
+  const ssoValue = readRowString(row, ['ssoEnabled', 'sso_enabled', 'SSO'])
+
+  return {
+    membershipId: `local-${source}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`,
+    userId: '',
+    name,
+    email,
+    status,
+    role,
+    businessUnitId: businessUnit,
+    businessUnit,
+    costCenterId: costCenter,
+    costCenter,
+    costCenterName: '',
+    ssoEnabled: ssoValue.toLowerCase() === 'true' || ssoValue === '1',
+    isActive: status === 'active',
+  }
+}
+
 export default function AdminUsersPage() {
   const router = useRouter()
 
@@ -221,6 +285,11 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('')
   const [businessUnitFilter, setBusinessUnitFilter] = useState('')
   const [costCenterFilter, setCostCenterFilter] = useState('')
+  const [assistantPrompt, setAssistantPrompt] = useState('')
+  const [assistantLoading, setAssistantLoading] = useState(false)
+  const [assistantError, setAssistantError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
   const [addUserError, setAddUserError] = useState('')
@@ -694,42 +763,183 @@ export default function AdminUsersPage() {
     closeAddUserModal()
   }
 
-  const openUserDetails = (user: UserRow) => {
-    router.push(`/admin/users/${encodeURIComponent(user.name)}`)
+  const handleAssistantGenerate = async () => {
+    if (!assistantPrompt.trim()) return
+
+    setAssistantLoading(true)
+    setAssistantError('')
+
+    try {
+      const result = await parseUser(assistantPrompt)
+      if (result?.error) {
+        throw new Error(String(result.error))
+      }
+
+      setUsers((current) =>
+        upsertUser(current, normalizeAssistantUser(result, 'nova')),
+      )
+      setAssistantPrompt('')
+    } catch (requestError) {
+      setAssistantError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to parse the user update.',
+      )
+    } finally {
+      setAssistantLoading(false)
+    }
+  }
+
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadError('')
+
+    const reader = new FileReader()
+    reader.onload = (readerEvent) => {
+      try {
+        const data = readerEvent.target?.result
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
+
+        setUsers((current) =>
+          rows.reduce(
+            (acc, row) => upsertUser(acc, normalizeAssistantUser(row, 'upload')),
+            current,
+          ),
+        )
+
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      } catch (parseError) {
+        setUploadError(
+          parseError instanceof Error
+            ? parseError.message
+            : 'Unable to read the uploaded user file.',
+        )
+      }
+    }
+
+    reader.onerror = () => {
+      setUploadError('Unable to read the uploaded user file.')
+    }
+
+    reader.readAsArrayBuffer(file)
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Users</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">
             Manage users, roles, and access across the tenant.
           </p>
         </div>
 
-        <button
-          onClick={openAddUserModal}
-          className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
-        >
-          <Plus className="h-4 w-4" />
-          Add User
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="hidden items-center gap-2 rounded-2xl border border-cyan-100 bg-white p-2 pr-4 text-sm font-semibold text-slate-500 shadow-sm md:flex">
+            <span className="rounded-xl bg-slate-950 p-2 text-cyan-400">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            Tenant access control
+          </div>
+          <button
+            onClick={openAddUserModal}
+            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+            Add User
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="rounded-xl bg-slate-950 p-2 text-cyan-400">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                AI Assistant
+              </h2>
+              <p className="text-xs font-medium text-slate-500">
+                Describe a user update and Nova will stage it in the table.
+              </p>
+            </div>
+          </div>
+          <textarea
+            value={assistantPrompt}
+            onChange={(event) => setAssistantPrompt(event.target.value)}
+            className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            rows={3}
+            placeholder="Make Amy Schneider inactive and move her to Procurement"
+          />
+          {assistantError ? (
+            <p className="mt-2 text-xs font-medium text-rose-600">
+              {assistantError}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void handleAssistantGenerate()}
+            disabled={assistantLoading || !assistantPrompt.trim()}
+            className="mt-3 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {assistantLoading ? 'Generating...' : 'Update via AI'}
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center shadow-sm">
+          <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
+            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+          </div>
+          <h2 className="text-sm font-black text-slate-900">
+            Mass User Upload
+          </h2>
+          <p className="mt-1 max-w-sm text-xs font-medium text-slate-500">
+            Upload an .xlsx, .xls, or .csv file with columns like name, email,
+            role, status, businessUnit, costCenter, and ssoEnabled.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          >
+            <Upload className="h-4 w-4" />
+            Select Excel File
+          </button>
+          {uploadError ? (
+            <p className="mt-2 text-xs font-medium text-rose-600">
+              {uploadError}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {isAddUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Add User</h2>
-                <p className="mt-1 text-sm text-gray-600">
+                <h2 className="text-lg font-black text-slate-900">Add User</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">
                   Add a user record with tenant role and access status.
                 </p>
               </div>
               <button
                 onClick={closeAddUserModal}
-                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                className="rounded-xl p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                 aria-label="Close add user modal"
               >
                 <X className="h-4 w-4" />
@@ -738,7 +948,7 @@ export default function AdminUsersPage() {
 
             <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-800">Name</label>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Name</label>
                 <input
                   value={addUserForm.name}
                   onChange={(event) =>
@@ -747,13 +957,13 @@ export default function AdminUsersPage() {
                       name: event.target.value,
                     }))
                   }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                   placeholder="Jane Doe"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-800">Email</label>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Email</label>
                 <input
                   type="email"
                   value={addUserForm.email}
@@ -763,7 +973,7 @@ export default function AdminUsersPage() {
                       email: event.target.value,
                     }))
                   }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
                   placeholder="jane.doe@company.com"
                 />
               </div>
@@ -1127,19 +1337,22 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="rounded-lg border bg-white p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search users"
-            className="rounded-md border px-3 py-2 text-sm"
-          />
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="group relative">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search users"
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            />
+          </div>
 
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-md border px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
           >
             <option value="">All statuses</option>
             {STATUS_OPTIONS.map((option) => (
@@ -1152,7 +1365,7 @@ export default function AdminUsersPage() {
           <select
             value={roleFilter}
             onChange={(event) => setRoleFilter(event.target.value)}
-            className="rounded-md border px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
           >
             <option value="">All roles</option>
             {ROLE_OPTIONS.map((option) => (
@@ -1165,7 +1378,7 @@ export default function AdminUsersPage() {
           <select
             value={businessUnitFilter}
             onChange={(event) => setBusinessUnitFilter(event.target.value)}
-            className="rounded-md border px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
             disabled={businessUnitsLoading}
           >
             <option value="">All business units</option>
@@ -1180,14 +1393,14 @@ export default function AdminUsersPage() {
             value={costCenterFilter}
             onChange={(event) => setCostCenterFilter(event.target.value)}
             placeholder="Cost center ID"
-            className="rounded-md border px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400"
           />
         </div>
 
         <div className="mt-3 flex justify-end">
           <button
             onClick={clearFilters}
-            className="rounded-md border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-cyan-200 hover:bg-cyan-50"
           >
             Clear filters
           </button>
@@ -1207,36 +1420,37 @@ export default function AdminUsersPage() {
       </div>
 
       {forbidden && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
           You do not have permission to view tenant users. Admin access is required.
         </div>
       )}
 
       {!forbidden && error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
           {error}
         </div>
       )}
 
-      <div className="rounded-lg border bg-white overflow-x-auto">
-        <table className="w-full min-w-[980px] text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr className="text-left text-gray-600">
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Role</th>
-              <th className="px-4 py-3 font-medium">Business Unit</th>
-              <th className="px-4 py-3 font-medium">Cost Center</th>
-              <th className="px-4 py-3 font-medium">SSO Enabled</th>
-              <th className="px-4 py-3 font-medium text-right">Action</th>
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Name</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Email</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Role</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Business Unit</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Cost Center</th>
+              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">SSO Enabled</th>
+              <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Action</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-slate-100">
             {loading && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={8} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
                   Loading users...
                 </td>
               </tr>
@@ -1244,7 +1458,7 @@ export default function AdminUsersPage() {
 
             {!loading && !forbidden && usersForTable.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
+                <td colSpan={8} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
                   No users found.
                 </td>
               </tr>
@@ -1255,29 +1469,29 @@ export default function AdminUsersPage() {
               usersForTable.map((user) => (
                 <tr
                   key={`${user.membershipId || user.userId || user.email}-${user.name}`}
-                  className="hover:bg-gray-50"
+                  className="group transition-all hover:bg-cyan-50/40"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
-                  <td className="px-4 py-3 text-gray-700">{user.email || '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-8 py-6 font-bold text-slate-900">{user.name}</td>
+                  <td className="px-8 py-6 text-slate-700">{user.email || '—'}</td>
+                  <td className="px-8 py-6">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(user.status)}`}
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(user.status)}`}
                     >
                       {toTitleCase(user.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                  <td className="px-8 py-6">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
                       {toTitleCase(user.role)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  <td className="px-8 py-6 text-slate-700">
                     {user.businessUnit || user.businessUnitId || '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{toCostCenterDisplay(user)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-8 py-6 text-slate-700">{toCostCenterDisplay(user)}</td>
+                  <td className="px-8 py-6">
                     <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
                         user.ssoEnabled
                           ? 'bg-emerald-100 text-emerald-700'
                           : 'bg-slate-100 text-slate-600'
@@ -1286,18 +1500,20 @@ export default function AdminUsersPage() {
                       {user.ssoEnabled ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-8 py-6 text-right">
                     <button
-                      onClick={() => openUserDetails(user)}
-                      className="rounded-md border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      disabled
+                      className="cursor-not-allowed rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-400"
                     >
-                      View
+                      Details pending
                     </button>
                   </td>
                 </tr>
               ))}
           </tbody>
         </table>
+        </div>
+      </div>
       </div>
     </div>
   )

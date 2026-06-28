@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 
 export default function IntentPage({ params }: { params: { intent: string } }) {
-  const validIntents = ['job_posting', 'sow', 'sourcing', 'guided']
+  const validIntents = ['job_posting', 'sow', 'source', 'sourcing', 'guided']
 
   if (!validIntents.includes(params.intent)) {
     notFound()
@@ -16,9 +16,8 @@ export default function IntentPage({ params }: { params: { intent: string } }) {
     redirect('/requests/new/job/create/define')
   }
 
-  // keep placeholders for now (we’ll wire later)
-  if (params.intent === 'sourcing') {
-    redirect('/requests/new/sourcing')
+  if (params.intent === 'source' || params.intent === 'sourcing') {
+    redirect('/requests/new/guided')
   }
 
   if (params.intent === 'guided') {

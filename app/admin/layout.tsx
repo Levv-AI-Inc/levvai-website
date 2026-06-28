@@ -36,9 +36,11 @@ const ADMIN_NAV = [
   { label: 'Roles', href: '/admin/roles' },
   { label: 'Approval Chains', href: '/admin/approval-chains' },
   { label: 'Financial', href: '/admin/financial' },
-  { label: 'Rates', href: '/admin/rates' }, // ← ADDED
+  { label: 'Rates', href: '/admin/rates' },
   { label: 'Suppliers', href: '/admin/suppliers' },
   { label: 'Workers', href: '/admin/workers' },
+  { label: 'Compliance Policies', href: '/admin/compliance/policies' },
+  { label: 'Tenant Docs', href: '/admin/tenant-docs' },
   { label: 'Integrations', href: '/admin/integrations' },
   { label: 'Configuration', href: '/admin/configuration' },
 ]

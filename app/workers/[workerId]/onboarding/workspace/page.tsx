@@ -1,6 +1,5 @@
 'use client'
 
-import type { ComponentProps } from 'react'
 import OnboardingHeader from '@/components/onboarding/OnboardingHeader'
 import ReadinessScore from '@/components/onboarding/ReadinessScore'
 import BlockerBanner from '@/components/onboarding/BlockerBanner'
@@ -13,7 +12,14 @@ import ActionPanel from '@/components/onboarding/ActionPanel'
  */
 const viewerRole: 'Internal' | 'Worker' | 'Supplier' = 'Internal'
 
-type Step = ComponentProps<typeof Stepper>['steps'][number]
+type Step = {
+  id: string
+  label: string
+  status: 'Pending' | 'In Progress' | 'Complete'
+  owner: 'Worker' | 'Supplier' | 'Internal'
+  blocker?: string
+  etaDays?: number
+}
 
 const steps: Step[] = [
   {

@@ -1,220 +1,247 @@
 'use client'
 
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { X, Search, Settings2, ShieldCheck, Activity, ChevronRight, Globe } from 'lucide-react'
 
 type Integration = {
   name: string
   category: string
   description: string
+  status: 'connected' | 'disconnected' | 'error'
 }
 
 const integrations: Integration[] = [
-  { name: 'Asana', category: 'Work Management', description: 'Project and task tracking tied to work requests.' },
-  { name: 'Jira', category: 'Work Management', description: 'Delivery tracking, tickets, and execution dependencies.' },
-  { name: 'ServiceNow', category: 'Work Management', description: 'Enterprise service workflows and controls.' },
-
-  { name: 'SAP Ariba', category: 'Procurement', description: 'Sourcing, supplier management, and spend control.' },
-  { name: 'Coupa', category: 'Procurement', description: 'Spend management and supplier collaboration.' },
-
-  { name: 'NetSuite', category: 'ERP / Finance', description: 'Financials, invoicing, and project accounting.' },
-  { name: 'Oracle', category: 'ERP / Finance', description: 'Enterprise finance and procurement backbone.' },
-  { name: 'SAP S/4HANA', category: 'ERP / Finance', description: 'Core ERP for finance, procurement, and operations.' },
-
-  { name: 'Slack', category: 'Communications', description: 'Real-time notifications and approval nudges.' },
-  { name: 'Microsoft Teams', category: 'Communications', description: 'Enterprise messaging and collaboration.' },
+  { name: 'Asana', category: 'Work Management', description: 'Project and task tracking tied to work requests.', status: 'disconnected' },
+  { name: 'Jira', category: 'Work Management', description: 'Delivery tracking, tickets, and execution dependencies.', status: 'disconnected' },
+  { name: 'ServiceNow', category: 'Work Management', description: 'Enterprise service workflows and controls.', status: 'disconnected' },
+  { name: 'SAP Ariba', category: 'Procurement', description: 'Sourcing, supplier management, and spend control.', status: 'disconnected' },
+  { name: 'Coupa', category: 'Procurement', description: 'Spend management and supplier collaboration.', status: 'disconnected' },
+  { name: 'NetSuite', category: 'ERP / Finance', description: 'Financials, invoicing, and project accounting.', status: 'disconnected' },
+  { name: 'Oracle', category: 'ERP / Finance', description: 'Enterprise finance and procurement backbone.', status: 'disconnected' },
+  { name: 'SAP S/4HANA', category: 'ERP / Finance', description: 'Core ERP for finance, procurement, and operations.', status: 'disconnected' },
+  { name: 'Slack', category: 'Communications', description: 'Real-time notifications and approval nudges.', status: 'disconnected' },
+  { name: 'Microsoft Teams', category: 'Communications', description: 'Enterprise messaging and collaboration.', status: 'disconnected' },
 ]
+
+const categories = ['All', 'Work Management', 'Procurement', 'ERP / Finance', 'Communications']
 
 export default function IntegrationsPage() {
   const [activeIntegration, setActiveIntegration] = useState<Integration | null>(null)
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState('All')
+
+  // Filter Logic
+  const filteredIntegrations = useMemo(() => {
+    return integrations.filter((item) => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesTab = activeTab === 'All' || item.category === activeTab
+      return matchesSearch && matchesTab
+    })
+  }, [searchQuery, activeTab])
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Integrations & workflows
-        </h1>
-        <p className="mt-1 text-sm text-gray-600 max-w-2xl">
-          Configure how CWS connects to enterprise systems to orchestrate work,
-          approvals, and compliance.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="max-w-7xl mx-auto px-6 py-12">
 
-      {/* Integration Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {integrations.map((integration) => {
-          const isOn = enabled[integration.name]
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Integrations</h1>
+            <p className="mt-2 text-gray-600 max-w-xl">
+              Connect your third-party tools to automate workflows and keep your enterprise data in sync.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 bg-white p-1 rounded-lg border shadow-sm">
+             <div className="px-3 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-md flex items-center gap-1.5">
+               <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+               System Status: Operational
+             </div>
+          </div>
+        </div>
 
-          return (
-            <div
-              key={integration.name}
-              className="rounded-xl border bg-white p-5 flex flex-col justify-between hover:shadow-sm transition"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  {/* Initial badge */}
-                  <div className="h-10 w-10 rounded-lg bg-gray-900 text-white flex items-center justify-center font-semibold">
-                    {integration.name[0]}
-                  </div>
-
-                  {/* Toggle */}
-                  <button
-                    onClick={() =>
-                      setEnabled((prev) => ({
-                        ...prev,
-                        [integration.name]: !prev[integration.name],
-                      }))
-                    }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                      isOn ? 'bg-black' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                        isOn ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <h3 className="mt-4 font-medium text-gray-900">
-                  {integration.name}
-                </h3>
-                <p className="text-xs text-gray-500">
-                  {integration.category}
-                </p>
-                <p className="mt-2 text-sm text-gray-600">
-                  {integration.description}
-                </p>
-              </div>
-
+        {/* Toolbar: Search & Tabs */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-8">
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
+            {categories.map((cat) => (
               <button
-                onClick={() => setActiveIntegration(integration)}
-                className="mt-5 w-full rounded-md border border-gray-300 py-2 text-sm font-medium hover:bg-gray-50 transition"
+                key={cat}
+                onClick={() => setActiveTab(cat)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  activeTab === cat
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
-                Settings
+                {cat}
               </button>
-            </div>
-          )
-        })}
+            ))}
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search integrations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border rounded-xl focus:ring-2 focus:ring-black/5 outline-none transition"
+            />
+          </div>
+        </div>
+
+        {/* Grid */}
+        {filteredIntegrations.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredIntegrations.map((integration) => (
+              <IntegrationCard
+                key={integration.name}
+                integration={integration}
+                onOpenSettings={() => setActiveIntegration(integration)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed">
+            <div className="mx-auto h-12 w-12 text-gray-300 mb-4"><Search size={48} /></div>
+            <h3 className="text-lg font-medium text-gray-900">No integrations found</h3>
+            <p className="text-gray-500">Try adjusting your search or filters.</p>
+          </div>
+        )}
       </div>
 
       {/* Settings Drawer */}
       {activeIntegration && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-          <div className="w-full max-w-md bg-white h-full p-6 shadow-xl overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {activeIntegration.name}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Integration settings
-                </p>
-              </div>
-              <button onClick={() => setActiveIntegration(null)}>
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            <IntegrationSettingsForm />
-
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={() => setActiveIntegration(null)}
-                className="px-4 py-2 text-sm border rounded-md"
-              >
-                Cancel
-              </button>
-              <button className="px-4 py-2 text-sm bg-black text-white rounded-md hover:bg-gray-800">
-                Save changes
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsDrawer
+          integration={activeIntegration}
+          onClose={() => setActiveIntegration(null)}
+        />
       )}
     </div>
   )
 }
 
 /* -----------------------------------
-   Settings Form
+    Components
 ----------------------------------- */
 
-function IntegrationSettingsForm() {
+function IntegrationCard({ integration, onOpenSettings }: { integration: Integration, onOpenSettings: () => void }) {
+  const statusStyles = {
+    connected: 'bg-green-50 text-green-700 border-green-100',
+    disconnected: 'bg-gray-50 text-gray-600 border-gray-100',
+    error: 'bg-red-50 text-red-700 border-red-100'
+  }
+
   return (
-    <div className="space-y-6 text-sm">
-      {/* Status */}
-      <div className="flex items-center justify-between rounded-md border px-3 py-2 bg-gray-50">
-        <span className="text-gray-700">Connection status</span>
-        <span className="text-gray-600 font-medium">● Not Connected</span>
+    <div className="group relative bg-white rounded-2xl border p-6 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300">
+      <div className="flex justify-between items-start mb-4">
+        <div className="h-12 w-12 rounded-xl bg-gray-900 text-white flex items-center justify-center text-lg font-bold shadow-lg shadow-gray-200">
+          {integration.name[0]}
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusStyles[integration.status]}`}>
+          {integration.status}
+        </span>
       </div>
 
-      {/* Credentials */}
       <div>
-        <h3 className="font-medium text-gray-900 mb-2">
-          Authentication
+        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+          {integration.name}
         </h3>
-        <div className="space-y-3">
-          <Field label="Instance URL" placeholder="https://company.system.com" />
-          <Field label="Client ID" placeholder="Enter client ID" />
-          <Field label="Client Secret" placeholder="••••••••••••" type="password" />
-        </div>
+        <p className="text-xs font-medium text-gray-400 mb-3">{integration.category}</p>
+        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+          {integration.description}
+        </p>
       </div>
 
-      {/* Upload */}
-      <div>
-        <label className="block font-medium text-gray-900 mb-1">
-          Service account key (JSON)
-        </label>
-        <div className="border border-dashed rounded-md p-4 text-center text-gray-500 text-sm">
-          Click to upload or drag and drop
-        </div>
-      </div>
-
-      {/* Permissions */}
-      <div>
-        <h3 className="font-medium text-gray-900 mb-2">
-          Permissions
-        </h3>
-        <div className="space-y-2">
-          <Checkbox label="Read workflow status" />
-          <Checkbox label="Read approval outcomes" />
-          <Checkbox label="Trigger notifications" />
-        </div>
-      </div>
-
-      {/* Safety */}
-      <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-600">
-        This integration operates in <strong>read-only</strong> mode by default
-        to prevent unintended changes in source systems.
+      <div className="mt-6 pt-6 border-t flex items-center justify-between">
+        <button
+          onClick={onOpenSettings}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition"
+        >
+          <Settings2 size={16} />
+          Configure
+        </button>
+        <ChevronRight size={16} className="text-gray-300 group-hover:translate-x-1 transition-transform" />
       </div>
     </div>
   )
 }
 
-/* -----------------------------------
-   Small Reusable Inputs
------------------------------------ */
-
-function Field({
-  label,
-  placeholder,
-  type = 'text',
-}: {
-  label: string
-  placeholder: string
-  type?: string
-}) {
+function SettingsDrawer({ integration, onClose }: { integration: Integration, onClose: () => void }) {
   return (
-    <div>
-      <label className="block mb-1 text-gray-700">{label}</label>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+
+        <div className="p-8 border-b flex items-center justify-between bg-gray-50/50">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-black text-white flex items-center justify-center font-bold">
+              {integration.name[0]}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{integration.name}</h2>
+              <p className="text-sm text-gray-500">Configure connection & data flow</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white rounded-full border transition shadow-sm">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          <section>
+            <div className="flex items-center gap-2 mb-4 text-gray-900 font-bold">
+              <Activity size={18} />
+              <h3>Connection Status</h3>
+            </div>
+            <div className="p-4 rounded-xl border bg-gray-50 flex items-center justify-between">
+              <span className="text-sm text-gray-600">Primary API Endpoint</span>
+              <span className="text-sm font-mono text-gray-400">v2.api.auth</span>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+             <div className="flex items-center gap-2 mb-2 text-gray-900 font-bold">
+              <Globe size={18} />
+              <h3>Authentication</h3>
+            </div>
+            <Field label="Instance URL" placeholder="https://company.service.com" />
+            <Field label="API Key" type="password" placeholder="••••••••••••••••" />
+          </section>
+
+          <section className="space-y-4">
+             <div className="flex items-center gap-2 mb-2 text-gray-900 font-bold">
+              <ShieldCheck size={18} />
+              <h3>Scopes & Permissions</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {['Read Tasks', 'Update Workflow', 'Post Notifications'].map(perm => (
+                <Checkbox key={perm} label={perm} />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="p-8 border-t bg-gray-50 flex items-center gap-3">
+          <button onClick={onClose} className="flex-1 px-4 py-3 text-sm font-bold border bg-white rounded-xl hover:bg-gray-50 transition">
+            Discard
+          </button>
+          <button className="flex-1 px-4 py-3 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-lg shadow-gray-200">
+            Save Integration
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, placeholder, type = 'text' }: { label: string, placeholder: string, type?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</label>
       <input
         type={type}
         placeholder={placeholder}
-        className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:ring-4 focus:ring-black/5 focus:border-black outline-none transition"
       />
     </div>
   )
@@ -222,9 +249,9 @@ function Field({
 
 function Checkbox({ label }: { label: string }) {
   return (
-    <label className="flex items-center gap-2 text-gray-700">
-      <input type="checkbox" className="rounded border-gray-300" />
-      {label}
+    <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 transition cursor-pointer group">
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black" />
     </label>
   )
 }

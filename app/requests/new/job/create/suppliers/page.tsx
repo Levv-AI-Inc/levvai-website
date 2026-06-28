@@ -352,7 +352,7 @@ export default function CWSuppliersPage() {
         <button
           disabled={!selectedSupplierId || submitting}
           onClick={() => void handleContinue()}
-          className={`px-6 py-2.5 rounded-full text-sm font-medium text-white 
+          className={`px-6 py-2.5 rounded-full text-sm font-medium text-white
            ${
               !selectedSupplierId || submitting
                 ? 'bg-gray-300 cursor-not-allowed'

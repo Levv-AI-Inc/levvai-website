@@ -3,11 +3,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Building2,
   Check,
   Copy,
   Loader2,
   Plus,
   Search,
+  ShieldAlert,
+  Users,
   X,
 } from 'lucide-react'
 
@@ -60,6 +63,12 @@ const EMPTY_SUPPLIER_FORM: SupplierFormState = {
   compliance_status: 'compliant',
   active_workers: '0',
   active_sows: '0',
+}
+
+function readCount(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') return toNonNegativeInt(value)
+  return 0
 }
 
 export default function SuppliersPage() {
@@ -121,6 +130,35 @@ export default function SuppliersPage() {
     }
 
     return Array.from(values)
+  }, [suppliers])
+
+  const supplierStats = useMemo(() => {
+    return suppliers.reduce(
+      (totals, supplier) => {
+        const risk = normalizeRole(supplier.risk_level)
+        const compliance = normalizeRole(supplier.compliance_status)
+        const status = normalizeRole(supplier.status)
+
+        totals.activeWorkers += readCount(supplier.active_workers)
+        totals.activeSows += readCount(supplier.active_sows)
+
+        if (status === 'active') {
+          totals.activeSuppliers += 1
+        }
+
+        if (risk === 'high' || (compliance && compliance !== 'compliant')) {
+          totals.riskFlags += 1
+        }
+
+        return totals
+      },
+      {
+        activeSuppliers: 0,
+        activeWorkers: 0,
+        activeSows: 0,
+        riskFlags: 0,
+      },
+    )
   }, [suppliers])
 
   useEffect(() => {
@@ -481,11 +519,14 @@ export default function SuppliersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
+      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Suppliers</h1>
-          <p className="mt-1 text-sm text-slate-500">Supplier master records</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Suppliers</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Manage vendor relationships, compliance health, and operational footprint.
+          </p>
         </div>
 
         <div className="group relative inline-flex">
@@ -497,7 +538,7 @@ export default function SuppliersPage() {
             className={cn(
               'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition',
               canManageSuppliers
-                ? 'bg-black text-white hover:bg-slate-800'
+                ? 'bg-slate-950 text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800'
                 : 'cursor-not-allowed bg-slate-200 text-slate-500',
             )}
           >
@@ -518,22 +559,77 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-slate-400" />
+      <div className="grid gap-6 md:grid-cols-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Active suppliers
+            </span>
+            <Building2 className="h-5 w-5 text-cyan-500" />
+          </div>
+          <div className="mt-2 text-3xl font-black text-slate-900">
+            {supplierStats.activeSuppliers}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Active workers
+            </span>
+            <Users className="h-5 w-5 text-cyan-500" />
+          </div>
+          <div className="mt-2 text-3xl font-black text-slate-900">
+            {supplierStats.activeWorkers}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Active SOWs
+            </span>
+            <Building2 className="h-5 w-5 text-slate-500" />
+          </div>
+          <div className="mt-2 text-3xl font-black text-slate-900">
+            {supplierStats.activeSows}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Risk flags
+            </span>
+            <ShieldAlert
+              className={cn(
+                'h-5 w-5',
+                supplierStats.riskFlags > 0 ? 'text-rose-500' : 'text-emerald-500',
+              )}
+            />
+          </div>
+          <div className="mt-2 text-3xl font-black text-slate-900">
+            {supplierStats.riskFlags}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="group relative">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search suppliers"
-              className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              placeholder="Supplier name, ID, or category..."
+              className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
           >
             <option value="">All statuses</option>
             {uniqueStatuses.map((status) => (
@@ -546,7 +642,7 @@ export default function SuppliersPage() {
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none"
+            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
           >
             <option value="">All types</option>
             {uniqueTypes.map((type) => (
@@ -559,7 +655,7 @@ export default function SuppliersPage() {
       </div>
 
       {listError && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
           <div>{listError}</div>
           <button
             type="button"
@@ -662,6 +758,7 @@ export default function SuppliersPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

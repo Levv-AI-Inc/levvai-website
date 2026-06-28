@@ -233,7 +233,7 @@ export default function DemoPage() {
                 </div>
               </div>
 
-              
+
                             <form
                 className="mt-6 space-y-4"
                 onSubmit={async (e) => {
@@ -316,7 +316,7 @@ export default function DemoPage() {
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-slate-500">
             <span>(c) 2026 Levv AI. All rights reserved.</span>
             <div className="flex items-center gap-4">
-              <Link href="#" className="hover:text-slate-800">Security</Link>
+              <Link href="/security" className="hover:text-slate-800">Security</Link>
               <Link href="#" className="hover:text-slate-800">Privacy</Link>
               <Link href="#" className="hover:text-slate-800">Contact</Link>
             </div>
