@@ -19,7 +19,6 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
-  getSmoothStepPath,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -98,6 +97,26 @@ type OnboardingFlowEditorProps = {
 }
 
 const edgeStyle = { stroke: '#94a3b8', strokeWidth: 2 }
+
+function getDiagonalEdgePath({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+}: {
+  sourceX: number
+  sourceY: number
+  targetX: number
+  targetY: number
+}) {
+  const midpoint = (sourceX + targetX) / 2
+
+  return [
+    `M ${sourceX} ${sourceY} C ${midpoint} ${sourceY}, ${midpoint} ${targetY}, ${targetX} ${targetY}`,
+    (sourceX + targetX) / 2,
+    (sourceY + targetY) / 2,
+  ] as const
+}
 
 function blockSubtitle(block: FlowPipelineBlock | FlowLibraryBlock) {
   if (block.type === 'system') {
@@ -205,19 +224,15 @@ function RemovableEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   markerEnd,
   style,
   data,
 }: EdgeProps<FlowEdge>) {
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getDiagonalEdgePath({
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
-    targetPosition,
   })
   const edgeData = data as EdgeData | undefined
 
@@ -582,7 +597,7 @@ function OnboardingFlowCanvas(props: OnboardingFlowEditorProps) {
             onNodeDragStart={onNodeDragStart}
             onNodeDragStop={onNodeDragStop}
             isValidConnection={isValidConnection}
-            connectionLineType={ConnectionLineType.SmoothStep}
+            connectionLineType={ConnectionLineType.SimpleBezier}
             defaultEdgeOptions={defaultEdgeOptions}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             minZoom={0.6}
