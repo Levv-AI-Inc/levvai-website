@@ -72,15 +72,32 @@ export type WorkflowBlockRequirement = {
 
 export type WorkflowBlock = {
   id?: number
+  client_key?: string
   sequence: number
   block_type: BlockType
   name: string
   gate_type: GateType
   integration_type?: IntegrationType | ''
   config?: Record<string, unknown>
+  layout?: {
+    level?: number
+    position?: number
+    workflow_graph?: {
+      incoming?: string[]
+      outgoing?: string[]
+    }
+  }
   requirements?: WorkflowBlockRequirement[]
   created_at?: string
   updated_at?: string
+}
+
+export type WorkflowDependency = {
+  id?: number
+  from_block?: number | null
+  to_block?: number | null
+  from_block_key?: string
+  to_block_key?: string
 }
 
 export type Workflow = {
@@ -93,6 +110,7 @@ export type Workflow = {
   version: number
   policy_scope?: PolicyScope
   blocks: WorkflowBlock[]
+  dependencies: WorkflowDependency[]
   health: WorkflowHealth
   created_by: number | null
   created_at: string
@@ -126,6 +144,7 @@ export type CreateWorkflowPayload = {
   is_active?: boolean
   policy_scope?: PolicyScope
   blocks?: WorkflowBlock[]
+  dependencies?: WorkflowDependency[]
 }
 
 export type UpdateWorkflowPayload = Partial<CreateWorkflowPayload>
@@ -466,9 +485,18 @@ function normalizeWorkflowBlock(row: Record<string, unknown>): WorkflowBlock {
   const rawRequirements = Array.isArray(row.requirements)
     ? row.requirements
     : []
+  const rawLayout =
+    row.layout && typeof row.layout === 'object'
+      ? (row.layout as Record<string, unknown>)
+      : undefined
+  const rawLayoutGraph =
+    rawLayout?.workflow_graph && typeof rawLayout.workflow_graph === 'object'
+      ? (rawLayout.workflow_graph as Record<string, unknown>)
+      : undefined
 
   return {
     id: readOptionalNumber(row.id),
+    client_key: readOptionalString(row.client_key),
     sequence: readOptionalNumber(row.sequence) ?? 0,
     block_type: normalizeBlockType(row.block_type),
     name: readOptionalString(row.name) || '',
@@ -478,6 +506,26 @@ function normalizeWorkflowBlock(row: Record<string, unknown>): WorkflowBlock {
       row.config && typeof row.config === 'object'
         ? (row.config as Record<string, unknown>)
         : undefined,
+    layout: rawLayout
+      ? {
+          level: readOptionalNumber(rawLayout.level),
+          position: readOptionalNumber(rawLayout.position),
+          workflow_graph: rawLayoutGraph
+            ? {
+                incoming: Array.isArray(rawLayoutGraph.incoming)
+                  ? rawLayoutGraph.incoming.filter(
+                      (item): item is string => typeof item === 'string',
+                    )
+                  : undefined,
+                outgoing: Array.isArray(rawLayoutGraph.outgoing)
+                  ? rawLayoutGraph.outgoing.filter(
+                      (item): item is string => typeof item === 'string',
+                    )
+                  : undefined,
+              }
+            : undefined,
+        }
+      : undefined,
     requirements: rawRequirements
       .filter(
         (requirement): requirement is Record<string, unknown> =>
@@ -490,8 +538,23 @@ function normalizeWorkflowBlock(row: Record<string, unknown>): WorkflowBlock {
   }
 }
 
+function normalizeWorkflowDependency(
+  row: Record<string, unknown>,
+): WorkflowDependency {
+  return {
+    id: readOptionalNumber(row.id),
+    from_block: readOptionalNumber(row.from_block) ?? null,
+    to_block: readOptionalNumber(row.to_block) ?? null,
+    from_block_key: readOptionalString(row.from_block_key),
+    to_block_key: readOptionalString(row.to_block_key),
+  }
+}
+
 function normalizeWorkflow(row: Record<string, unknown>): Workflow {
   const rawBlocks = Array.isArray(row.blocks) ? row.blocks : []
+  const rawDependencies = Array.isArray(row.dependencies)
+    ? row.dependencies
+    : []
 
   return {
     id: readOptionalNumber(row.id) ?? 0,
@@ -509,6 +572,12 @@ function normalizeWorkflow(row: Record<string, unknown>): Workflow {
       )
       .map(normalizeWorkflowBlock)
       .sort((a, b) => a.sequence - b.sequence),
+    dependencies: rawDependencies
+      .filter(
+        (dependency): dependency is Record<string, unknown> =>
+          Boolean(dependency) && typeof dependency === 'object',
+      )
+      .map(normalizeWorkflowDependency),
     health: normalizeHealth(row.health),
     created_by: readOptionalNumber(row.created_by) ?? null,
     created_at: readOptionalString(row.created_at) || '',

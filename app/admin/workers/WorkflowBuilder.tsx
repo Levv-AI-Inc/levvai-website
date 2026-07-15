@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Fragment,
   type DragEvent,
   type MouseEvent,
   type ReactNode,
@@ -21,8 +20,8 @@ import {
   ChevronLeft,
   ClipboardList,
   Cog,
-  GripVertical,
   Info,
+  Link2,
   Plug,
   Plus,
   Shield,
@@ -56,11 +55,21 @@ import {
   type Workflow,
   type WorkflowBlock,
   type WorkflowBlockRequirement,
+  type WorkflowDependency,
   type WorkflowHealth,
   type WorkflowLookups,
   type WorkflowType as ApiWorkflowType,
 } from '@/lib/api/complianceWorkflows'
+import { getBusinessUnits, type BusinessUnitRecord } from '@/lib/api/businessUnits'
+import { getCostCenters, type CostCenterRecord } from '@/lib/api/costCenters'
 import { getLocations, type LocationRecord } from '@/lib/api/locations'
+import { getRoles, type RoleRecord } from '@/lib/api/roles'
+import { getSuppliers, type SupplierRecord } from '@/lib/api/suppliers'
+import OnboardingFlowEditor from '../../../src/components/onboarding-flow/OnboardingFlowEditor'
+import {
+  END_NODE_ID,
+  START_NODE_ID,
+} from '../../../src/components/onboarding-flow/types'
 
 type WorkflowTypeLabel = 'Onboarding' | 'Offboarding'
 type WorkerType = PolicyScope['worker_type']
@@ -103,7 +112,21 @@ type LibraryBlock = {
 
 type PipelineBlock = LibraryBlock & {
   pipelineId: string
+  clientKey: string
   order: number
+  graphLevel: number
+  encodedGraphPosition?: number
+}
+
+type PipelineDependency = {
+  id: string
+  from: string
+  to: string
+}
+
+type PersistedGraphConfig = {
+  incoming?: string[]
+  outgoing?: string[]
 }
 
 type BuilderScopeField = {
@@ -112,11 +135,14 @@ type BuilderScopeField = {
   label: string
   display: string
   valueId: number
+  values: string[]
+  valueIds: Record<string, number>
 }
 
 type ScopeState = {
   name: string
   workerType: WorkerType
+  workerTypes: WorkerType[]
   isActive: boolean
 }
 
@@ -185,6 +211,11 @@ const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
     },
   },
 ]
+
+const GRAPH_CONFIG_KEY = 'workflow_graph'
+const GRAPH_POSITION_OFFSET = 100000
+const GRAPH_POSITION_ORDER_BUCKET = 100
+const GRAPH_POSITION_OUTGOING_BUCKET = 1000
 
 const FALLBACK_WORKER_TYPE_OPTIONS: Option[] = [
   { value: 'contingent', label: 'Contingent' },
@@ -614,6 +645,31 @@ function formatLocationDisplay(location: LocationRecord) {
     .join(' · ')
 }
 
+function readRecordId(value: number | string | undefined | null) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isInteger(parsed) && parsed > 0) return parsed
+  }
+  return undefined
+}
+
+function formatCostCenterDisplay(costCenter: CostCenterRecord) {
+  return [costCenter.code, costCenter.name].filter(Boolean).join(' · ')
+}
+
+function formatBusinessUnitDisplay(businessUnit: BusinessUnitRecord) {
+  return [businessUnit.code, businessUnit.name].filter(Boolean).join(' · ')
+}
+
+function formatRoleDisplay(role: RoleRecord) {
+  return [role.name, role.location_label].filter(Boolean).join(' · ')
+}
+
+function formatSupplierDisplay(supplier: SupplierRecord) {
+  return supplier.name || supplier.supplier_code || supplier.supplier_id
+}
+
 function endpointKeyFromName(name: string) {
   return (
     name
@@ -641,42 +697,102 @@ function readScopeFieldValue(field: PolicyScopeField) {
 
 function mapScopeField(field: PolicyScopeField): BuilderScopeField | null {
   const valueId = readScopeFieldValue(field)
-  if (!valueId) return null
-
   const label = field.label || fieldKeyLabel(field.field_key)
+  const display = field.display || (valueId ? `${label} #${valueId}` : '')
+  const values = splitConditionDisplay(display)
+  if (!display && !valueId) return null
+
   return {
     id: String(field.id ?? randomId('scope-field')),
     fieldKey: field.field_key,
     label,
-    display: field.display || `${label} #${valueId}`,
-    valueId,
+    display,
+    valueId: valueId ?? 0,
+    values,
+    valueIds:
+      valueId && values.length === 1
+        ? { [values[0]]: valueId }
+        : {},
   }
 }
 
-function serializeScopeField(
+function mergeScopeFields(fields: BuilderScopeField[]) {
+  const merged: BuilderScopeField[] = []
+
+  fields.forEach((field) => {
+    const existing = merged.find(
+      (candidate) => candidate.fieldKey === field.fieldKey,
+    )
+    if (!existing) {
+      merged.push(field)
+      return
+    }
+
+    const nextValues = [...existing.values]
+    field.values.forEach((value) => {
+      if (!nextValues.includes(value)) nextValues.push(value)
+    })
+    const nextValueIds = { ...existing.valueIds, ...field.valueIds }
+
+    existing.values = nextValues
+    existing.valueIds = nextValueIds
+    existing.display = nextValues.join(' or ')
+    if (!existing.valueId && field.valueId) existing.valueId = field.valueId
+  })
+
+  return merged
+}
+
+function serializeScopeFieldValue(
   field: BuilderScopeField,
   sequence: number,
+  display: string,
 ): PolicyScopeField {
+  const rawValueId =
+    field.valueIds[display] ?? (field.values.length === 1 ? field.valueId : 0)
+  const valueId = rawValueId > 0 ? rawValueId : undefined
   const base = {
     sequence,
     field_key: field.fieldKey,
     operator: 'equals' as const,
     label: field.label,
-    display: field.display,
+    display,
   }
 
   switch (field.fieldKey) {
     case 'location':
-      return { ...base, location: field.valueId }
+      return valueId ? { ...base, location: valueId } : base
     case 'cost_center':
-      return { ...base, cost_center: field.valueId }
+      return valueId ? { ...base, cost_center: valueId } : base
     case 'business_unit':
-      return { ...base, business_unit: field.valueId }
+      return valueId ? { ...base, business_unit: valueId } : base
     case 'role':
-      return { ...base, role_definition: field.valueId }
+      return valueId ? { ...base, role_definition: valueId } : base
     case 'supplier':
-      return { ...base, supplier: field.valueId }
+      return valueId ? { ...base, supplier: valueId } : base
   }
+}
+
+function serializeScopeFields(fields: BuilderScopeField[]): PolicyScopeField[] {
+  const payloadFields: PolicyScopeField[] = []
+
+  fields.forEach((field) => {
+    const values = field.values.length
+      ? field.values
+      : splitConditionDisplay(field.display)
+
+    values.forEach((value) => {
+      const valueId =
+        field.valueIds[value] ?? (values.length === 1 ? field.valueId : 0)
+      if (!valueId) return
+
+      payloadFields.push(
+        serializeScopeFieldValue(field, payloadFields.length + 1, value),
+      )
+    })
+  })
+
+  return payloadFields
 }
 
 function mapRequirement(
@@ -689,13 +805,178 @@ function mapRequirement(
   }
 }
 
+function workflowBlockClientKey(block: WorkflowBlock) {
+  return block.client_key || (block.id ? `block-${block.id}` : randomId('block-key'))
+}
+
+function isLegacyAutoBlock(block: WorkflowBlock) {
+  const normalizedName = block.name
+    .trim()
+    .toLowerCase()
+    .replace(/\s*&\s*/g, ' and ')
+  return (
+    normalizedName === 'account and equipment' ||
+    normalizedName.startsWith('account and equipment ')
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function readStringList(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+function readPersistedGraphConfig(
+  config: Record<string, unknown> | undefined,
+): PersistedGraphConfig {
+  const graph = config?.[GRAPH_CONFIG_KEY]
+  if (!isRecord(graph)) return {}
+
+  return {
+    incoming: readStringList(graph.incoming),
+    outgoing: readStringList(graph.outgoing),
+  }
+}
+
+function hasPersistedGraphConfig(graphConfig: PersistedGraphConfig) {
+  return Boolean(graphConfig.incoming?.length || graphConfig.outgoing?.length)
+}
+
+function persistedGraphConfigFromBlock(block: WorkflowBlock) {
+  const configGraph = readPersistedGraphConfig(block.config)
+  if (hasPersistedGraphConfig(configGraph)) return configGraph
+  return block.layout?.workflow_graph ?? {}
+}
+
+function endpointKeyForPipelineId(
+  pipelineId: string,
+  blocks: PipelineBlock[],
+) {
+  if (pipelineId === START_NODE_ID || pipelineId === END_NODE_ID) {
+    return pipelineId
+  }
+  return blocks.find((block) => block.pipelineId === pipelineId)?.clientKey
+}
+
+function graphConfigForBlock(
+  block: PipelineBlock,
+  dependencies: PipelineDependency[],
+  blocks: PipelineBlock[],
+): PersistedGraphConfig {
+  const incoming = dependencies
+    .filter((dependency) => dependency.to === block.pipelineId)
+    .map((dependency) => endpointKeyForPipelineId(dependency.from, blocks))
+    .filter((key): key is string => Boolean(key))
+  const outgoing = dependencies
+    .filter((dependency) => dependency.from === block.pipelineId)
+    .map((dependency) => endpointKeyForPipelineId(dependency.to, blocks))
+    .filter((key): key is string => Boolean(key))
+
+  return {
+    incoming: Array.from(new Set(incoming)),
+    outgoing: Array.from(new Set(outgoing)),
+  }
+}
+
+function withPersistedGraphConfig(
+  config: Record<string, unknown> | undefined,
+  graphConfig: PersistedGraphConfig,
+) {
+  return {
+    ...(config ?? {}),
+    [GRAPH_CONFIG_KEY]: graphConfig,
+  }
+}
+
+function configWithWorkflowGraphFromBlock(block: WorkflowBlock) {
+  const graphConfig = persistedGraphConfigFromBlock(block)
+  if (!hasPersistedGraphConfig(graphConfig)) return block.config
+  return withPersistedGraphConfig(block.config, graphConfig)
+}
+
+function decodeGraphPosition(position: number | undefined) {
+  if (!position || position < GRAPH_POSITION_OFFSET) {
+    return {
+      order: position && position > 0 ? position : undefined,
+      hasStartIncoming: false,
+      outgoingMask: 0,
+    }
+  }
+
+  const raw = Math.max(0, Math.floor(position - GRAPH_POSITION_OFFSET))
+  const order = raw % GRAPH_POSITION_ORDER_BUCKET
+  const flags = Math.floor(raw / GRAPH_POSITION_ORDER_BUCKET)
+  const outgoingMask = Math.floor(raw / GRAPH_POSITION_OUTGOING_BUCKET)
+
+  return {
+    order: order > 0 ? order : undefined,
+    hasStartIncoming: flags % 10 === 1,
+    outgoingMask,
+  }
+}
+
+function addMaskBit(mask: number, bit: number) {
+  if (bit < 0 || bit > 30) return mask
+  const value = 2 ** bit
+  return Math.floor(mask / value) % 2 === 1 ? mask : mask + value
+}
+
+function hasMaskBit(mask: number, bit: number) {
+  if (bit < 0 || bit > 30) return false
+  const value = 2 ** bit
+  return Math.floor(mask / value) % 2 === 1
+}
+
+function encodeGraphPosition(
+  block: PipelineBlock,
+  dependencies: PipelineDependency[],
+  blocks: PipelineBlock[],
+) {
+  const order = Math.max(
+    1,
+    Math.min(
+      block.order || blocks.findIndex((candidate) => candidate.pipelineId === block.pipelineId) + 1,
+      GRAPH_POSITION_ORDER_BUCKET - 1,
+    ),
+  )
+  const hasStartIncoming = dependencies.some(
+    (dependency) =>
+      dependency.from === START_NODE_ID && dependency.to === block.pipelineId,
+  )
+  const outgoingMask = dependencies
+    .filter((dependency) => dependency.from === block.pipelineId)
+    .reduce((mask, dependency) => {
+      if (dependency.to === END_NODE_ID) return addMaskBit(mask, 0)
+      const targetIndex = blocks.findIndex(
+        (candidate) => candidate.pipelineId === dependency.to,
+      )
+      if (targetIndex < 0) return mask
+      return addMaskBit(mask, targetIndex + 1)
+    }, 0)
+
+  return (
+    GRAPH_POSITION_OFFSET +
+    order +
+    (hasStartIncoming ? GRAPH_POSITION_ORDER_BUCKET : 0) +
+    outgoingMask * GRAPH_POSITION_OUTGOING_BUCKET
+  )
+}
+
 function mapWorkflowBlock(block: WorkflowBlock, index: number): PipelineBlock {
   const id = String(block.id ?? randomId('block'))
+  const clientKey = workflowBlockClientKey(block)
+  const graphPosition = decodeGraphPosition(block.layout?.position)
 
   return {
     id: `saved-${id}`,
-    pipelineId: `saved-pipeline-${id}`,
-    order: index + 1,
+    pipelineId: `pipeline-${clientKey}`,
+    clientKey,
+    order: graphPosition.order ?? index + 1,
+    graphLevel: Math.max(0, block.layout?.level ?? index),
+    encodedGraphPosition: block.layout?.position,
     name: block.name || 'Untitled Block',
     type: block.block_type,
     gate: block.gate_type,
@@ -707,33 +988,54 @@ function mapWorkflowBlock(block: WorkflowBlock, index: number): PipelineBlock {
       block.block_type === 'system'
         ? block.integration_type || 'api_call'
         : undefined,
-    config: block.config,
+    config: configWithWorkflowGraphFromBlock(block),
   }
 }
 
 function serializePipelineBlock(
   block: PipelineBlock,
   index: number,
+  dependencies: PipelineDependency[],
+  blocks: PipelineBlock[],
 ): WorkflowBlock {
+  const persistedConfig = withPersistedGraphConfig(
+    block.config,
+    graphConfigForBlock(block, dependencies, blocks),
+  )
+
   if (block.type === 'system') {
     return {
+      client_key: block.clientKey,
       sequence: index + 1,
       block_type: 'system',
       name: block.name.trim(),
       gate_type: block.gate,
       integration_type: block.integrationType || 'api_call',
-      config: block.config ?? {
+      config: {
         endpoint_key: endpointKeyFromName(block.name),
+        ...persistedConfig,
+      },
+      layout: {
+        level: block.graphLevel,
+        position: encodeGraphPosition(block, dependencies, blocks),
+        [GRAPH_CONFIG_KEY]: graphConfigForBlock(block, dependencies, blocks),
       },
       requirements: [],
     }
   }
 
   return {
+    client_key: block.clientKey,
     sequence: index + 1,
     block_type: 'requirement',
     name: block.name.trim(),
     gate_type: block.gate,
+    config: persistedConfig,
+    layout: {
+      level: block.graphLevel,
+      position: encodeGraphPosition(block, dependencies, blocks),
+      [GRAPH_CONFIG_KEY]: graphConfigForBlock(block, dependencies, blocks),
+    },
     requirements: block.requirements.map((requirement, requirementIndex) => ({
       sequence: requirementIndex + 1,
       name: requirement.name.trim(),
@@ -742,9 +1044,376 @@ function serializePipelineBlock(
   }
 }
 
+function resolveDependencyEndpoint(
+  blockKey: string | undefined,
+  blockId: number | null | undefined,
+  byClientKey: Map<string, string>,
+  byServerId: Map<number, string>,
+) {
+  if (blockKey === START_NODE_ID || blockKey === END_NODE_ID) return blockKey
+  return (
+    (blockKey ? byClientKey.get(blockKey) : undefined) ??
+    (blockId ? byServerId.get(blockId) : undefined)
+  )
+}
+
+function mapWorkflowDependencies(
+  dependencies: WorkflowDependency[],
+  blocks: PipelineBlock[],
+): PipelineDependency[] {
+  const byClientKey = new Map(blocks.map((block) => [block.clientKey, block.pipelineId]))
+  const byServerId = new Map(
+    blocks
+      .map((block) => {
+        const id = block.id.startsWith('saved-')
+          ? Number(block.id.replace('saved-', ''))
+          : NaN
+        return Number.isFinite(id) ? ([id, block.pipelineId] as const) : null
+      })
+      .filter((entry): entry is readonly [number, string] => Boolean(entry)),
+  )
+
+  return dependencies
+    .map((dependency) => {
+      const from = resolveDependencyEndpoint(
+        dependency.from_block_key,
+        dependency.from_block,
+        byClientKey,
+        byServerId,
+      )
+      const to = resolveDependencyEndpoint(
+        dependency.to_block_key,
+        dependency.to_block,
+        byClientKey,
+        byServerId,
+      )
+      if (!from || !to || from === to) return null
+      return {
+        id: String(dependency.id ?? `${from}->${to}`),
+        from,
+        to,
+      }
+    })
+    .filter((dependency): dependency is PipelineDependency => Boolean(dependency))
+}
+
+function mapPersistedGraphConfigDependencies(
+  blocks: PipelineBlock[],
+): PipelineDependency[] {
+  const byClientKey = new Map(
+    blocks.map((block) => [block.clientKey, block.pipelineId]),
+  )
+
+  function resolveKey(key: string) {
+    if (key === START_NODE_ID || key === END_NODE_ID) return key
+    return byClientKey.get(key)
+  }
+
+  const dependencies: PipelineDependency[] = []
+  const seen = new Set<string>()
+
+  blocks.forEach((block) => {
+    const graphConfig = readPersistedGraphConfig(block.config)
+
+    graphConfig.incoming?.forEach((fromKey) => {
+      const from = resolveKey(fromKey)
+      if (!from || from === block.pipelineId) return
+      const key = `${from}->${block.pipelineId}`
+      if (seen.has(key)) return
+      seen.add(key)
+      dependencies.push({
+        id: `persisted-${key}`,
+        from,
+        to: block.pipelineId,
+      })
+    })
+
+    graphConfig.outgoing?.forEach((toKey) => {
+      const to = resolveKey(toKey)
+      if (!to || to === block.pipelineId) return
+      const key = `${block.pipelineId}->${to}`
+      if (seen.has(key)) return
+      seen.add(key)
+      dependencies.push({
+        id: `persisted-${key}`,
+        from: block.pipelineId,
+        to,
+      })
+    })
+  })
+
+  return dependencies
+}
+
+function mapEncodedGraphPositionDependencies(
+  blocks: PipelineBlock[],
+): PipelineDependency[] {
+  const dependencies: PipelineDependency[] = []
+  const seen = new Set<string>()
+
+  function addDependency(from: string, to: string) {
+    if (from === to) return
+    const key = `${from}->${to}`
+    if (seen.has(key)) return
+    seen.add(key)
+    dependencies.push({
+      id: `encoded-${key}`,
+      from,
+      to,
+    })
+  }
+
+  blocks.forEach((block) => {
+    const graphPosition = decodeGraphPosition(block.encodedGraphPosition)
+    if (graphPosition.hasStartIncoming) {
+      addDependency(START_NODE_ID, block.pipelineId)
+    }
+    if (hasMaskBit(graphPosition.outgoingMask, 0)) {
+      addDependency(block.pipelineId, END_NODE_ID)
+    }
+    blocks.forEach((target, targetIndex) => {
+      if (hasMaskBit(graphPosition.outgoingMask, targetIndex + 1)) {
+        addDependency(block.pipelineId, target.pipelineId)
+      }
+    })
+  })
+
+  return dependencies
+}
+
+function mergePipelineDependencies(
+  ...dependencyGroups: PipelineDependency[][]
+) {
+  const merged: PipelineDependency[] = []
+  const seen = new Set<string>()
+
+  dependencyGroups.flat().forEach((dependency) => {
+    if (dependency.from === dependency.to) return
+    const key = `${dependency.from}->${dependency.to}`
+    if (seen.has(key)) return
+    seen.add(key)
+    merged.push(dependency)
+  })
+
+  return merged
+}
+
+function serializePipelineDependencies(
+  dependencies: PipelineDependency[],
+  blocks: PipelineBlock[],
+): WorkflowDependency[] {
+  const keyByPipelineId = new Map(
+    [
+      [START_NODE_ID, START_NODE_ID],
+      [END_NODE_ID, END_NODE_ID],
+      ...blocks.map((block) => [block.pipelineId, block.clientKey] as const),
+    ],
+  )
+  const serialized: WorkflowDependency[] = []
+  const seen = new Set<string>()
+
+  dependencies.forEach((dependency) => {
+    const fromKey = keyByPipelineId.get(dependency.from)
+    const toKey = keyByPipelineId.get(dependency.to)
+    if (!fromKey || !toKey) return
+    if (fromKey === toKey) return
+    const key = `${fromKey}->${toKey}`
+    if (seen.has(key)) return
+    seen.add(key)
+    serialized.push({
+      from_block_key: fromKey,
+      to_block_key: toKey,
+    })
+  })
+
+  return serialized
+}
+
+function wouldCreateDependencyCycle(
+  dependencies: PipelineDependency[],
+  from: string,
+  to: string,
+) {
+  if (from === to) return true
+
+  const adjacency = new Map<string, string[]>()
+  for (const dependency of [...dependencies, { id: 'next', from, to }]) {
+    adjacency.set(dependency.from, [
+      ...(adjacency.get(dependency.from) ?? []),
+      dependency.to,
+    ])
+  }
+
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+
+  function visit(id: string): boolean {
+    if (visiting.has(id)) return true
+    if (visited.has(id)) return false
+    visiting.add(id)
+    for (const child of adjacency.get(id) ?? []) {
+      if (visit(child)) return true
+    }
+    visiting.delete(id)
+    visited.add(id)
+    return false
+  }
+
+  return Array.from(adjacency.keys()).some(visit)
+}
+
+function hasDependencyCycle(dependencies: PipelineDependency[]) {
+  return wouldCreateDependencyCycle(dependencies, '__cycle_probe__', '__cycle_probe_end__')
+}
+
+function visitGraph(
+  start: string,
+  adjacency: Map<string, string[]>,
+) {
+  const visited = new Set<string>()
+  const stack = [start]
+
+  while (stack.length) {
+    const current = stack.pop()
+    if (!current || visited.has(current)) continue
+    visited.add(current)
+    stack.push(...(adjacency.get(current) ?? []))
+  }
+
+  return visited
+}
+
+function validatePipelineGraph(
+  blocks: PipelineBlock[],
+  dependencies: PipelineDependency[],
+) {
+  if (blocks.length === 0) {
+    return {
+      isValid: false,
+      hasCycle: false,
+      message: 'Add at least one block',
+    }
+  }
+
+  const nodeIds = new Set([
+    START_NODE_ID,
+    END_NODE_ID,
+    ...blocks.map((block) => block.pipelineId),
+  ])
+  const outgoing = new Map<string, string[]>()
+  const incoming = new Map<string, string[]>()
+  const undirected = new Map<string, string[]>()
+  const seenEdges = new Set<string>()
+
+  nodeIds.forEach((id) => {
+    outgoing.set(id, [])
+    incoming.set(id, [])
+    undirected.set(id, [])
+  })
+
+  for (const dependency of dependencies) {
+    if (!nodeIds.has(dependency.from) || !nodeIds.has(dependency.to)) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'Remove stale graph relationships',
+      }
+    }
+    if (dependency.from === dependency.to) {
+      return {
+        isValid: false,
+        hasCycle: true,
+        message: 'A block cannot depend on itself',
+      }
+    }
+    if (dependency.to === START_NODE_ID || dependency.from === END_NODE_ID) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'Start can only begin the flow, and Active can only finish it',
+      }
+    }
+
+    const edgeKey = `${dependency.from}->${dependency.to}`
+    if (seenEdges.has(edgeKey)) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'Remove duplicate graph relationships',
+      }
+    }
+    seenEdges.add(edgeKey)
+
+    outgoing.get(dependency.from)?.push(dependency.to)
+    incoming.get(dependency.to)?.push(dependency.from)
+    undirected.get(dependency.from)?.push(dependency.to)
+    undirected.get(dependency.to)?.push(dependency.from)
+  }
+
+  if (!outgoing.get(START_NODE_ID)?.length) {
+    return {
+      isValid: false,
+      hasCycle: false,
+      message: 'Connect Start to the first block',
+    }
+  }
+
+  if (!incoming.get(END_NODE_ID)?.length) {
+    return {
+      isValid: false,
+      hasCycle: false,
+      message: 'Connect the final block to Active',
+    }
+  }
+
+  const hasCycle = hasDependencyCycle(dependencies)
+  if (hasCycle) {
+    return {
+      isValid: false,
+      hasCycle,
+      message: 'Resolve the circular dependency',
+    }
+  }
+
+  const reachableFromStart = visitGraph(START_NODE_ID, outgoing)
+  const connectedToActive = visitGraph(END_NODE_ID, incoming)
+  const connectedComponent = visitGraph(START_NODE_ID, undirected)
+
+  for (const id of Array.from(nodeIds)) {
+    if (!reachableFromStart.has(id)) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'Every block must be reachable from Start',
+      }
+    }
+    if (!connectedToActive.has(id)) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'Every block must lead to Active',
+      }
+    }
+    if (!connectedComponent.has(id)) {
+      return {
+        isValid: false,
+        hasCycle: false,
+        message: 'The workflow must be one connected graph',
+      }
+    }
+  }
+
+  return {
+    isValid: true,
+    hasCycle: false,
+    message: 'Ready to save',
+  }
+}
+
 function buildLocalHealth(
   policyName: string,
   pipelineBlocks: PipelineBlock[],
+  graphIsValid: boolean,
 ): WorkflowHealth {
   const requirementCount = pipelineBlocks.reduce(
     (total, block) => total + block.requirements.length,
@@ -769,7 +1438,7 @@ function buildLocalHealth(
     policy_name_set: policyName.trim().length > 0,
     at_least_one_step: pipelineBlocks.length > 0,
     no_block_issues: pipelineBlocks.length === 0 ? false : noBlockIssues,
-    no_circular_dependencies: true,
+    no_circular_dependencies: graphIsValid,
   }
 
   return {
@@ -793,15 +1462,11 @@ function healthMatchesLocal(server: WorkflowHealth, local: WorkflowHealth) {
     server.counts.soft_gates === local.counts.soft_gates &&
     server.counts.system_blocks === local.counts.system_blocks &&
     server.checks.policy_name_set === local.checks.policy_name_set &&
-    server.checks.at_least_one_step === local.checks.at_least_one_step
+    server.checks.at_least_one_step === local.checks.at_least_one_step &&
+    server.checks.no_block_issues === local.checks.no_block_issues &&
+    server.checks.no_circular_dependencies ===
+      local.checks.no_circular_dependencies
   )
-}
-
-function orderedBlocksForMode(
-  blocks: PipelineBlock[],
-  mode: BuilderMode,
-): PipelineBlock[] {
-  return mode === 'onboarding' ? blocks : [...blocks].reverse()
 }
 
 function offboardingSummary(blocks: PipelineBlock[]) {
@@ -829,12 +1494,12 @@ export default function WorkflowBuilder({
   const apiWorkflowType = workflowTypeToApi(workflowType)
   const listHref = workflowListHref(workflowType)
   const canvasRef = useRef<HTMLDivElement | null>(null)
-  const pipelineListRef = useRef<HTMLDivElement | null>(null)
   const [mode, setMode] = useState<BuilderMode>(apiWorkflowType)
   const [view, setView] = useState<BuilderView>('build')
   const [scope, setScope] = useState<ScopeState>({
     name: '',
     workerType: 'contingent',
+    workerTypes: ['contingent'],
     isActive: true,
   })
   const [workflowStatus, setWorkflowStatus] =
@@ -848,14 +1513,13 @@ export default function WorkflowBuilder({
     DEFAULT_LIBRARY_BLOCKS,
   )
   const [pipelineBlocks, setPipelineBlocks] = useState<PipelineBlock[]>([])
+  const [pipelineDependencies, setPipelineDependencies] = useState<
+    PipelineDependency[]
+  >([])
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
-  const [activeDragBlock, setActiveDragBlock] = useState<LibraryBlock | null>(
-    null,
-  )
-  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [linkFromBlockId, setLinkFromBlockId] = useState<string | null>(null)
+  const [dependencyWarning, setDependencyWarning] = useState('')
   const [dragBlockId, setDragBlockId] = useState<string | null>(null)
-  const [reorderBlockId, setReorderBlockId] = useState<string | null>(null)
-  const [reorderDropIndex, setReorderDropIndex] = useState<number | null>(null)
   const [showAddFieldModal, setShowAddFieldModal] = useState(false)
   const [showAddConditionMenu, setShowAddConditionMenu] = useState(false)
   const [fieldDraftKey, setFieldDraftKey] =
@@ -864,6 +1528,10 @@ export default function WorkflowBuilder({
   const [fieldDraftDisplay, setFieldDraftDisplay] = useState('')
   const [locationSearch, setLocationSearch] = useState('')
   const [locationRows, setLocationRows] = useState<LocationRecord[]>([])
+  const [costCenterRows, setCostCenterRows] = useState<CostCenterRecord[]>([])
+  const [businessUnitRows, setBusinessUnitRows] = useState<BusinessUnitRecord[]>([])
+  const [roleRows, setRoleRows] = useState<RoleRecord[]>([])
+  const [supplierRows, setSupplierRows] = useState<SupplierRecord[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [showBlockModal, setShowBlockModal] = useState<BlockType | null>(null)
@@ -941,9 +1609,19 @@ export default function WorkflowBuilder({
       ),
     [pipelineBlocks],
   )
+  const graphValidation = useMemo(
+    () => validatePipelineGraph(pipelineBlocks, pipelineDependencies),
+    [pipelineBlocks, pipelineDependencies],
+  )
   const localHealth = useMemo(
-    () => buildLocalHealth(scope.name, pipelineBlocks),
-    [scope.name, pipelineBlocks],
+    () => {
+      return buildLocalHealth(
+        scope.name,
+        pipelineBlocks,
+        graphValidation.isValid,
+      )
+    },
+    [graphValidation.isValid, scope.name, pipelineBlocks],
   )
   const health =
     serverHealth && healthMatchesLocal(serverHealth, localHealth)
@@ -951,22 +1629,21 @@ export default function WorkflowBuilder({
       : localHealth
   const isWorkflowReady = health.status === 'complete'
   const canSaveDraft =
-    scope.name.trim().length > 0 && Boolean(scope.workerType) && !isSaving
+    scope.name.trim().length > 0 &&
+    Boolean(scope.workerType) &&
+    graphValidation.isValid &&
+    !isSaving
   const availableScopeFieldOptions = scopeFieldOptions.filter(
     (option) =>
       !scopeFields.some((field) => field.fieldKey === option.value),
   )
   const canAddScopeField = Boolean(parseReferenceId(fieldDraftValue))
   const scopeSummary = [
-    scope.workerType ? workerTypeLabel(scope.workerType) : '',
+    ...scope.workerTypes.map(workerTypeLabel),
     ...scopeFields.map((field) => field.display).filter(Boolean),
   ]
     .filter(Boolean)
     .join(' · ')
-  const orderedBlocks = useMemo(
-    () => orderedBlocksForMode(pipelineBlocks, mode),
-    [mode, pipelineBlocks],
-  )
   const offboardingStats = useMemo(
     () => offboardingSummary(pipelineBlocks),
     [pipelineBlocks],
@@ -1004,6 +1681,45 @@ export default function WorkflowBuilder({
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadScopeMasterData() {
+      const [
+        costCentersResult,
+        businessUnitsResult,
+        rolesResult,
+        suppliersResult,
+      ] = await Promise.allSettled([
+        getCostCenters({ status: 'active' }),
+        getBusinessUnits({ status: 'active' }),
+        getRoles({ is_active: true }),
+        getSuppliers({ status: 'active' }),
+      ])
+
+      if (cancelled) return
+
+      if (costCentersResult.status === 'fulfilled') {
+        setCostCenterRows(costCentersResult.value)
+      }
+      if (businessUnitsResult.status === 'fulfilled') {
+        setBusinessUnitRows(businessUnitsResult.value)
+      }
+      if (rolesResult.status === 'fulfilled') {
+        setRoleRows(rolesResult.value)
+      }
+      if (suppliersResult.status === 'fulfilled') {
+        setSupplierRows(suppliersResult.value)
+      }
+    }
+
+    void loadScopeMasterData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (!workflowId) return
 
     let cancelled = false
@@ -1016,19 +1732,38 @@ export default function WorkflowBuilder({
         const workflow = await getComplianceWorkflow(workflowId)
         if (cancelled) return
 
+        const workerType = workflow.policy_scope?.worker_type || 'contingent'
         setScope({
           name: workflow.name,
-          workerType: workflow.policy_scope?.worker_type || 'contingent',
+          workerType,
+          workerTypes: workerType ? [workerType] : [],
           isActive: workflow.is_active,
         })
         setWorkflowStatus(workflow.status)
-        setScopeFields(
+        const mappedScopeFields =
           (workflow.policy_scope?.fields ?? [])
             .map(mapScopeField)
-            .filter((field): field is BuilderScopeField => !!field),
+            .filter((field): field is BuilderScopeField => !!field)
+        setScopeFields(mergeScopeFields(mappedScopeFields))
+        const blocks = workflow.blocks
+          .filter((block) => !isLegacyAutoBlock(block))
+          .map(mapWorkflowBlock)
+        const apiDependencies = mapWorkflowDependencies(
+          workflow.dependencies,
+          blocks,
         )
-        const blocks = workflow.blocks.map(mapWorkflowBlock)
+        const persistedDependencies =
+          mapPersistedGraphConfigDependencies(blocks)
+        const encodedDependencies =
+          mapEncodedGraphPositionDependencies(blocks)
         setPipelineBlocks(blocks)
+        setPipelineDependencies(
+          mergePipelineDependencies(
+            apiDependencies,
+            persistedDependencies,
+            encodedDependencies,
+          ),
+        )
         setSelectedBlockId(blocks[0]?.pipelineId ?? null)
         setServerHealth(workflow.health)
       } catch (error) {
@@ -1082,37 +1817,6 @@ export default function WorkflowBuilder({
     }
   }, [fieldDraftKey, locationSearch, showAddFieldModal, scopeFields])
 
-  useEffect(() => {
-    if (!activeDragBlock) return
-
-    function handleMouseMove(event: globalThis.MouseEvent) {
-      setDragPosition({ x: event.clientX, y: event.clientY })
-    }
-
-    function handleMouseUp(event: globalThis.MouseEvent) {
-      const bounds = canvasRef.current?.getBoundingClientRect()
-      if (
-        bounds &&
-        event.clientX >= bounds.left &&
-        event.clientX <= bounds.right &&
-        event.clientY >= bounds.top &&
-        event.clientY <= bounds.bottom
-      ) {
-        addLibraryBlockToPipeline(activeDragBlock)
-      }
-
-      setActiveDragBlock(null)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [activeDragBlock])
-
   function openAddFieldModal() {
     const nextKey = availableScopeFieldOptions[0]?.value
     if (!nextKey) return
@@ -1135,6 +1839,27 @@ export default function WorkflowBuilder({
     setLocationRows([])
     setLocationError('')
     setShowAddFieldModal(true)
+    setShowAddConditionMenu(false)
+  }
+
+  function addScopeCondition(fieldKey: ScopeFieldKey) {
+    const label = fieldKeyLabel(fieldKey)
+    setScopeFields((current) => {
+      if (current.some((field) => field.fieldKey === fieldKey)) return current
+      return [
+        ...current,
+        {
+          id: randomId('scope-field'),
+          fieldKey,
+          label,
+          display: '',
+          valueId: 0,
+          values: [],
+          valueIds: {},
+        },
+      ]
+    })
+    setServerHealth(null)
     setShowAddConditionMenu(false)
   }
 
@@ -1162,6 +1887,10 @@ export default function WorkflowBuilder({
         label,
         display: fieldDraftDisplay || `${label} #${valueId}`,
         valueId,
+        values: [fieldDraftDisplay || `${label} #${valueId}`],
+        valueIds: {
+          [fieldDraftDisplay || `${label} #${valueId}`]: valueId,
+        },
       },
     ])
     setShowAddFieldModal(false)
@@ -1230,7 +1959,14 @@ export default function WorkflowBuilder({
     })
   }
 
-  function addLibraryBlockToPipeline(block: LibraryBlock) {
+  function computeGraphDropLevel(clientX: number) {
+    const bounds = canvasRef.current?.getBoundingClientRect()
+    if (!bounds) return pipelineBlocks.length
+    const levelWidth = 284
+    return Math.max(0, Math.floor((clientX - bounds.left - 48) / levelWidth))
+  }
+
+  function addLibraryBlockToPipeline(block: LibraryBlock, graphLevel?: number) {
     if (
       usedLibraryBlockIds.has(block.id) ||
       usedLibraryBlockIds.has(block.name.trim().toLowerCase())
@@ -1239,6 +1975,7 @@ export default function WorkflowBuilder({
     }
 
     const pipelineId = randomId('workflow-block')
+    const clientKey = randomId('block-key')
 
     setPipelineBlocks((current) => {
       if (current.some((candidate) => candidate.id === block.id)) {
@@ -1259,7 +1996,12 @@ export default function WorkflowBuilder({
         {
           ...block,
           pipelineId,
+          clientKey,
           order: current.length + 1,
+          graphLevel: Math.max(
+            0,
+            graphLevel ?? Math.max(0, ...current.map((item) => item.graphLevel)) + 1,
+          ),
           accountableOwner: block.accountableOwner,
           completionRule: block.completionRule,
           completionN: block.completionN,
@@ -1279,6 +2021,7 @@ export default function WorkflowBuilder({
 
     setSelectedBlockId(pipelineId)
     setServerHealth(null)
+    setDependencyWarning('')
   }
 
   function addModalRequirement(requirement: Requirement) {
@@ -1388,9 +2131,10 @@ export default function WorkflowBuilder({
   }
 
   function handleLibraryDragStart(
-    event: DragEvent<HTMLDivElement>,
-    blockId: string,
+  event: DragEvent<HTMLDivElement>,
+  blockId: string,
   ) {
+    event.dataTransfer.setData('application/levv-workflow-block', blockId)
     event.dataTransfer.setData('text/plain', blockId)
     event.dataTransfer.effectAllowed = 'copy'
     setDragBlockId(blockId)
@@ -1411,26 +2155,8 @@ export default function WorkflowBuilder({
       return
     }
 
-    addLibraryBlockToPipeline(block)
+    addLibraryBlockToPipeline(block, computeGraphDropLevel(event.clientX))
     setDragBlockId(null)
-  }
-
-  function handleLibraryMouseDown(
-    event: MouseEvent<HTMLDivElement>,
-    block: LibraryBlock,
-  ) {
-    if (
-      !editable ||
-      usedLibraryBlockIds.has(block.id) ||
-      usedLibraryBlockIds.has(block.name.trim().toLowerCase())
-    ) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-    setActiveDragBlock(block)
-    setDragPosition({ x: event.clientX, y: event.clientY })
   }
 
   function removePipelineBlock(pipelineId: string) {
@@ -1439,94 +2165,99 @@ export default function WorkflowBuilder({
         .filter((block) => block.pipelineId !== pipelineId)
         .map((block, index) => ({ ...block, order: index + 1 })),
     )
+    setPipelineDependencies((current) =>
+      current.filter(
+        (dependency) =>
+          dependency.from !== pipelineId && dependency.to !== pipelineId,
+      ),
+    )
     setSelectedBlockId((current) =>
       current === pipelineId ? null : current,
     )
+    setLinkFromBlockId((current) => (current === pipelineId ? null : current))
     setServerHealth(null)
   }
 
-  function computePipelineDropIndex(clientY: number) {
-    const rows = Array.from(
-      pipelineListRef.current?.querySelectorAll('[data-pipeline-id]') ?? [],
-    ) as HTMLElement[]
-
-    for (let index = 0; index < rows.length; index += 1) {
-      const bounds = rows[index].getBoundingClientRect()
-      if (clientY < bounds.top + bounds.height / 2) return index
-    }
-
-    return rows.length
-  }
-
-  function movePipelineBlock(pipelineId: string, toIndex: number) {
+  function moveGraphBlock(
+    pipelineId: string,
+    graphLevel: number,
+    position: number,
+  ) {
     setPipelineBlocks((current) => {
-      const fromIndex = current.findIndex(
-        (block) => block.pipelineId === pipelineId,
+      const next = current.map((block) =>
+        block.pipelineId === pipelineId
+          ? { ...block, graphLevel: Math.max(0, graphLevel) }
+          : block,
       )
-      if (fromIndex === -1) return current
+      const moving = next.find((block) => block.pipelineId === pipelineId)
+      if (!moving) return current
 
-      const next = [...current]
-      const [movedBlock] = next.splice(fromIndex, 1)
-      let insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex
-      insertIndex = Math.max(0, Math.min(insertIndex, next.length))
-      next.splice(insertIndex, 0, movedBlock)
-
-      return next.map((block, index) => ({ ...block, order: index + 1 }))
+      const withoutMoving = next.filter((block) => block.pipelineId !== pipelineId)
+      const before = withoutMoving.filter((block) => {
+        if (block.graphLevel < moving.graphLevel) return true
+        if (block.graphLevel > moving.graphLevel) return false
+        const sameLevel = withoutMoving
+          .filter((candidate) => candidate.graphLevel === moving.graphLevel)
+          .sort((left, right) => left.order - right.order)
+        return sameLevel.findIndex((candidate) => candidate.pipelineId === block.pipelineId) < position
+      })
+      const after = withoutMoving.filter(
+        (block) => !before.some((candidate) => candidate.pipelineId === block.pipelineId),
+      )
+      return [...before, moving, ...after].map((block, index) => ({
+        ...block,
+        order: index + 1,
+      }))
     })
     setServerHealth(null)
   }
 
-  function handlePipelineBlockMouseDown(
-    event: MouseEvent<HTMLDivElement>,
-    pipelineId: string,
-  ) {
-    if (!editable || event.button !== 0) return
-    if (
-      (event.target as HTMLElement).closest(
-        'button, a, input, select, textarea, [data-no-reorder]',
-      )
-    ) {
+  function addPipelineDependency(from: string, to: string) {
+    setPipelineDependencies((current) => {
+      if (from === to) {
+        setDependencyWarning('A block cannot depend on itself.')
+        return current
+      }
+      if (to === START_NODE_ID || from === END_NODE_ID) {
+        setDependencyWarning('Start can only begin the flow, and End can only finish it.')
+        return current
+      }
+      if (
+        current.some(
+          (dependency) => dependency.from === from && dependency.to === to,
+        )
+      ) {
+        setDependencyWarning('')
+        return current
+      }
+      if (wouldCreateDependencyCycle(current, from, to)) {
+        setDependencyWarning('That arrow would create a cycle.')
+        return current
+      }
+      setDependencyWarning('')
+      setServerHealth(null)
+      return [...current, { id: randomId('dependency'), from, to }]
+    })
+  }
+
+  function removePipelineDependency(dependencyId: string) {
+    setPipelineDependencies((current) =>
+      current.filter((dependency) => dependency.id !== dependencyId),
+    )
+    setDependencyWarning('')
+    setServerHealth(null)
+  }
+
+  function handleGraphBlockClick(pipelineId: string) {
+    if (!editable) return
+    if (linkFromBlockId) {
+      addPipelineDependency(linkFromBlockId, pipelineId)
+      setLinkFromBlockId(null)
       return
     }
-
-    event.preventDefault()
-    const start = { x: event.clientX, y: event.clientY }
-    let moved = false
-
-    const handleMouseMove = (moveEvent: globalThis.MouseEvent) => {
-      if (
-        !moved &&
-        Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y) > 5
-      ) {
-        moved = true
-        setReorderBlockId(pipelineId)
-        document.body.classList.add('workflow-reordering')
-      }
-
-      if (moved) {
-        setReorderDropIndex(computePipelineDropIndex(moveEvent.clientY))
-      }
-    }
-
-    const handleMouseUp = (upEvent: globalThis.MouseEvent) => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-      document.body.classList.remove('workflow-reordering')
-
-      if (moved) {
-        movePipelineBlock(pipelineId, computePipelineDropIndex(upEvent.clientY))
-      } else {
-        setSelectedBlockId((current) =>
-          current === pipelineId ? null : pipelineId,
-        )
-      }
-
-      setReorderBlockId(null)
-      setReorderDropIndex(null)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    setSelectedBlockId((current) =>
+      current === pipelineId ? null : pipelineId,
+    )
   }
 
   function buildWorkflowPayload(): CreateWorkflowPayload {
@@ -1537,11 +2268,20 @@ export default function WorkflowBuilder({
       is_active: scope.isActive,
       policy_scope: {
         worker_type: scope.workerType,
-        fields: scopeFields.map((field, index) =>
-          serializeScopeField(field, index + 1),
-        ),
+        fields: serializeScopeFields(scopeFields),
       },
-      blocks: pipelineBlocks.map(serializePipelineBlock),
+      blocks: pipelineBlocks.map((block, index) =>
+        serializePipelineBlock(
+          block,
+          index,
+          pipelineDependencies,
+          pipelineBlocks,
+        ),
+      ),
+      dependencies: serializePipelineDependencies(
+        pipelineDependencies,
+        pipelineBlocks,
+      ),
     }
   }
 
@@ -1571,9 +2311,13 @@ export default function WorkflowBuilder({
 
   const saveHint = !scope.name.trim()
     ? 'Add a policy name to save'
-    : pipelineBlocks.length === 0
-      ? 'Add at least one block'
-      : saveError || (isWorkflowReady ? 'Ready to save' : 'Workflow checks update after save')
+    : saveError
+      ? saveError
+      : !graphValidation.isValid
+        ? graphValidation.message
+        : isWorkflowReady
+          ? 'Ready to save'
+          : 'Workflow checks update after save'
 
   return (
     <div className="-m-6 min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#f8f9fb] text-slate-950">
@@ -1632,7 +2376,7 @@ export default function WorkflowBuilder({
 
           {view === 'process' ? (
             <ProcessView
-              blocks={orderedBlocks}
+              blocks={pipelineBlocks}
               mode={mode}
               onModeChange={setMode}
             />
@@ -1675,7 +2419,7 @@ export default function WorkflowBuilder({
                         className="field-opt"
                         onClick={() => {
                           if (isScopeFieldKey(option.value)) {
-                            openAddFieldModalFor(option.value)
+                            addScopeCondition(option.value)
                           }
                         }}
                       >
@@ -1708,14 +2452,23 @@ export default function WorkflowBuilder({
                   Applies to workers where
                 </span>
                 <div className="space-y-2">
-                  <ScopeConditionSelect
+                  <ScopeConditionRow
                     label="Worker type"
-                    value={scope.workerType}
-                    options={workerTypeOptions}
-                    onChange={(value) => {
+                    options={workerTypeOptions.map((option) => option.label)}
+                    values={scope.workerTypes.map(workerTypeLabel)}
+                    onChange={(labels) => {
+                      const workerTypes = labels
+                        .map(
+                          (label) =>
+                            workerTypeOptions.find(
+                              (option) => option.label === label,
+                            )?.value,
+                        )
+                        .filter(isWorkerType)
                       setScope({
                         ...scope,
-                        workerType: isWorkerType(value) ? value : '',
+                        workerType: workerTypes[0] ?? '',
+                        workerTypes,
                       })
                       setServerHealth(null)
                     }}
@@ -1725,7 +2478,11 @@ export default function WorkflowBuilder({
                       key={field.id}
                       field={field}
                       locationRows={locationRows}
-                      onChange={(display, valueId) =>
+                      costCenterRows={costCenterRows}
+                      businessUnitRows={businessUnitRows}
+                      roleRows={roleRows}
+                      supplierRows={supplierRows}
+                      onChange={(display, valueId, valueIds) =>
                         setScopeFields((current) =>
                           current.map((candidate) =>
                             candidate.id === field.id
@@ -1733,6 +2490,8 @@ export default function WorkflowBuilder({
                                   ...candidate,
                                   display,
                                   valueId: valueId ?? candidate.valueId,
+                                  values: splitConditionDisplay(display),
+                                  valueIds,
                                 }
                               : candidate,
                           ),
@@ -1759,7 +2518,7 @@ export default function WorkflowBuilder({
             onDragOver={(event) => event.preventDefault()}
             onDragLeave={() => setDragBlockId(null)}
             className={
-              (dragBlockId || activeDragBlock) && editable
+              dragBlockId && editable
                 ? 'overflow-hidden rounded-2xl border border-cyan-400 bg-white shadow-[0_0_0_3px_rgba(8,145,178,0.14)]'
                 : mode === 'offboarding'
                   ? 'overflow-hidden rounded-2xl border border-slate-200 bg-stone-50 shadow-sm'
@@ -1770,16 +2529,25 @@ export default function WorkflowBuilder({
               <div>
                 <h2 className="text-sm font-semibold">
                   {mode === 'onboarding'
-                    ? 'Onboarding Pipeline'
+                    ? 'Onboarding Flow'
                     : 'Offboarding - derived'}
                 </h2>
                 <p className="text-xs text-slate-400">
                   {mode === 'onboarding'
-                    ? 'Drag blocks from the right · Click a block to inspect · Executes top to bottom'
+                    ? 'Drag blocks into levels · Connect dependencies with arrows'
                     : 'Every requirement is unwound in reverse order · Read-only preview'}
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {editable && linkFromBlockId && (
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 text-xs font-semibold text-cyan-700"
+                    onClick={() => setLinkFromBlockId(null)}
+                  >
+                    Cancel arrow
+                  </button>
+                )}
                 {pipelineBlocks.length > 0 && (
                   <span className="font-mono text-xs font-semibold text-slate-400">
                     {pipelineBlocks.length} step
@@ -1805,73 +2573,51 @@ export default function WorkflowBuilder({
                 </div>
               )}
 
-              {(dragBlockId || activeDragBlock) && editable && (
+              {dragBlockId && editable && (
                 <div className="mb-4 rounded-xl border border-dashed border-cyan-300 bg-cyan-50 px-4 py-3 text-xs font-semibold text-cyan-700">
-                  Drop to add{' '}
-                  {activeDragBlock ? (
-                    <strong>{activeDragBlock.name}</strong>
-                  ) : (
-                    'this block'
-                  )}{' '}
-                  to the workflow pipeline.
+                  Drop to add this block to the workflow pipeline.
                 </div>
               )}
 
-              {pipelineBlocks.length === 0 ? (
-                <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-100 text-slate-400">
-                    <ArrowDown className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-700">
-                      No steps yet
-                    </h3>
-                    <p className="mt-2 max-w-xs text-xs leading-5 text-slate-400">
-                      Drag a block from the right panel to start building the{' '}
-                      {workflowType.toLowerCase()} pipeline.
-                    </p>
-                  </div>
+              {dependencyWarning && (
+                <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {dependencyWarning}
                 </div>
+              )}
+
+              {mode === 'onboarding' ? (
+                <OnboardingFlowEditor
+                  blocks={pipelineBlocks}
+                  dependencies={pipelineDependencies}
+                  libraryBlocks={libraryBlocks}
+                  usedLibraryBlockIds={usedLibraryBlockIds}
+                  editable={editable}
+                  selectedBlockId={selectedBlockId}
+                  onAddBlock={addLibraryBlockToPipeline}
+                  onSelectBlock={setSelectedBlockId}
+                  onMoveBlock={moveGraphBlock}
+                  onAddDependency={addPipelineDependency}
+                  onRemoveDependency={removePipelineDependency}
+                  onRemoveBlock={removePipelineBlock}
+                />
               ) : (
-                <div ref={pipelineListRef} className="space-y-0">
-                  {orderedBlocks.map((block, index) => (
-                    <Fragment key={block.pipelineId}>
-                      {editable &&
-                        reorderBlockId &&
-                        reorderDropIndex === index && (
-                          <div className="drop-line-ui" />
-                        )}
-                      <PipelineBlockCard
-                        block={block}
-                        mode={mode}
-                        displayOrder={index + 1}
-                        selected={
-                          editable && selectedBlockId === block.pipelineId
-                        }
-                        dragging={reorderBlockId === block.pipelineId}
-                        showConnector={index < orderedBlocks.length - 1}
-                        readonly={!editable}
-                        onSelect={() => {
-                          if (!editable) return
-                          setSelectedBlockId((current) =>
-                            current === block.pipelineId
-                              ? null
-                              : block.pipelineId,
-                          )
-                        }}
-                        onMouseDown={(event) =>
-                          handlePipelineBlockMouseDown(event, block.pipelineId)
-                        }
-                        onRemove={() => removePipelineBlock(block.pipelineId)}
-                      />
-                    </Fragment>
-                  ))}
-                  {editable &&
-                    reorderBlockId &&
-                    reorderDropIndex === orderedBlocks.length && (
-                      <div className="drop-line-ui" />
-                    )}
-                </div>
+                <WorkflowGraphEditor
+                  blocks={pipelineBlocks}
+                  dependencies={pipelineDependencies}
+                  mode={mode}
+                  editable={editable}
+                  selectedBlockId={selectedBlockId}
+                  linkFromBlockId={linkFromBlockId}
+                  onBlockClick={handleGraphBlockClick}
+                  onMoveBlock={moveGraphBlock}
+                  onStartLink={(pipelineId) => {
+                    setLinkFromBlockId(pipelineId)
+                    setDependencyWarning('')
+                  }}
+                  onRemoveDependency={removePipelineDependency}
+                  onRemoveBlock={removePipelineBlock}
+                />
               )}
             </div>
           </section>
@@ -1963,7 +2709,7 @@ export default function WorkflowBuilder({
                     integrationOptions={integrationOptions}
                     onDragStart={handleLibraryDragStart}
                     onDragEnd={() => setDragBlockId(null)}
-                    onMouseDown={handleLibraryMouseDown}
+                    onAdd={() => addLibraryBlockToPipeline(block)}
                     onEdit={() => openBlockModal(block.type, block)}
                     onRemove={() =>
                       setLibraryBlocks((current) =>
@@ -1979,47 +2725,6 @@ export default function WorkflowBuilder({
           </section>
         </aside>
       </div>
-
-      {activeDragBlock && (
-        <div
-          className="pointer-events-none fixed z-[60] w-56"
-          style={{ left: dragPosition.x, top: dragPosition.y }}
-        >
-          <div className="-translate-x-1/2 -translate-y-1/2 rotate-[1.5deg] rounded-xl border border-cyan-300 bg-white p-3 shadow-2xl shadow-cyan-900/10">
-            <div className="mb-1 flex items-center justify-between gap-3">
-              <span className="truncate text-xs font-semibold text-slate-950">
-                {activeDragBlock.name}
-              </span>
-              <span
-                className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${gateClass(
-                  activeDragBlock.gate,
-                )}`}
-              >
-                {activeDragBlock.gate === 'hard' ? 'Hard' : 'Soft'}
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {activeDragBlock.requirements.slice(0, 3).map((requirement) => (
-                <li
-                  key={requirement.id}
-                  className="flex items-center gap-1 text-[10px] text-slate-600"
-                >
-                  <span className="h-1 w-1 rounded-full bg-slate-400" />
-                  {requirement.name}
-                </li>
-              ))}
-              {activeDragBlock.type === 'system' && (
-                <li className="flex items-center gap-1 text-[10px] text-slate-600">
-                  <Cog className="h-3 w-3" />
-                  {activeDragBlock.integrationType === 'api_call'
-                    ? 'API Call'
-                    : 'System integration'}
-                </li>
-              )}
-            </ul>
-          </div>
-        </div>
-      )}
 
       {showAddFieldModal && (
         <Modal
@@ -2824,6 +3529,38 @@ function WorkflowBuilderStyles() {
       .mode-btn-ui+.mode-btn-ui{border-left:1px solid #e5e7eb;}
       .mode-btn-ui.on{color:#0a0a0a;background:#f3f4f6;}
       .mode-btn-ui.on.exit{background:#0a0a0a;color:#fff;}
+      .graph-canvas{position:relative;min-width:100%;overflow:visible;border-radius:14px;background:linear-gradient(#f8fafc,#f8fafc) padding-box,repeating-linear-gradient(90deg,transparent 0,transparent 243px,rgba(148,163,184,.16) 244px,transparent 245px) border-box;}
+      .graph-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+      .graph-edge{fill:none;stroke:#94a3b8;stroke-width:1.7;opacity:.9;}
+      .graph-edge.derived{stroke-dasharray:5 5;opacity:.55;}
+      .graph-edge.explicit{stroke:#64748b;stroke-width:2;}
+      .graph-edge-remove{width:22px;height:22px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#64748b;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(15,23,42,.12);cursor:pointer;pointer-events:auto;}
+      .graph-edge-remove:hover{border-color:#ef4444;background:#fef2f2;color:#dc2626;}
+      .graph-node-wrap{position:absolute;z-index:2;transition:opacity .12s,transform .12s;}
+      .graph-node-wrap.dragging{opacity:.42;transform:scale(.98);}
+      .graph-node{height:116px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);display:flex;flex-direction:column;gap:8px;padding:12px;cursor:grab;transition:box-shadow .14s,border-color .14s,transform .14s;}
+      .graph-node:hover{border-color:rgba(0,122,138,.32);box-shadow:0 8px 22px rgba(15,23,42,.1);transform:translateY(-1px);}
+      .graph-node.selected{border-color:#007a8a;box-shadow:0 0 0 3px rgba(0,122,138,.14),0 8px 22px rgba(15,23,42,.1);}
+      .graph-node.linking{border-color:#0891b2;box-shadow:0 0 0 3px rgba(8,145,178,.18),0 8px 22px rgba(15,23,42,.1);}
+      .graph-node.hard{border-left:4px solid #dc2626;}
+      .graph-node.soft{border-left:4px solid #b45309;}
+      .graph-node.system{background:#0f172a;border-color:#1e293b;border-left:4px solid #0e7490;color:#e2e8f0;}
+      .graph-node.exit{border-left-color:#0a0a0a;}
+      .graph-node-head{display:flex;align-items:center;gap:8px;min-width:0;}
+      .graph-node-num{width:22px;height:22px;border-radius:5px;flex-shrink:0;border:1.5px solid currentColor;background:#fff;color:#0a0a0a;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
+      .graph-node.system .graph-node-num{background:#1e293b;border-color:#334155;color:#e2e8f0;}
+      .graph-node-title{display:flex;align-items:center;gap:6px;min-width:0;flex:1;font-size:13px;font-weight:700;color:inherit;}
+      .graph-node-actions{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+      .graph-icon-btn{width:22px;height:22px;border:none;border-radius:6px;background:transparent;color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+      .graph-icon-btn:hover,.graph-icon-btn.on{background:rgba(8,145,178,.12);color:#0891b2;}
+      .graph-node.system .graph-icon-btn:hover,.graph-node.system .graph-icon-btn.on{background:#1e293b;color:#67e8f9;}
+      .graph-node-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:24px;}
+      .graph-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 7px;border-radius:999px;border:1px solid #e5e7eb;background:#f8fafc;font-size:9.5px;font-weight:700;color:#475569;white-space:nowrap;}
+      .graph-chip.hard{border-color:#fecaca;background:#fef2f2;color:#dc2626;}
+      .graph-chip.soft{border-color:#fde68a;background:#fffbeb;color:#b45309;}
+      .graph-chip.dark{border-color:#334155;background:#111827;color:#cbd5e1;}
+      .graph-node-owner{margin-top:auto;display:flex;align-items:center;gap:6px;min-width:0;font-size:10.5px;font-weight:700;color:#64748b;}
+      .graph-node.system .graph-node-owner{color:#94a3b8;}
       .connector-ui{display:flex;flex-direction:column;align-items:center;margin:0 auto;width:40px;}
       .conn-line-ui{width:2px;height:14px;}
       .conn-line-ui.hard{background:#fca5a5;}
@@ -3191,6 +3928,522 @@ function ProcessView({
   )
 }
 
+function buildGraphLayout(
+  blocks: PipelineBlock[],
+  dependencies: PipelineDependency[],
+  mode: BuilderMode,
+) {
+  const isOffboarding = mode === 'offboarding'
+  const ordered = isOffboarding ? [...blocks].reverse() : blocks
+  const ids = ordered.map((block) => block.pipelineId)
+  const idSet = new Set(ids)
+  const byId = new Map(ordered.map((block) => [block.pipelineId, block]))
+  let links = dependencies.filter(
+    (dependency) => idSet.has(dependency.from) && idSet.has(dependency.to),
+  )
+
+  if (isOffboarding) {
+    links = links.map((dependency) => ({
+      ...dependency,
+      from: dependency.to,
+      to: dependency.from,
+    }))
+  }
+
+  const level = new Map<string, number>()
+  ordered.forEach((block, index) => {
+    level.set(block.pipelineId, Math.max(0, block.graphLevel ?? index))
+  })
+
+  if (links.length) {
+    const adjacency = new Map<string, string[]>()
+    const indegree = new Map<string, number>()
+    ids.forEach((id) => {
+      adjacency.set(id, [])
+      indegree.set(id, 0)
+    })
+    links.forEach((link) => {
+      adjacency.get(link.from)?.push(link.to)
+      indegree.set(link.to, (indegree.get(link.to) ?? 0) + 1)
+    })
+
+    const queue = ids.filter((id) => indegree.get(id) === 0)
+    while (queue.length) {
+      const id = queue.shift()!
+      for (const child of adjacency.get(id) ?? []) {
+        level.set(child, Math.max(level.get(child) ?? 0, (level.get(id) ?? 0) + 1))
+        indegree.set(child, (indegree.get(child) ?? 0) - 1)
+        if (indegree.get(child) === 0) queue.push(child)
+      }
+    }
+  } else {
+    let nextLevel = 0
+    ordered.forEach((block) => {
+      level.set(block.pipelineId, Math.max(level.get(block.pipelineId) ?? 0, nextLevel))
+      if (block.gate === 'hard') nextLevel += 1
+    })
+  }
+
+  const maxLevel = ids.length
+    ? Math.max(...ids.map((id) => level.get(id) ?? 0))
+    : 0
+  const columns: string[][] = Array.from({ length: maxLevel + 1 }, () => [])
+  ids.forEach((id) => {
+    columns[level.get(id) ?? 0]?.push(id)
+  })
+  columns.forEach((column) =>
+    column.sort(
+      (left, right) => (byId.get(left)?.order ?? 0) - (byId.get(right)?.order ?? 0),
+    ),
+  )
+
+  if (!links.length) {
+    const barrierOf = (column: string[]) => {
+      for (let index = column.length - 1; index >= 0; index -= 1) {
+        if (byId.get(column[index])?.gate === 'hard') return column[index]
+      }
+      return column[column.length - 1]
+    }
+
+    links = []
+    columns.forEach((column, index) => {
+      const nextColumn = columns[index + 1]
+      if (!nextColumn?.length || !column.length) return
+      const barrier = barrierOf(column)
+      const nextBarrier = barrierOf(nextColumn)
+      nextColumn.forEach((target) => {
+        links.push({ id: `derived-${barrier}-${target}`, from: barrier, to: target })
+      })
+      column.forEach((source) => {
+        if (source !== barrier) {
+          links.push({
+            id: `derived-soft-${source}-${nextBarrier}`,
+            from: source,
+            to: nextBarrier,
+          })
+        }
+      })
+    })
+  }
+
+  return { ordered, byId, columns, links }
+}
+
+function WorkflowGraphEditor({
+  blocks,
+  dependencies,
+  mode,
+  editable,
+  selectedBlockId,
+  linkFromBlockId,
+  onBlockClick,
+  onMoveBlock,
+  onStartLink,
+  onRemoveDependency,
+  onRemoveBlock,
+}: {
+  blocks: PipelineBlock[]
+  dependencies: PipelineDependency[]
+  mode: BuilderMode
+  editable: boolean
+  selectedBlockId: string | null
+  linkFromBlockId: string | null
+  onBlockClick: (pipelineId: string) => void
+  onMoveBlock: (pipelineId: string, graphLevel: number, position: number) => void
+  onStartLink: (pipelineId: string) => void
+  onRemoveDependency: (dependencyId: string) => void
+  onRemoveBlock: (pipelineId: string) => void
+}) {
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const { ordered, byId, columns, links } = useMemo(
+    () => buildGraphLayout(blocks, dependencies, mode),
+    [blocks, dependencies, mode],
+  )
+
+  const isOffboarding = mode === 'offboarding'
+  const nodeWidth = 244
+  const nodeHeight = 116
+  const horizontalGap = 76
+  const verticalGap = 28
+  const marginX = 72
+  const marginY = 34
+  const maxRows = Math.max(1, ...columns.map((column) => column.length))
+  const width = Math.max(
+    680,
+    marginX * 2 + columns.length * nodeWidth + Math.max(0, columns.length - 1) * horizontalGap,
+  )
+  const height = Math.max(260, marginY * 2 + maxRows * nodeHeight + (maxRows - 1) * verticalGap)
+  const positions = new Map<string, { x: number; y: number }>()
+
+  columns.forEach((column, columnIndex) => {
+    const columnTop =
+      marginY + ((maxRows - column.length) * (nodeHeight + verticalGap)) / 2
+    column.forEach((id, rowIndex) => {
+      positions.set(id, {
+        x: marginX + columnIndex * (nodeWidth + horizontalGap),
+        y: columnTop + rowIndex * (nodeHeight + verticalGap),
+      })
+    })
+  })
+
+  const hasIn = new Set(links.map((link) => link.to))
+  const hasOut = new Set(links.map((link) => link.from))
+  const sources = ordered.map((block) => block.pipelineId).filter((id) => !hasIn.has(id))
+  const sinks = ordered.map((block) => block.pipelineId).filter((id) => !hasOut.has(id))
+  const startX = 28
+  const endX = width - 28
+  const midY = height / 2
+  const edgePath = (x1: number, y1: number, x2: number, y2: number) => {
+    const midpoint = (x1 + x2) / 2
+    return `M ${x1} ${y1} C ${midpoint} ${y1}, ${midpoint} ${y2}, ${x2} ${y2}`
+  }
+
+  function computeDrop(clientX: number, clientY: number) {
+    const bounds = canvasRef.current?.getBoundingClientRect()
+    if (!bounds) return { level: 0, position: 0 }
+    const level = Math.max(
+      0,
+      Math.round((clientX - bounds.left - marginX) / (nodeWidth + horizontalGap)),
+    )
+    const position = Math.max(
+      0,
+      Math.round((clientY - bounds.top - marginY) / (nodeHeight + verticalGap)),
+    )
+    return { level, position }
+  }
+
+  function handleNodeMouseDown(
+    event: MouseEvent<HTMLDivElement>,
+    pipelineId: string,
+  ) {
+    if (!editable || event.button !== 0) return
+    if (
+      (event.target as HTMLElement).closest(
+        'button, a, input, select, textarea, [data-no-drag]',
+      )
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    const start = { x: event.clientX, y: event.clientY }
+    let moved = false
+
+    const handleMouseMove = (moveEvent: globalThis.MouseEvent) => {
+      if (
+        !moved &&
+        Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y) > 5
+      ) {
+        moved = true
+        setDraggingId(pipelineId)
+        document.body.classList.add('workflow-reordering')
+      }
+    }
+
+    const handleMouseUp = (upEvent: globalThis.MouseEvent) => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      document.body.classList.remove('workflow-reordering')
+      setDraggingId(null)
+
+      if (moved) {
+        const drop = computeDrop(upEvent.clientX, upEvent.clientY)
+        onMoveBlock(pipelineId, drop.level, drop.position)
+        return
+      }
+
+      onBlockClick(pipelineId)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
+  if (blocks.length === 0) {
+    return (
+      <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-100 text-slate-400">
+          <ArrowDown className="h-6 w-6" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700">No steps yet</h3>
+          <p className="mt-2 max-w-xs text-xs leading-5 text-slate-400">
+            Drag a block from the right panel into the canvas.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto pb-2">
+      <div
+        ref={canvasRef}
+        className="graph-canvas"
+        style={{ width, height }}
+      >
+        <svg className="graph-svg" viewBox={`0 0 ${width} ${height}`}>
+          <defs>
+            <marker
+              id="graph-arrow"
+              markerWidth="9"
+              markerHeight="9"
+              refX="6.5"
+              refY="4"
+              orient="auto"
+            >
+              <path
+                d="M0,0 L7,4 L0,8"
+                fill="none"
+                stroke="#64748b"
+                strokeWidth="1.4"
+              />
+            </marker>
+          </defs>
+
+          {sources.map((id) => {
+            const point = positions.get(id)
+            if (!point) return null
+            return (
+              <path
+                key={`source-${id}`}
+                d={edgePath(startX + 9, midY, point.x, point.y + nodeHeight / 2)}
+                className="graph-edge"
+                markerEnd="url(#graph-arrow)"
+              />
+            )
+          })}
+
+          {links.map((link) => {
+            const from = positions.get(link.from)
+            const to = positions.get(link.to)
+            if (!from || !to) return null
+            const explicit = dependencies.some(
+              (dependency) =>
+                dependency.from === link.from &&
+                dependency.to === link.to,
+            )
+            return (
+              <g key={link.id}>
+                <path
+                  d={edgePath(
+                    from.x + nodeWidth,
+                    from.y + nodeHeight / 2,
+                    to.x,
+                    to.y + nodeHeight / 2,
+                  )}
+                  className={explicit ? 'graph-edge explicit' : 'graph-edge derived'}
+                  markerEnd="url(#graph-arrow)"
+                />
+                {editable && explicit && (
+                  <foreignObject
+                    x={(from.x + to.x + nodeWidth) / 2 - 11}
+                    y={(from.y + to.y) / 2 + nodeHeight / 2 - 11}
+                    width={22}
+                    height={22}
+                  >
+                    <button
+                      type="button"
+                      className="graph-edge-remove"
+                      aria-label="Remove dependency"
+                      onClick={() => onRemoveDependency(link.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </foreignObject>
+                )}
+              </g>
+            )
+          })}
+
+          {sinks.map((id) => {
+            const point = positions.get(id)
+            if (!point) return null
+            return (
+              <path
+                key={`sink-${id}`}
+                d={edgePath(point.x + nodeWidth, point.y + nodeHeight / 2, endX, midY)}
+                className="graph-edge"
+                markerEnd="url(#graph-arrow)"
+              />
+            )
+          })}
+
+          <circle cx={startX} cy={midY} r="9" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+          <text x={startX} y={midY + 24} textAnchor="middle" className="pv-term">
+            {isOffboarding ? 'Exit' : 'Start'}
+          </text>
+          <circle
+            cx={endX}
+            cy={midY}
+            r="9"
+            fill="none"
+            stroke={isOffboarding ? '#0a0a0a' : '#007a8a'}
+            strokeWidth="2"
+          />
+          <circle cx={endX} cy={midY} r="3.5" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+          <text x={endX} y={midY + 24} textAnchor="middle" className="pv-term">
+            {isOffboarding ? 'Offboarded' : 'Active'}
+          </text>
+        </svg>
+
+        {ordered.map((block, index) => {
+          const point = positions.get(block.pipelineId)
+          if (!point) return null
+          const selected = selectedBlockId === block.pipelineId
+          const linking = linkFromBlockId === block.pipelineId
+          return (
+            <div
+              key={block.pipelineId}
+              data-pipeline-id={block.pipelineId}
+              className={`graph-node-wrap ${
+                draggingId === block.pipelineId ? 'dragging' : ''
+              }`}
+              style={{ left: point.x, top: point.y, width: nodeWidth }}
+              onMouseDown={(event) => handleNodeMouseDown(event, block.pipelineId)}
+            >
+              <GraphNodeCard
+                block={block}
+                mode={mode}
+                displayOrder={index + 1}
+                selected={selected}
+                linking={linking}
+                editable={editable}
+                onStartLink={() => onStartLink(block.pipelineId)}
+                onRemove={() => onRemoveBlock(block.pipelineId)}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function GraphNodeCard({
+  block,
+  mode,
+  displayOrder,
+  selected,
+  linking,
+  editable,
+  onStartLink,
+  onRemove,
+}: {
+  block: PipelineBlock
+  mode: BuilderMode
+  displayOrder: number
+  selected: boolean
+  linking: boolean
+  editable: boolean
+  onStartLink: () => void
+  onRemove: () => void
+}) {
+  const isSystem = block.type === 'system'
+  const isOffboarding = mode === 'offboarding'
+  const accountableLabel = block.accountableOwner
+    ? roleLabel(block.accountableOwner)
+    : blockSignoffLabel(block)
+  const accountablePeople = block.accountableOwner
+    ? resolvePeople(block.accountableOwner).map((person) => person.name)
+    : []
+  const completion = block.completionRule
+    ? completionLabel(block.completionRule, block.completionN, block.requirements.length)
+    : null
+  const systemMeta = integrationMeta(block.systemIntegration)
+
+  return (
+    <div
+      className={`graph-node ${isSystem ? 'system' : block.gate} ${
+        selected ? 'selected' : ''
+      } ${linking ? 'linking' : ''} ${isOffboarding ? 'exit' : ''}`}
+    >
+      <div className="graph-node-head">
+        <span className="graph-node-num">{displayOrder}</span>
+        <span className="graph-node-title">
+          {isSystem && (
+            isOffboarding ? (
+              <RotateCcw className="h-3.5 w-3.5 text-cyan-300" />
+            ) : (
+              <Cog className="h-3.5 w-3.5 text-cyan-300" />
+            )
+          )}
+          <span className="truncate">{block.name}</span>
+        </span>
+        {editable && (
+          <span className="graph-node-actions" data-no-drag>
+            <button
+              type="button"
+              className={linking ? 'graph-icon-btn on' : 'graph-icon-btn'}
+              onClick={(event) => {
+                event.stopPropagation()
+                onStartLink()
+              }}
+              title="Create dependency arrow"
+            >
+              <Link2 className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              className="graph-icon-btn"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRemove()
+              }}
+              title="Remove block"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        )}
+      </div>
+      <div className="graph-node-meta">
+        {isSystem ? (
+          <>
+            <span className="graph-chip dark">
+              <Plug className="h-3 w-3" />
+              {systemMeta?.label ?? 'System'}
+            </span>
+            <span className="graph-chip dark">
+              {isOffboarding
+                ? block.systemUnwind?.action ?? 'reverse'
+                : block.push && block.pull
+                  ? 'push + pull'
+                  : block.push
+                    ? 'push'
+                    : 'pull'}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className={`graph-chip ${block.gate}`}>
+              {block.gate === 'hard' ? 'Hard gate' : 'Soft gate'}
+            </span>
+            {completion && !isOffboarding && (
+              <span className="graph-chip">{completion}</span>
+            )}
+            <span className="graph-chip">
+              {block.requirements.length} {isOffboarding ? 'unwind' : 'req'}
+              {block.requirements.length === 1 ? '' : 's'}
+            </span>
+          </>
+        )}
+      </div>
+      <div className="graph-node-owner">
+        {block.accountableOwner ? (
+          <>
+            <PeopleStack names={accountablePeople} max={2} />
+            <span>{accountableLabel}</span>
+          </>
+        ) : (
+          <span>{isSystem ? 'System owned' : 'Team owned'}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ScopeInput({
   label,
   value,
@@ -3291,34 +4544,40 @@ function ScopeFieldInput({
   )
 }
 
-function ScopeConditionSelect({
+function ScopeConditionRow({
   label,
-  value,
   options,
+  values,
   onChange,
+  onRemove,
 }: {
   label: string
-  value: string
-  options: Option[]
-  onChange: (value: string) => void
+  options: string[]
+  values: string[]
+  onChange: (values: string[]) => void
+  onRemove?: () => void
 }) {
-  const selectedLabel = value ? optionLabel(options, value) : ''
-
   return (
     <div className="cond-row">
       <span className="cond-dim">{label}</span>
       <span className="cond-is">is</span>
       <SearchableMultiSelect
-        options={options.map((option) => option.label)}
-        values={selectedLabel ? [selectedLabel] : []}
-        single
-        onChange={(labels) => {
-          const nextLabel = labels[labels.length - 1] ?? ''
-          const nextOption = options.find((option) => option.label === nextLabel)
-          onChange(nextOption?.value ?? '')
-        }}
+        options={options}
+        values={values}
+        onChange={onChange}
       />
-      <span className="cond-rm-spacer" />
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="cond-rm"
+          aria-label={`Remove ${label}`}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : (
+        <span className="cond-rm-spacer" />
+      )}
     </div>
   )
 }
@@ -3326,44 +4585,61 @@ function ScopeConditionSelect({
 function ScopeConditionInput({
   field,
   locationRows,
+  costCenterRows,
+  businessUnitRows,
+  roleRows,
+  supplierRows,
   onChange,
   onRemove,
 }: {
   field: BuilderScopeField
   locationRows: LocationRecord[]
-  onChange: (display: string, valueId?: number) => void
+  costCenterRows: CostCenterRecord[]
+  businessUnitRows: BusinessUnitRecord[]
+  roleRows: RoleRecord[]
+  supplierRows: SupplierRecord[]
+  onChange: (
+    display: string,
+    valueId: number | undefined,
+    valueIds: Record<string, number>,
+  ) => void
   onRemove: () => void
 }) {
-  const optionRecords = conditionOptionsForScopeField(field, locationRows)
-  const values = splitConditionDisplay(field.display)
+  const optionRecords = conditionOptionsForScopeField(field, {
+    locationRows,
+    costCenterRows,
+    businessUnitRows,
+    roleRows,
+    supplierRows,
+  })
+  const values = field.values.length ? field.values : splitConditionDisplay(field.display)
 
   return (
-    <div className="cond-row">
-      <span className="cond-dim">{field.label}</span>
-      <span className="cond-is">is</span>
-      <SearchableMultiSelect
-        options={optionRecords.map((option) => option.label)}
-        values={values}
-        onChange={(nextValues) => {
-          const display = nextValues.length
-            ? nextValues.join(' or ')
-            : field.display
-          const selectedRecord =
-            nextValues.length === 1
-              ? optionRecords.find((option) => option.label === nextValues[0])
-              : undefined
-          onChange(display, selectedRecord?.valueId)
-        }}
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"
-        aria-label={`Remove ${field.label}`}
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
+    <ScopeConditionRow
+      label={field.label}
+      options={optionRecords.map((option) => option.label)}
+      values={values}
+      onChange={(nextValues) => {
+        const display = nextValues.join(' or ')
+        const selectedRecords = nextValues
+          .map((value) =>
+            optionRecords.find((option) => option.label === value),
+          )
+          .filter(
+            (option): option is ConditionOptionRecord & { valueId: number } =>
+              Boolean(option?.valueId),
+          )
+        const valueIds = Object.fromEntries(
+          selectedRecords.map((option) => [option.label, option.valueId]),
+        )
+        onChange(
+          display,
+          nextValues.length === 1 ? selectedRecords[0]?.valueId : undefined,
+          valueIds,
+        )
+      }}
+      onRemove={onRemove}
+    />
   )
 }
 
@@ -3402,25 +4678,70 @@ function splitConditionDisplay(display: string) {
 
 function conditionOptionsForScopeField(
   field: BuilderScopeField,
-  locationRows: LocationRecord[],
+  {
+    locationRows,
+    costCenterRows,
+    businessUnitRows,
+    roleRows,
+    supplierRows,
+  }: {
+    locationRows: LocationRecord[]
+    costCenterRows: CostCenterRecord[]
+    businessUnitRows: BusinessUnitRecord[]
+    roleRows: RoleRecord[]
+    supplierRows: SupplierRecord[]
+  },
 ): ConditionOptionRecord[] {
-  const currentValues = splitConditionDisplay(field.display).map((label) => ({
-    label,
-    valueId: field.valueId,
-  }))
+  const currentValues = splitConditionDisplay(field.display).map((label) => {
+    const valueId = field.valueIds[label] ?? field.valueId
+    return {
+      label,
+      valueId: valueId > 0 ? valueId : undefined,
+    }
+  })
   const fallbackValues = FALLBACK_CONDITION_VALUES[field.fieldKey].map(
     (label) => ({ label }),
   )
-  const locationValues =
-    field.fieldKey === 'location'
-      ? locationRows.map((location) => ({
+  const masterValues = (() => {
+    switch (field.fieldKey) {
+      case 'location':
+        return locationRows.map((location) => ({
           label: formatLocationDisplay(location),
           valueId: location.id,
         }))
-      : []
+      case 'cost_center':
+        return costCenterRows
+          .map((costCenter) => ({
+            label: formatCostCenterDisplay(costCenter),
+            valueId: readRecordId(costCenter.id),
+          }))
+          .filter((option) => option.label)
+      case 'business_unit':
+        return businessUnitRows
+          .map((businessUnit) => ({
+            label: formatBusinessUnitDisplay(businessUnit),
+            valueId: readRecordId(businessUnit.id),
+          }))
+          .filter((option) => option.label)
+      case 'role':
+        return roleRows
+          .map((role) => ({
+            label: formatRoleDisplay(role),
+            valueId: role.id,
+          }))
+          .filter((option) => option.label)
+      case 'supplier':
+        return supplierRows
+          .map((supplier) => ({
+            label: formatSupplierDisplay(supplier),
+            valueId: readRecordId(supplier.id ?? supplier.supplier_id),
+          }))
+          .filter((option) => option.label)
+    }
+  })()
 
   const seen = new Set<string>()
-  return [...currentValues, ...locationValues, ...fallbackValues].filter(
+  return [...currentValues, ...masterValues, ...fallbackValues].filter(
     (option) => {
       const key = option.label.toLowerCase()
       if (seen.has(key)) return false
@@ -3551,7 +4872,7 @@ function LibraryBlockCard({
   integrationOptions,
   onDragStart,
   onDragEnd,
-  onMouseDown,
+  onAdd,
   onEdit,
   onRemove,
 }: {
@@ -3561,7 +4882,7 @@ function LibraryBlockCard({
   integrationOptions: Option[]
   onDragStart: (event: DragEvent<HTMLDivElement>, blockId: string) => void
   onDragEnd: () => void
-  onMouseDown: (event: MouseEvent<HTMLDivElement>, block: LibraryBlock) => void
+  onAdd: () => void
   onEdit: () => void
   onRemove: () => void
 }) {
@@ -3581,10 +4902,15 @@ function LibraryBlockCard({
 
   return (
     <div
-      draggable={false}
+      draggable={canDrag && !isUsed}
       onDragStart={(event) => onDragStart(event, block.id)}
       onDragEnd={onDragEnd}
-      onMouseDown={(event) => onMouseDown(event, block)}
+      onMouseDown={(event) => {
+        if (event.detail > 1) event.preventDefault()
+      }}
+      onClick={() => {
+        if (canDrag && !isUsed) onAdd()
+      }}
       className={
         isUsed
           ? 'rounded-xl border border-slate-200 bg-slate-100 p-3 opacity-50'
@@ -3686,240 +5012,6 @@ function LibraryBlockCard({
         </ul>
       )}
     </div>
-  )
-}
-
-function PipelineBlockCard({
-  block,
-  mode,
-  displayOrder,
-  selected,
-  dragging,
-  showConnector,
-  readonly,
-  onSelect,
-  onMouseDown,
-  onRemove,
-}: {
-  block: PipelineBlock
-  mode: BuilderMode
-  displayOrder: number
-  selected: boolean
-  dragging: boolean
-  showConnector: boolean
-  readonly: boolean
-  onSelect: () => void
-  onMouseDown: (event: MouseEvent<HTMLDivElement>) => void
-  onRemove: () => void
-}) {
-  const isSystem = block.type === 'system'
-  const isOffboarding = mode === 'offboarding'
-  const gateTone = isOffboarding ? 'exit' : block.gate
-  const signoffLabel = blockSignoffLabel(block)
-  const accountableLabel = block.accountableOwner
-    ? roleLabel(block.accountableOwner)
-    : signoffLabel
-  const accountablePeople = block.accountableOwner
-    ? resolvePeople(block.accountableOwner).map((person) => person.name)
-    : []
-  const completion = block.completionRule
-    ? completionLabel(block.completionRule, block.completionN, block.requirements.length)
-    : null
-  const systemMeta = integrationMeta(block.systemIntegration)
-
-  return (
-    <>
-      <div
-        data-pipeline-id={block.pipelineId}
-        role="button"
-        tabIndex={0}
-        onClick={readonly ? onSelect : undefined}
-        onMouseDown={onMouseDown}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') onSelect()
-        }}
-        className={
-          isSystem
-            ? `s-block ${selected ? 'sel' : ''} ${!readonly ? 'grabbable' : ''} ${
-                dragging ? 'dragging' : ''
-              }`
-            : `m-block ${selected ? 'sel' : ''} ${
-                isOffboarding ? 'exit' : ''
-              } ${!readonly ? 'grabbable' : ''} ${dragging ? 'dragging' : ''}`
-        }
-      >
-        {isSystem ? (
-          <>
-            <div className="s-hd">
-              {!readonly && <GripVertical className="blk-drag h-4 w-4" />}
-              <span className="s-num">
-                {displayOrder}
-              </span>
-              <span className="s-name">
-                {isOffboarding ? (
-                  <RotateCcw className="h-4 w-4 text-cyan-300" />
-                ) : (
-                  <Cog className="h-4 w-4 text-cyan-300" />
-                )}
-                {block.name}
-                <span className="s-kind">
-                  {isOffboarding ? 'Reverse' : accountableLabel}
-                </span>
-              </span>
-              {!readonly && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onRemove()
-                  }}
-                  className="s-rm no-drag"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <div className="s-body">
-              {isOffboarding ? (
-                <>
-                  <span className="s-chip exit">
-                    <RotateCcw className="h-2.5 w-2.5" />
-                    Reverse external state
-                  </span>
-                  <span className="s-chip exit">
-                    <Zap className="h-3 w-3" />
-                    Nova automated
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="s-chip ok">
-                    <Plug className="h-3 w-3" />
-                    {systemMeta?.label ??
-                      (block.integrationType === 'api_call'
-                        ? 'API Call'
-                        : 'Integration')}
-                  </span>
-                  <span className="s-chip ok">
-                    <PeopleStack names={accountablePeople} max={2} />
-                    {accountableLabel}
-                  </span>
-                  <span className="s-chip warn">
-                    {gateLabel(block.gate)}
-                  </span>
-                  {block.push && (
-                    <span className="s-chip ok">
-                      {block.pull ? 'push · pull' : 'push'}
-                    </span>
-                  )}
-                  {block.reconcile && <span className="s-chip ok">reconcile</span>}
-                </>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div
-              className={`accent-bar ${gateTone}`}
-            />
-            <div className="m-block-hd">
-              {!readonly && <GripVertical className="blk-drag h-4 w-4" />}
-              <span className="blk-num">
-                {displayOrder}
-              </span>
-              <span className="blk-name">
-                {block.name}
-              </span>
-              <span className="blk-badges">
-                {completion && !isOffboarding && (
-                  <span className="comp-pill">{completion}</span>
-                )}
-                {!isOffboarding && block.accountableOwner && (
-                  <span
-                    className="acct-pill"
-                    title={`${accountableLabel}: ${accountablePeople.join(', ')}`}
-                  >
-                    <PeopleStack names={accountablePeople} max={2} />
-                    {accountableLabel}
-                  </span>
-                )}
-                {!isOffboarding && (
-                  <span className={`gate-pill-ui ${block.gate}`}>
-                    {gateLabel(block.gate)}
-                  </span>
-                )}
-                <span className="font-mono text-[10px] text-slate-400">
-                  {block.requirements.length}{' '}
-                  {isOffboarding ? 'unwind' : 'req'}
-                  {block.requirements.length === 1 ? '' : 's'}
-                </span>
-              </span>
-              {!readonly && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onRemove()
-                  }}
-                  className="blk-rm no-drag"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <div className={`blk-expand ${selected || isOffboarding ? 'open' : ''}`}>
-              <div className="blk-expand-in">
-                <div className="mb-1 grid grid-cols-[1fr_auto] text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                  <span>{isOffboarding ? 'Unwind task' : 'Requirement'}</span>
-                  <span>{isOffboarding ? 'Queue' : 'Owner'}</span>
-                </div>
-                <div>
-                  {block.requirements.map((requirement) => (
-                    <div
-                      key={requirement.id}
-                      className="bx-row"
-                    >
-                      <span className="bx-row-name">
-                        {isOffboarding
-                          ? `Reverse ${requirement.name}`
-                          : requirement.name}
-                      </span>
-                      <span className="bx-row-right">
-                        <span className="bx-approver">
-                          <PeopleStack names={[ownerLabel(requirement.owner)]} max={1} />
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${ownerClass(
-                              requirement.owner,
-                            )}`}
-                          >
-                            {ownerLabel(requirement.owner)}
-                          </span>
-                        </span>
-                      </span>
-                    </div>
-                  ))}
-                  {block.requirements.length === 0 && (
-                    <div className="bx-row">
-                      <span className="bx-row-name text-slate-400">
-                        No requirements
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {showConnector && (
-        <div className="connector-ui">
-          <div className={`conn-line-ui ${gateTone}`} />
-          <div className={`conn-arrow-ui ${gateTone}`} />
-          <div className={`conn-line-ui ${gateTone}`} />
-        </div>
-      )}
-    </>
   )
 }
 
