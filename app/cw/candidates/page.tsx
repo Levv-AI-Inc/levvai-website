@@ -1,377 +1,848 @@
-"use client";
+'use client'
 
-import React, { useState, useMemo } from "react";
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
-  Search,
-  User,
-  MapPin,
-  Clock,
-  X,
-  ChevronRight,
-  FileText,
-  Calendar,
-  Sparkles,
-  ChevronDown,
-  Filter,
+  ArrowLeft,
   ArrowRight,
-  Eye,
-  DollarSign,
+  Ban,
+  BriefcaseBusiness,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  ExternalLink,
+  FileText,
+  Mail,
+  MapPin,
+  RefreshCw,
+  Search,
   UserCheck,
-  Briefcase,
-  AlertCircle,
-  Timer
-} from "lucide-react";
+  TimerReset,
+  UserRound,
+  X,
+} from 'lucide-react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import {
+  CandidateApiError,
+  getCandidates,
+  updateCandidateStatus,
+  type CandidateListPagination,
+  type CandidateListSummary,
+  type CandidateRecord,
+  type CandidateStatus,
+} from '@/lib/api/candidates'
 
-// --- Data ---
-const candidates = [
-  {
-    name: "James Carter",
-    role: "Senior Backend Engineer",
-    jobId: "JP-2024-041",
-    supplier: "TEKsystems",
-    location: "Remote – US",
-    rate: "$108/hr",
-    availability: "2 weeks",
-    stage: "Interview",
-    daysInStage: 6,
-    manager: "Alex Morgan",
-    status: "Active",
-    email: "j.carter@example.com",
-    skills: ["Golang", "Kubernetes", "AWS"],
-    description: "James has 10+ years of experience in distributed systems. Strong performance in technical screen."
-  },
-  {
-    name: "Priya Shah",
-    role: "Business Analyst",
-    jobId: "JP-2024-036",
-    supplier: "Randstad",
-    location: "Chicago, IL",
-    rate: "$88/hr",
-    availability: "Immediate",
-    stage: "Submitted",
-    daysInStage: 3,
-    manager: "Rachel Adams",
-    status: "Active",
-    email: "p.shah@example.com",
-    skills: ["SQL", "Agile", "Tableau"],
-    description: "Strong background in retail banking transformation. Previous experience with Randstad was highly rated."
-  },
-  {
-    name: "Daniel Wong",
-    role: "QA Automation Engineer",
-    jobId: "JP-2024-028",
-    supplier: "Insight Global",
-    location: "New York, NY",
-    rate: "$80/hr",
-    availability: "1 week",
-    stage: "Offer",
-    daysInStage: 4,
-    manager: "Daniel Lee",
-    status: "Pending Decision",
-    email: "d.wong@example.com",
-    skills: ["Selenium", "Python", "Jenkins"],
-    description: "Top-tier candidate. Successfully completed all interview rounds. Offer pending internal sign-off."
-  },
-  {
-    name: "Elena Rossi",
-    role: "UX Designer",
-    jobId: "JP-2024-012",
-    supplier: "Aquent",
-    location: "Remote",
-    rate: "$95/hr",
-    availability: "Immediate",
-    stage: "Interview",
-    daysInStage: 9,
-    manager: "Sarah Jenkins",
-    status: "Active",
-    email: "e.rossi@example.com",
-    skills: ["Figma", "User Research", "Prototyping"],
-    description: "Stalled in interview stage due to manager travel. High risk of drop-off."
+const PAGE_SIZE = 25
+
+const DEFAULT_PAGINATION: CandidateListPagination = {
+  page: 1,
+  page_size: PAGE_SIZE,
+  total_count: 0,
+  total_pages: 0,
+  has_next: false,
+  has_previous: false,
+}
+
+const DEFAULT_SUMMARY: CandidateListSummary = {
+  totalCount: 0,
+  stalledCount: 0,
+  statusCounts: {},
+}
+
+const STATUS_OPTIONS: Array<{
+  value: 'all' | CandidateStatus
+  label: string
+}> = [
+  { value: 'all', label: 'All stages' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'reviewed', label: 'Interview / review' },
+  { value: 'accepted', label: 'Selected' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
+function formatDate(value?: string) {
+  if (!value) return 'Not provided'
+  const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatRate(candidate: CandidateRecord) {
+  if (!candidate.proposedRate) return 'Not provided'
+  const numeric = Number(candidate.proposedRate)
+  const currency = candidate.currency || 'USD'
+  const amount = Number.isFinite(numeric)
+    ? new Intl.NumberFormat('en-CA', {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 2,
+      }).format(numeric)
+    : `${currency} ${candidate.proposedRate}`
+  const unit = candidate.rateUnit === 'daily' ? 'day' : 'hr'
+  return `${amount}/${unit}`
+}
+
+function initials(name: string) {
+  const value = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+  return value || 'NA'
+}
+
+function statusLabel(status: CandidateStatus) {
+  if (status === 'accepted') return 'Selected'
+  if (status === 'reviewed') return 'Interview / Review'
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+function statusClasses(status: CandidateStatus) {
+  if (status === 'accepted') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   }
-];
+  if (status === 'reviewed') {
+    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+  }
+  if (status === 'rejected') {
+    return 'border-rose-200 bg-rose-50 text-rose-700'
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-700'
+}
 
-type CandidateRecord = (typeof candidates)[number];
+function progressClasses(status: CandidateStatus) {
+  if (status === 'accepted') return 'w-full bg-emerald-500'
+  if (status === 'reviewed') return 'w-2/3 bg-cyan-500'
+  if (status === 'rejected') return 'w-full bg-rose-500'
+  return 'w-1/3 bg-slate-400'
+}
 
-export default function CandidatesPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStage, setSelectedStage] = useState("All");
-  const [selectedRecord, setSelectedRecord] = useState<CandidateRecord | null>(null);
-  const [aiInput, setAiInput] = useState("");
+function workOrderLabel(status: string) {
+  if (!status) return 'No work order'
+  return status
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
 
-  const stages = ["All", "Submitted", "Interview", "Offer", "Hired"];
-
-  // --- Logic: Filtering ---
-  const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.jobId.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStage = selectedStage === "All" || c.stage === selectedStage;
-
-      return matchesSearch && matchesStage;
-    });
-  }, [searchTerm, selectedStage]);
-
-  const stalledCandidates = candidates.filter(c => c.daysInStage > 7).length;
+function CandidateDrawer({
+  candidate,
+  canDecide,
+  actionBusy,
+  actionError,
+  onClose,
+  onStatusChange,
+}: {
+  candidate: CandidateRecord
+  canDecide: boolean
+  actionBusy: boolean
+  actionError: string
+  onClose: () => void
+  onStatusChange: (
+    candidate: CandidateRecord,
+    status: Exclude<CandidateStatus, 'submitted'>,
+  ) => void
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <button
+        type="button"
+        aria-label="Close candidate details"
+        className="fixed inset-0 z-40 cursor-default bg-slate-950/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="candidate-drawer-title"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col border-l border-slate-200 bg-white shadow-2xl"
+      >
+        <header className="flex items-start justify-between border-b border-slate-200 px-6 py-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-base font-bold text-cyan-400">
+              {initials(candidate.fullName)}
+            </div>
+            <div className="min-w-0">
+              <h2
+                id="candidate-drawer-title"
+                className="truncate text-xl font-bold text-slate-950"
+              >
+                {candidate.fullName}
+              </h2>
+              <p className="mt-1 truncate text-xs font-semibold uppercase text-cyan-700">
+                {candidate.roleName || candidate.intakeTitle || 'Candidate'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            title="Close"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={onClose}
+          >
+            <X size={19} />
+          </button>
+        </header>
 
-        {/* Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Candidates</h1>
-            <p className="text-slate-500 font-medium mt-1">Track candidate progression and pipeline velocity.</p>
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          {candidate.daysInStage > 7 ? (
+            <div className="mb-6 flex gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4">
+              <TimerReset className="mt-0.5 shrink-0 text-rose-600" size={18} />
+              <div>
+                <p className="text-sm font-semibold text-rose-900">
+                  Pipeline attention required
+                </p>
+                <p className="mt-1 text-xs leading-5 text-rose-700">
+                  This candidate has remained {statusLabel(candidate.status).toLowerCase()} for{' '}
+                  {candidate.daysInStage} days.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <CircleDollarSign size={12} /> Proposed rate
+              </p>
+              <p className="mt-2 text-base font-bold text-slate-950">
+                {formatRate(candidate)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <Clock3 size={12} /> Current stage
+              </p>
+              <span
+                className={`mt-2 inline-flex rounded-md border px-2 py-1 text-[10px] font-bold uppercase ${statusClasses(candidate.status)}`}
+              >
+                {statusLabel(candidate.status)}
+              </span>
+            </div>
           </div>
 
-          {/* Nova AI Command Bar - Custom Cyan/Teal & Dark Navy Theme */}
-          <div className="relative w-full md:w-96 group">
-            <div className="absolute inset-0 bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-all rounded-3xl" />
-            <div className="relative flex items-center bg-white border border-cyan-100 rounded-2xl shadow-sm overflow-hidden p-1 focus-within:ring-2 focus-within:ring-cyan-400/30 transition-all">
-              <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
-                <Sparkles size={18} />
+          <section className="mt-7">
+            <h3 className="text-[11px] font-bold uppercase text-slate-500">
+              Core skills
+            </h3>
+            {candidate.skills.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {candidate.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    {skill}
+                  </span>
+                ))}
               </div>
-              <input
-                type="text"
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="Ask Nova about stalled candidates..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold px-3 py-2 placeholder:text-slate-400"
-              />
-              <button className="pr-3 text-cyan-500 font-bold text-xs uppercase hover:text-cyan-600 transition-colors">
-                Ask
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">
+                No qualifications were attached to the job posting.
+              </p>
+            )}
+          </section>
+
+          <section className="mt-7">
+            <h3 className="text-[11px] font-bold uppercase text-slate-500">
+              Submission notes
+            </h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              {candidate.notes || 'No submission notes provided.'}
+            </p>
+          </section>
+
+          <section className="mt-7 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-slate-200 pt-6">
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <BriefcaseBusiness size={12} /> Supplier
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                {candidate.supplierName || 'Not provided'}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <UserRound size={12} /> Hiring manager
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                {candidate.hiringManagerName || 'Not assigned'}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <MapPin size={12} /> Location
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                {candidate.location || 'Not provided'}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <CalendarDays size={12} /> Available
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                {formatDate(candidate.availableStartDate)}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <FileText size={12} /> Work order
+              </p>
+              <p className="mt-1.5 text-sm font-semibold text-slate-900">
+                {candidate.workOrderNumber ||
+                  workOrderLabel(candidate.workOrderStatus)}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-slate-500">
+                <Mail size={12} /> Email
+              </p>
+              <a
+                href={`mailto:${candidate.email}`}
+                className="mt-1.5 block truncate text-sm font-semibold text-cyan-700 hover:underline"
+              >
+                {candidate.email}
+              </a>
+            </div>
+          </section>
+        </div>
+
+        <footer className="border-t border-slate-200 bg-white p-6">
+          {actionError ? (
+            <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              {actionError}
+            </div>
+          ) : null}
+          {!canDecide && !candidate.workOrderId ? (
+            <div className="mb-3 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-3">
+              <p className="text-xs font-semibold text-cyan-900">
+                Awaiting buyer review
+              </p>
+              <p className="mt-1 text-xs leading-5 text-cyan-800">
+                An admin, business user, or program manager must start the
+                review and select the candidate. Suppliers cannot select their
+                own submissions.
+              </p>
+            </div>
+          ) : null}
+          {canDecide && !candidate.workOrderId ? (
+            <div className="mb-3 grid gap-2">
+              {candidate.status === 'reviewed' ? (
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() => onStatusChange(candidate, 'accepted')}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <UserCheck size={16} />
+                  {actionBusy ? 'Updating...' : 'Select candidate'}
+                </button>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                {candidate.status === 'submitted' ? (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => onStatusChange(candidate, 'reviewed')}
+                    className="flex h-10 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Start review
+                  </button>
+                ) : null}
+                {candidate.status === 'rejected' ? (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => onStatusChange(candidate, 'reviewed')}
+                    className="col-span-2 flex h-10 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Reopen review
+                  </button>
+                ) : null}
+                {candidate.status !== 'accepted' &&
+                candidate.status !== 'rejected' ? (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => onStatusChange(candidate, 'rejected')}
+                    className="flex h-10 items-center justify-center gap-2 rounded-md border border-rose-200 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Ban size={14} /> Reject
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          <Link
+            href={`/cw/job-postings/${candidate.intakeId}`}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            {candidate.status === 'accepted'
+              ? 'Continue to job posting'
+              : 'View job posting'}{' '}
+            <ArrowRight size={16} />
+          </Link>
+          <div
+            className={`mt-3 grid gap-3 ${
+              candidate.workOrderId && candidate.resumeUrl
+                ? 'grid-cols-2'
+                : 'grid-cols-1'
+            }`}
+          >
+            {candidate.workOrderId ? (
+              <Link
+                href={`/cw/work-orders/${candidate.workOrderId}`}
+                className="flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Work order <ChevronRight size={15} />
+              </Link>
+            ) : null}
+            {candidate.resumeUrl ? (
+              <a
+                href={candidate.resumeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Resume <ExternalLink size={14} />
+              </a>
+            ) : null}
+          </div>
+        </footer>
+      </aside>
+    </>
+  )
+}
+
+export default function CandidatesPage() {
+  const router = useRouter()
+  const [candidates, setCandidates] = useState<CandidateRecord[]>([])
+  const [pagination, setPagination] =
+    useState<CandidateListPagination>(DEFAULT_PAGINATION)
+  const [summary, setSummary] =
+    useState<CandidateListSummary>(DEFAULT_SUMMARY)
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<CandidateRecord | null>(null)
+  const [status, setStatus] = useState<'all' | CandidateStatus>('all')
+  const [searchDraft, setSearchDraft] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [canDecide, setCanDecide] = useState(false)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  useEffect(() => {
+    setActionError('')
+  }, [selectedCandidate?.id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCandidates() {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await getCandidates({
+          page,
+          page_size: PAGE_SIZE,
+          status: status === 'all' ? undefined : status,
+          search,
+        })
+        if (cancelled) return
+        setCandidates(response.results)
+        setPagination(response.pagination)
+        setSummary(response.summary)
+        setCanDecide(response.permissions.canDecide)
+        if (response.pagination.page !== page) {
+          setPage(response.pagination.page)
+        }
+      } catch (loadError) {
+        if (cancelled) return
+        if (
+          loadError instanceof CandidateApiError &&
+          (loadError.status === 401 ||
+            (loadError.status === 403 &&
+              /authentication credentials|session is not valid/i.test(
+                loadError.message,
+              )))
+        ) {
+          router.replace('/auth/login?next=/cw/candidates')
+          return
+        }
+        setCandidates([])
+        setPagination(DEFAULT_PAGINATION)
+        setSummary(DEFAULT_SUMMARY)
+        setCanDecide(false)
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'Unable to load candidates.',
+        )
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadCandidates()
+    return () => {
+      cancelled = true
+    }
+  }, [page, reloadKey, router, search, status])
+
+  const pageDescription = useMemo(() => {
+    const total = summary.totalCount
+    return `${total} candidate${total === 1 ? '' : 's'} across approved job postings.`
+  }, [summary.totalCount])
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setPage(1)
+    setSearch(searchDraft.trim())
+  }
+
+  function resetFilters() {
+    setSearchDraft('')
+    setSearch('')
+    setStatus('all')
+    setPage(1)
+  }
+
+  async function handleStatusChange(
+    candidate: CandidateRecord,
+    nextStatus: Exclude<CandidateStatus, 'submitted'>,
+  ) {
+    setActionBusy(true)
+    setActionError('')
+    try {
+      const updated = await updateCandidateStatus(candidate.id, nextStatus)
+      setCandidates((current) =>
+        current.map((record) => (record.id === updated.id ? updated : record)),
+      )
+      setSelectedCandidate(updated)
+      setReloadKey((value) => value + 1)
+    } catch (updateError) {
+      setActionError(
+        updateError instanceof Error
+          ? updateError.message
+          : 'Unable to update candidate.',
+      )
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <header>
+          <h1 className="text-3xl font-bold text-slate-950">Candidates</h1>
+          <p className="mt-1 text-sm text-slate-500">{pageDescription}</p>
+        </header>
+
+        <section
+          aria-label="Candidate filters"
+          className="mt-7 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]"
+        >
+          <div className="flex min-h-24 items-center rounded-lg border border-slate-200 bg-white px-5 shadow-sm">
+            <TimerReset
+              size={23}
+              className={
+                summary.stalledCount ? 'text-rose-500' : 'text-emerald-500'
+              }
+            />
+            <div className="ml-3">
+              <p className="text-[10px] font-bold uppercase text-slate-500">
+                Stalled over 7 days
+              </p>
+              <p className="mt-1 text-2xl font-bold text-slate-950">
+                {summary.stalledCount}
+              </p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={submitSearch}
+            className="grid items-end gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[minmax(180px,0.8fr)_minmax(260px,1.4fr)_auto]"
+          >
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold uppercase text-slate-500">
+                Pipeline stage
+              </span>
+              <span className="relative block">
+                <select
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value as 'all' | CandidateStatus)
+                    setPage(1)
+                  }}
+                  className="h-10 w-full appearance-none rounded-md border border-slate-200 bg-slate-50 px-3 pr-9 text-sm font-medium outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3 top-3 text-slate-400"
+                />
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold uppercase text-slate-500">
+                Search candidates
+              </span>
+              <span className="relative block">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-3 text-slate-400"
+                />
+                <input
+                  value={searchDraft}
+                  onChange={(event) => setSearchDraft(event.target.value)}
+                  placeholder="Name, email, role, supplier, or work order"
+                  className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                />
+              </span>
+            </label>
+
+            <div className="flex h-10 items-center gap-2">
+              <button
+                type="submit"
+                className="flex h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                title="Reset filters"
+                onClick={resetFilters}
+                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+              >
+                <X size={16} />
               </button>
             </div>
-          </div>
-        </div>
+          </form>
+        </section>
 
-        {/* METRICS & FILTERS */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stalled {'>'} 7 Days</span>
-            <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              <Timer size={24} className={stalledCandidates > 0 ? "text-rose-500" : "text-emerald-500"} />
-              {stalledCandidates}
-            </div>
-          </div>
-
-          <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Pipeline Stage</label>
-              <div className="relative">
-                <select
-                  value={selectedStage}
-                  onChange={(e) => setSelectedStage(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                >
-                  {stages.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-[300px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Candidates</label>
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="Name, role, or Job ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {setSearchTerm(""); setSelectedStage("All");}}
-              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
-            >
-              <X size={14} /> Reset
-            </button>
-          </div>
-        </div>
-
-        {/* CANDIDATE TABLE */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Candidate Info</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Rate & Availability</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pipeline Progress</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Manager / Status</th>
-                  <th className="px-8 py-5"></th>
+            <table className="w-full min-w-[920px] table-fixed text-left">
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr>
+                  <th className="w-[29%] px-6 py-4 text-[10px] font-bold uppercase text-slate-500">
+                    Candidate
+                  </th>
+                  <th className="w-[20%] px-6 py-4 text-[10px] font-bold uppercase text-slate-500">
+                    Rate and availability
+                  </th>
+                  <th className="w-[20%] px-6 py-4 text-[10px] font-bold uppercase text-slate-500">
+                    Pipeline
+                  </th>
+                  <th className="w-[25%] px-6 py-4 text-[10px] font-bold uppercase text-slate-500">
+                    Requisition
+                  </th>
+                  <th className="w-[6%] px-4 py-4">
+                    <span className="sr-only">Open</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredCandidates.map((c) => (
-                  <tr
-                    key={`${c.name}-${c.jobId}`}
-                    className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
-                    onClick={() => setSelectedRecord(c)}
-                  >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-bold text-sm">
-                          {c.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 leading-tight mb-1">{c.name}</div>
-                          <div className="text-[10px] font-black text-cyan-600 uppercase tracking-tighter">
-                            {c.role} • {c.jobId}
+                {loading
+                  ? Array.from({ length: 4 }).map((_, index) => (
+                      <tr key={index} aria-hidden="true">
+                        <td colSpan={5} className="px-6 py-5">
+                          <div className="h-10 animate-pulse rounded-md bg-slate-100" />
+                        </td>
+                      </tr>
+                    ))
+                  : candidates.map((candidate) => (
+                      <tr
+                        key={candidate.id}
+                        className="group cursor-pointer transition hover:bg-cyan-50/40"
+                        onClick={() => setSelectedCandidate(candidate)}
+                      >
+                        <td className="px-6 py-5">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-800">
+                              {initials(candidate.fullName)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-950">
+                                {candidate.fullName}
+                              </p>
+                              <p className="mt-1 truncate text-[10px] font-semibold uppercase text-cyan-700">
+                                {candidate.roleName ||
+                                  candidate.intakeTitle ||
+                                  'Role not provided'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-black text-slate-900 leading-none">{c.rate}</div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 block italic">
-                        Start: {c.availability}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-                          c.stage === 'Interview' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
-                          c.stage === 'Offer' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          'bg-slate-50 text-slate-500 border-slate-100'
-                        }`}>
-                          {c.stage}
-                        </span>
-                        <span className={`text-[10px] font-bold ${c.daysInStage > 7 ? 'text-rose-500' : 'text-slate-400'}`}>
-                          ({c.daysInStage} days)
-                        </span>
-                      </div>
-                      <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
-                        <div className={`h-full rounded-full transition-all duration-500 ${
-                          c.stage === 'Submitted' ? 'w-1/4 bg-slate-400' :
-                          c.stage === 'Interview' ? 'w-2/4 bg-cyan-400' :
-                          c.stage === 'Offer' ? 'w-3/4 bg-cyan-600' : 'w-full bg-emerald-500'
-                        }`} />
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="text-xs font-bold text-slate-800">{c.manager}</div>
-                      <div className={`text-[10px] font-black uppercase mt-1 ${c.status === 'Active' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                        • {c.status}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-100/50 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                          <Eye size={12} /> View Preview
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </td>
+                        <td className="px-6 py-5">
+                          <p className="text-sm font-bold text-slate-900">
+                            {formatRate(candidate)}
+                          </p>
+                          <p className="mt-1 text-[10px] font-semibold uppercase text-slate-500">
+                            Start {formatDate(candidate.availableStartDate)}
+                          </p>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase ${statusClasses(candidate.status)}`}
+                            >
+                              {statusLabel(candidate.status)}
+                            </span>
+                            <span
+                              className={`text-[10px] font-semibold ${
+                                candidate.daysInStage > 7
+                                  ? 'text-rose-600'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {candidate.daysInStage}d
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${progressClasses(candidate.status)}`}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {candidate.jobPostingId || `Job #${candidate.intakeId}`}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-slate-500">
+                            {candidate.supplierName || 'Supplier not provided'}
+                            {candidate.hiringManagerName
+                              ? ` · ${candidate.hiringManagerName}`
+                              : ''}
+                          </p>
+                        </td>
+                        <td className="px-4 py-5 text-right">
+                          <button
+                            type="button"
+                            title={`View ${candidate.fullName}`}
+                            className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition group-hover:bg-white group-hover:text-cyan-700"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setSelectedCandidate(candidate)
+                            }}
+                          >
+                            <ChevronRight size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
 
-      {/* PREVIEW DRAWER */}
-      {selectedRecord && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={() => setSelectedRecord(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-slate-200 flex flex-col">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center text-cyan-400 font-black text-2xl shadow-lg shadow-cyan-900/10">
-                  {selectedRecord.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{selectedRecord.name}</h2>
-                  <p className="text-sm font-bold text-cyan-600">{selectedRecord.role}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
-                <X size={24} />
+          {!loading && error ? (
+            <div className="flex min-h-60 flex-col items-center justify-center px-6 text-center">
+              <p className="text-sm font-semibold text-slate-900">
+                Candidates could not be loaded
+              </p>
+              <p className="mt-1 max-w-md text-sm text-slate-500">{error}</p>
+              <button
+                type="button"
+                onClick={() => setReloadKey((value) => value + 1)}
+                className="mt-4 flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <RefreshCw size={15} /> Retry
               </button>
             </div>
+          ) : null}
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {selectedRecord.daysInStage > 7 && (
-                  <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">
-                    <AlertCircle className="text-rose-600 shrink-0" size={20} />
-                    <div>
-                        <p className="text-sm font-bold text-rose-900">Pipeline Alert</p>
-                        <p className="text-xs text-rose-700 font-medium">Candidate has been in {selectedRecord.stage} for {selectedRecord.daysInStage} days. High risk of candidate withdrawal.</p>
-                    </div>
-                  </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><DollarSign size={10}/> Proposed Rate</p>
-                  <p className="text-lg font-black text-slate-900">{selectedRecord.rate}</p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Clock size={10}/> Current Stage</p>
-                  <p className="text-lg font-black text-cyan-600 uppercase">{selectedRecord.stage}</p>
-                </div>
+          {!loading && !error && candidates.length === 0 ? (
+            <div className="flex min-h-60 flex-col items-center justify-center px-6 text-center">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                <UserRound size={20} />
               </div>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Core Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedRecord.skills.map(skill => (
-                    <span key={skill} className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-cyan-300 transition-colors">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">Submission Notes</h3>
-                <p className="text-slate-600 leading-relaxed font-medium italic">"{selectedRecord.description}"</p>
-              </section>
-
-              <section className="grid grid-cols-2 gap-6 pt-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Briefcase size={14} /> Requisition</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Supplier</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.supplier}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Hiring Manager</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.manager}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><User size={14} /> Details</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Location</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.location}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Availability</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.availability}</p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="pt-6 border-t border-slate-100">
-                <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-xl shadow-slate-200">
-                    View Full Candidate Profile <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              <p className="mt-4 text-sm font-semibold text-slate-900">
+                No candidates found
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Candidate submissions will appear here after suppliers respond to
+                approved job postings.
+              </p>
+              {search || status !== 'all' ? (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="mt-4 text-sm font-semibold text-cyan-700 hover:underline"
+                >
+                  Clear filters
                 </button>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:border-cyan-200 transition-all flex items-center justify-center gap-2">
-                    <Calendar size={14} /> Schedule Interview
-                  </button>
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:border-cyan-200 transition-all flex items-center justify-center gap-2">
-                    <UserCheck size={14} /> Initiate Offer
-                  </button>
-                </div>
-              </div>
+              ) : null}
             </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+          ) : null}
+
+          {!loading && !error && pagination.total_pages > 1 ? (
+            <footer className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+              <p className="text-xs text-slate-500">
+                Page {pagination.page} of {pagination.total_pages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  title="Previous page"
+                  disabled={!pagination.has_previous}
+                  onClick={() => setPage((value) => Math.max(value - 1, 1))}
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  title="Next page"
+                  disabled={!pagination.has_next}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </footer>
+          ) : null}
+        </section>
+      </div>
+
+      {selectedCandidate ? (
+        <CandidateDrawer
+          candidate={selectedCandidate}
+          canDecide={canDecide}
+          actionBusy={actionBusy}
+          actionError={actionError}
+          onClose={() => setSelectedCandidate(null)}
+          onStatusChange={(candidate, nextStatus) =>
+            void handleStatusChange(candidate, nextStatus)
+          }
+        />
+      ) : null}
+    </main>
+  )
 }

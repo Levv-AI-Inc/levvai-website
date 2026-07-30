@@ -26,6 +26,12 @@ export type WorkOrderApprovalStatus =
   | 'approved'
   | 'rejected'
 
+export type WorkOrderSupplierAcceptanceStatus =
+  | 'not_started'
+  | 'pending'
+  | 'accepted'
+  | 'changes_requested'
+
 export type WorkOrderApprovalRuntime = {
   currentApproverId?: number | null
   currentApproverName?: string | null
@@ -121,6 +127,9 @@ export type WorkOrderRecord = {
   workOrderNumber?: string | null
   status?: WorkOrderStatus
   approvalStatus?: WorkOrderApprovalStatus
+  supplierAcceptanceStatus?: WorkOrderSupplierAcceptanceStatus
+  supplierResponseNotes?: string
+  supplierAcceptedAt?: string | null
   engagementId?: number | null
   engagementNumber?: string | null
   engagementStatus?: string | null
@@ -160,6 +169,17 @@ export type WorkOrderRecord = {
   approvalChain?: number | null
   approvalChainSnapshot?: Record<string, unknown> | null
   approvalRuntime?: WorkOrderApprovalRuntime | null
+  permissions: {
+    canApprove: boolean
+    canReject: boolean
+    canRespondToWorkOrder: boolean
+  }
+  workerId?: number | null
+  workerIsNew?: boolean
+  workerAssignmentId?: number | null
+  onboardingRunId?: number | null
+  matchedWorkflowId?: number | null
+  registrationRequired?: boolean
   currentApproverName?: string | null
   approvalsRemaining?: number
   submittedAt?: string | null
@@ -407,6 +427,12 @@ function normalizeWorkOrderRecord(
 ): WorkOrderRecord {
   const approvalRuntime = normalizeApprovalRuntime(row.approval_runtime)
   const pricing = normalizePricing(row.pricing)
+  const permissions =
+    row.permissions &&
+    typeof row.permissions === 'object' &&
+    !Array.isArray(row.permissions)
+      ? (row.permissions as Record<string, unknown>)
+      : {}
 
   return {
     id: readOptionalNumber(row.id) || 0,
@@ -418,6 +444,14 @@ function normalizeWorkOrderRecord(
       (readOptionalString(
         row.approval_status,
       ) as WorkOrderApprovalStatus | undefined) || undefined,
+    supplierAcceptanceStatus:
+      (readOptionalString(
+        row.supplier_acceptance_status,
+      ) as WorkOrderSupplierAcceptanceStatus | undefined) || undefined,
+    supplierResponseNotes:
+      readOptionalString(row.supplier_response_notes) || '',
+    supplierAcceptedAt:
+      readOptionalString(row.supplier_accepted_at) ?? null,
     engagementId:
       readOptionalNumber(row.engagement_id) ??
       readOptionalNumber(row.engagement) ??
@@ -516,6 +550,23 @@ function normalizeWorkOrderRecord(
         ? (row.approval_chain_snapshot as Record<string, unknown>)
         : null,
     approvalRuntime,
+    permissions: {
+      canApprove: readOptionalBoolean(permissions.can_approve) || false,
+      canReject: readOptionalBoolean(permissions.can_reject) || false,
+      canRespondToWorkOrder:
+        readOptionalBoolean(permissions.can_respond_to_work_order) || false,
+    },
+    workerId: readOptionalNumber(row.worker_id) ?? null,
+    workerIsNew: readOptionalBoolean(row.worker_is_new),
+    workerAssignmentId:
+      readOptionalNumber(row.worker_assignment_id) ??
+      readOptionalNumber(row.worker_engagement_id) ??
+      null,
+    onboardingRunId: readOptionalNumber(row.onboarding_run_id) ?? null,
+    matchedWorkflowId:
+      readOptionalNumber(row.matched_workflow_id) ?? null,
+    registrationRequired:
+      readOptionalBoolean(row.registration_required),
     currentApproverName:
       readOptionalString(row.current_approver_name) ||
       approvalRuntime?.currentApproverName ||
@@ -856,4 +907,61 @@ export async function rejectWorkOrder(
   decisionReason?: string,
 ) {
   return postDecision(workOrderId, 'reject', decisionReason)
+}
+
+async function postSupplierDecision(
+  workOrderId: number | string,
+  action: 'accept' | 'request-change',
+  supplierResponseNotes?: string,
+) {
+  const response = await fetch(
+    `/api/work-orders/${encodeURIComponent(
+      String(workOrderId),
+    )}/${action}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify({
+        supplier_response_notes: supplierResponseNotes?.trim() || '',
+      }),
+    },
+  )
+
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(
+      response,
+      body,
+      action === 'accept'
+        ? `Failed to accept work order (${response.status})`
+        : `Failed to request work order changes (${response.status})`,
+    )
+  }
+  return normalizeWorkOrderResponse(body)
+}
+
+export async function acceptWorkOrder(
+  workOrderId: number | string,
+  supplierResponseNotes?: string,
+) {
+  return postSupplierDecision(
+    workOrderId,
+    'accept',
+    supplierResponseNotes,
+  )
+}
+
+export async function requestWorkOrderChange(
+  workOrderId: number | string,
+  supplierResponseNotes: string,
+) {
+  return postSupplierDecision(
+    workOrderId,
+    'request-change',
+    supplierResponseNotes,
+  )
 }

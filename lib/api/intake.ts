@@ -109,10 +109,17 @@ export type SelectedCandidateRecord = {
   availableStartDate?: string
   proposedRate?: string
   currency?: string
+  status?: SelectedCandidateStatus
   createdAt?: string
   updatedAt?: string
   raw: Record<string, unknown>
 }
+
+export type SelectedCandidateStatus =
+  | 'submitted'
+  | 'reviewed'
+  | 'accepted'
+  | 'rejected'
 
 export type SelectedCandidateCreatePayload = {
   fullName: string
@@ -453,6 +460,9 @@ function normalizeSelectedCandidate(
     availableStartDate: readOptionalString(row.available_start_date),
     proposedRate: readOptionalString(row.proposed_rate),
     currency: readOptionalString(row.currency),
+    status:
+      (readOptionalString(row.status) as SelectedCandidateStatus | undefined) ||
+      'submitted',
     createdAt: readOptionalString(row.created_at),
     updatedAt: readOptionalString(row.updated_at),
     raw: row,
@@ -1104,4 +1114,37 @@ export async function createSelectedCandidate(
   }
 
   return normalizeSelectedCandidate(body as Record<string, unknown>)
+}
+
+export async function updateSelectedCandidateStatus(
+  candidateId: number | string,
+  status: Exclude<SelectedCandidateStatus, 'submitted'>,
+): Promise<SelectedCandidateRecord> {
+  const response = await fetch(
+    `/api/candidates/${encodeURIComponent(String(candidateId))}`,
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify({ status }),
+    },
+  )
+
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(
+      response,
+      body,
+      `Failed to update candidate (${response.status})`,
+    )
+  }
+
+  return normalizeSelectedCandidate(
+    body && typeof body === 'object'
+      ? (body as Record<string, unknown>)
+      : {},
+  )
 }

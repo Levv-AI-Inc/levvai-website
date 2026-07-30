@@ -21,9 +21,11 @@ import {
   getIntakeApprovalPreview,
   getIntakeById,
   getSelectedCandidates,
+  updateSelectedCandidateStatus,
   type IntakeRecord,
   type SelectedCandidateCreatePayload,
   type SelectedCandidateRecord,
+  type SelectedCandidateStatus,
 } from '@/lib/api/intake'
 import {
   WorkOrderApiError,
@@ -69,7 +71,6 @@ type CandidateFormState = {
   availableStartDate: string
   endDate: string
   proposedRate: string
-  payRate: string
   currency: string
 }
 
@@ -160,6 +161,28 @@ function statusClasses(status: string | undefined) {
   return 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
+function candidateStatusLabel(status: SelectedCandidateStatus | undefined) {
+  if (status === 'reviewed') return 'Interview / Review'
+  if (status === 'accepted') return 'Selected'
+  if (status === 'rejected') return 'Rejected'
+  return 'Submitted'
+}
+
+function candidateStatusClasses(
+  status: SelectedCandidateStatus | undefined,
+) {
+  if (status === 'reviewed') {
+    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+  }
+  if (status === 'accepted') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+  if (status === 'rejected') {
+    return 'border-rose-200 bg-rose-50 text-rose-700'
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-700'
+}
+
 function createInitialCandidateForm(
   intake: IntakeRecord | null,
 ): CandidateFormState {
@@ -174,7 +197,6 @@ function createInitialCandidateForm(
     proposedRate: normalizeRateToTwoDecimals(
       intake?.payRate || intake?.baseRate || intake?.targetRate || '',
     ),
-    payRate: '',
     currency: intake?.currency || 'USD',
   }
 }
@@ -286,6 +308,10 @@ export default function JobPostingDetailClient({
   const [candidateSubmitError, setCandidateSubmitError] = useState('')
   const [candidateSubmitSuccess, setCandidateSubmitSuccess] = useState('')
   const [candidateModalOpen, setCandidateModalOpen] = useState(false)
+  const [candidateDecisionBusyId, setCandidateDecisionBusyId] = useState<
+    number | null
+  >(null)
+  const [candidateDecisionError, setCandidateDecisionError] = useState('')
   const [workOrderBusy, setWorkOrderBusy] = useState(false)
   const [workOrderError, setWorkOrderError] = useState('')
 
@@ -486,9 +512,17 @@ export default function JobPostingDetailClient({
     intake?.status?.trim().toLowerCase() === 'approved' &&
     intake?.approvalStatus?.trim().toLowerCase() === 'approved'
   const isSupplierUser = sessionRole.includes('supplier')
+  const canManageCandidates = ['admin', 'business', 'manager'].includes(
+    sessionRole,
+  )
   const canSubmitCandidate = isSupplierUser && isFullyApproved
+  const acceptedCandidate =
+    selectedCandidates.find((candidate) => candidate.status === 'accepted') ||
+    null
   const canCreateWorkOrder =
+    canManageCandidates &&
     isFullyApproved &&
+    acceptedCandidate !== null &&
     workOrderCandidate !== null &&
     (!existingWorkOrder ||
       existingWorkOrder.status?.trim().toLowerCase() === 'draft')
@@ -552,31 +586,13 @@ export default function JobPostingDetailClient({
       }
 
       const createdCandidate = await createSelectedCandidate(intakeId, payload)
-      const pendingCandidate = intake
-        ? buildPendingWorkOrderCandidateFromSelection({
-            intake,
-            selectedCandidate: createdCandidate,
-            supplierName:
-              intake.supplierName ||
-              supplierLabel ||
-              (intake.supplier
-                ? `Supplier #${String(intake.supplier)}`
-                : undefined),
-            roleName:
-              intake.roleDefinitionName || intake.title || undefined,
-            workLocation: workLocationLabel,
-            payRate: candidateForm.payRate,
-          })
-        : null
 
       setSelectedCandidates((current) => [createdCandidate, ...current])
-      setCandidateSubmitSuccess('Candidate submission saved.')
+      setCandidateSubmitSuccess(
+        'Candidate submitted for buyer review. No work order has been created.',
+      )
       setCandidateForm(createInitialCandidateForm(intake))
       setCandidateModalOpen(false)
-      if (pendingCandidate) {
-        savePendingWorkOrderCandidate(pendingCandidate)
-        setWorkOrderCandidate(pendingCandidate)
-      }
     } catch (submitError) {
       if (
         submitError instanceof IntakeApiError &&
@@ -600,6 +616,77 @@ export default function JobPostingDetailClient({
     }
   }
 
+  const handleCandidateDecision = async (
+    candidate: SelectedCandidateRecord,
+    status: Exclude<SelectedCandidateStatus, 'submitted'>,
+  ) => {
+    if (!candidate.id || !intake || !canManageCandidates) return
+
+    setCandidateDecisionBusyId(candidate.id)
+    setCandidateDecisionError('')
+    setCandidateSubmitSuccess('')
+
+    try {
+      const updatedCandidate = await updateSelectedCandidateStatus(
+        candidate.id,
+        status,
+      )
+
+      setSelectedCandidates((current) =>
+        current.map((item) => {
+          if (item.id === updatedCandidate.id) return updatedCandidate
+          if (status === 'accepted' && item.status === 'accepted') {
+            return { ...item, status: 'reviewed' }
+          }
+          return item
+        }),
+      )
+
+      if (status === 'accepted') {
+        const pendingCandidate = buildPendingWorkOrderCandidateFromSelection({
+          intake,
+          selectedCandidate: updatedCandidate,
+          supplierName:
+            intake.supplierName ||
+            supplierLabel ||
+            (intake.supplier
+              ? `Supplier #${String(intake.supplier)}`
+              : undefined),
+          roleName: intake.roleDefinitionName || intake.title || undefined,
+          workLocation: workLocationLabel,
+        })
+        savePendingWorkOrderCandidate(pendingCandidate)
+        setWorkOrderCandidate(pendingCandidate)
+        setCandidateSubmitSuccess(
+          `${updatedCandidate.fullName || 'Candidate'} selected. The work order is ready for buyer review and submission.`,
+        )
+      } else if (workOrderCandidate?.candidateId === candidate.id) {
+        clearPendingWorkOrderCandidate(intake.id)
+        setWorkOrderCandidate(null)
+      }
+    } catch (decisionError) {
+      if (
+        decisionError instanceof IntakeApiError &&
+        decisionError.status === 401
+      ) {
+        router.replace(
+          `/auth/login?next=/cw/job-postings/${encodeURIComponent(
+            String(intake.id),
+          )}`,
+        )
+        return
+      }
+
+      setCandidateDecisionError(
+        decisionError instanceof Error
+          ? decisionError.message
+          : 'Unable to update this candidate.',
+      )
+    } finally {
+      setCandidateDecisionBusyId(null)
+    }
+  }
+
   useEffect(() => {
     if (!intakeId || !intake) return
 
@@ -612,31 +699,37 @@ export default function JobPostingDetailClient({
       return
     }
 
+    const accepted = selectedCandidates.find(
+      (candidate) => candidate.status === 'accepted',
+    )
+    if (!accepted) {
+      clearPendingWorkOrderCandidate(intakeId)
+      setWorkOrderCandidate(null)
+      return
+    }
+
     const pendingCandidate = getPendingWorkOrderCandidate(intakeId)
-    if (pendingCandidate) {
+    if (pendingCandidate?.candidateId === accepted.id) {
       setWorkOrderCandidate(pendingCandidate)
       return
     }
 
-    if (selectedCandidates.length > 0) {
-      setWorkOrderCandidate(
-        buildPendingWorkOrderCandidateFromSelection({
-          intake,
-          selectedCandidate: selectedCandidates[0],
-          supplierName:
-            intake.supplierName ||
-            supplierLabel ||
-            (intake.supplier
-              ? `Supplier #${String(intake.supplier)}`
-              : undefined),
-          roleName: intake.roleDefinitionName || intake.title || undefined,
-          workLocation: workLocationLabel,
-        }),
-      )
-      return
-    }
-
-    setWorkOrderCandidate(null)
+    clearPendingWorkOrderCandidate(intakeId)
+    const selectedWorkOrderCandidate =
+      buildPendingWorkOrderCandidateFromSelection({
+        intake,
+        selectedCandidate: accepted,
+        supplierName:
+          intake.supplierName ||
+          supplierLabel ||
+          (intake.supplier
+            ? `Supplier #${String(intake.supplier)}`
+            : undefined),
+        roleName: intake.roleDefinitionName || intake.title || undefined,
+        workLocation: workLocationLabel,
+      })
+    savePendingWorkOrderCandidate(selectedWorkOrderCandidate)
+    setWorkOrderCandidate(selectedWorkOrderCandidate)
   }, [
     existingWorkOrder,
     intake,
@@ -732,8 +825,8 @@ export default function JobPostingDetailClient({
             {intake?.title || intake?.roleDefinitionName || 'Job posting detail'}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            Review approval progress and, once fully approved, submit the
-            selected candidate for this posting.
+            Track approvals, supplier submissions, buyer selection, and work
+            order creation for this posting.
           </p>
         </div>
 
@@ -873,14 +966,27 @@ export default function JobPostingDetailClient({
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-slate-900">
-                        Selected candidates
+                        Candidate workflow
                       </h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Submit the final selected candidate only after the
-                        approval chain is fully complete.
+                        Suppliers submit candidates. Buyers review and interview
+                        them offline, then select one before creating a work
+                        order.
                       </p>
                     </div>
                   </div>
+
+                  <CandidateWorkflowProgress
+                    approved={isFullyApproved}
+                    submitted={selectedCandidates.length > 0}
+                    reviewed={selectedCandidates.some(
+                      (candidate) =>
+                        candidate.status === 'reviewed' ||
+                        candidate.status === 'accepted',
+                    )}
+                    selected={acceptedCandidate !== null}
+                    workOrderCreated={existingWorkOrder !== null}
+                  />
 
                   {!isFullyApproved ? (
                     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -891,8 +997,9 @@ export default function JobPostingDetailClient({
 
                   {isFullyApproved && !isSupplierUser ? (
                     <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                      This posting is fully approved. Supplier users can submit
-                      the selected candidate from this page.
+                      Review supplier submissions below. Interviews happen
+                      outside LEVV; mark the candidate as under review after
+                      starting that process, then select the final candidate.
                     </div>
                   ) : null}
 
@@ -900,10 +1007,11 @@ export default function JobPostingDetailClient({
                     <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4">
                       <div>
                         <div className="text-sm font-medium text-slate-900">
-                          Capture the selected candidate for this approved job posting.
+                          Submit a candidate for buyer review.
                         </div>
                         <div className="mt-1 text-sm text-slate-500">
-                          Use the modal to record the chosen worker and attach the resume link.
+                          Candidate submission does not create or prepare a work
+                          order.
                         </div>
                       </div>
                       <button
@@ -916,7 +1024,7 @@ export default function JobPostingDetailClient({
                         }}
                         className="inline-flex shrink-0 items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
                       >
-                        Capture selected candidate
+                        Submit candidate
                       </button>
                     </div>
                   ) : null}
@@ -930,6 +1038,12 @@ export default function JobPostingDetailClient({
                   {candidateSubmitSuccess ? (
                     <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                       {candidateSubmitSuccess}
+                    </div>
+                  ) : null}
+
+                  {candidateDecisionError ? (
+                    <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                      {candidateDecisionError}
                     </div>
                   ) : null}
 
@@ -952,14 +1066,22 @@ export default function JobPostingDetailClient({
                                 {candidate.email || 'No email provided'}
                               </div>
                             </div>
-                            <div className="text-right text-sm text-slate-500">
-                              <div>
+                            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                              <span
+                                className={cn(
+                                  'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold',
+                                  candidateStatusClasses(candidate.status),
+                                )}
+                              >
+                                {candidateStatusLabel(candidate.status)}
+                              </span>
+                              <div className="text-sm text-slate-500">
                                 {formatMoney(
                                   candidate.proposedRate,
                                   candidate.currency,
                                 )}
                               </div>
-                              <div className="mt-1">
+                              <div className="text-sm text-slate-500">
                                 {formatDate(candidate.availableStartDate)}
                               </div>
                             </div>
@@ -991,11 +1113,114 @@ export default function JobPostingDetailClient({
                               {candidate.notes || '-'}
                             </DetailMini>
                           </div>
+
+                          {canManageCandidates && !existingWorkOrder ? (
+                            <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                              {candidate.status === 'submitted' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      candidateDecisionBusyId === candidate.id
+                                    }
+                                    onClick={() =>
+                                      void handleCandidateDecision(
+                                        candidate,
+                                        'reviewed',
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {candidateDecisionBusyId === candidate.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    Start review
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      candidateDecisionBusyId === candidate.id
+                                    }
+                                    onClick={() =>
+                                      void handleCandidateDecision(
+                                        candidate,
+                                        'rejected',
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : null}
+
+                              {candidate.status === 'reviewed' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      candidateDecisionBusyId === candidate.id
+                                    }
+                                    onClick={() =>
+                                      void handleCandidateDecision(
+                                        candidate,
+                                        'rejected',
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Reject
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      candidateDecisionBusyId === candidate.id
+                                    }
+                                    onClick={() =>
+                                      void handleCandidateDecision(
+                                        candidate,
+                                        'accepted',
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {candidateDecisionBusyId === candidate.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                    Select candidate
+                                  </button>
+                                </>
+                              ) : null}
+
+                              {candidate.status === 'rejected' ? (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    candidateDecisionBusyId === candidate.id
+                                  }
+                                  onClick={() =>
+                                    void handleCandidateDecision(
+                                      candidate,
+                                      'reviewed',
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {candidateDecisionBusyId === candidate.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : null}
+                                  Reopen review
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       ))
                     ) : (
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                        No selected candidates have been submitted yet.
+                        No candidate submissions yet.
                       </div>
                     )}
                   </div>
@@ -1020,7 +1245,7 @@ export default function JobPostingDetailClient({
                                   .toLowerCase() === 'draft'
                                 ? 'A draft work order already exists for this posting. You can submit it again after updating the selected-candidate details.'
                                 : 'A work order has already been created from the selected candidate for this posting.'
-                              : 'The selected candidate is now attached to the job posting. Review the worker details below, then submit the work order.'}
+                              : 'Selection only prepares these details. No work order exists until a buyer creates and submits it below.'}
                           </p>
                         </div>
 
@@ -1055,8 +1280,8 @@ export default function JobPostingDetailClient({
                               existingWorkOrder?.status
                                 ?.trim()
                                 .toLowerCase() === 'draft'
-                                ? 'Submit draft'
-                                : 'Submit'
+                                ? 'Submit work order draft'
+                                : 'Create and submit work order'
                             )}
                           </button>
                         ) : null}
@@ -1159,13 +1384,16 @@ export default function JobPostingDetailClient({
                                   : '-'
                             }
                           />
-                          {existingWorkOrder?.engagementId ? (
+                          {existingWorkOrder?.supplierAcceptanceStatus &&
+                          existingWorkOrder.supplierAcceptanceStatus !==
+                            'not_started' ? (
                             <DetailField
-                              label="Engagement"
-                              value={
-                                existingWorkOrder.engagementNumber ||
-                                `ENG-${String(existingWorkOrder.engagementId)}`
-                              }
+                              label="Supplier acceptance"
+                              value={existingWorkOrder.supplierAcceptanceStatus
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, (letter) =>
+                                  letter.toUpperCase(),
+                                )}
                             />
                           ) : null}
                         </div>
@@ -1352,6 +1580,59 @@ function SummaryCard({
   )
 }
 
+function CandidateWorkflowProgress({
+  approved,
+  submitted,
+  reviewed,
+  selected,
+  workOrderCreated,
+}: {
+  approved: boolean
+  submitted: boolean
+  reviewed: boolean
+  selected: boolean
+  workOrderCreated: boolean
+}) {
+  const steps = [
+    { label: 'Posting approved', complete: approved },
+    { label: 'Candidate submitted', complete: submitted },
+    { label: 'Offline interview', complete: reviewed },
+    { label: 'Candidate selected', complete: selected },
+    { label: 'Work order created', complete: workOrderCreated },
+  ]
+
+  return (
+    <ol className="mt-6 grid gap-3 border-y border-slate-200 py-4 sm:grid-cols-2 lg:grid-cols-5">
+      {steps.map((step, index) => (
+        <li key={step.label} className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn(
+              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold',
+              step.complete
+                ? 'border-emerald-500 bg-emerald-500 text-white'
+                : 'border-slate-300 bg-white text-slate-500',
+            )}
+          >
+            {step.complete ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              index + 1
+            )}
+          </span>
+          <span
+            className={cn(
+              'text-xs font-medium leading-4',
+              step.complete ? 'text-slate-900' : 'text-slate-500',
+            )}
+          >
+            {step.label}
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function DetailField({
   label,
   value,
@@ -1474,10 +1755,11 @@ function SelectedCandidateModal({
           <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">
-                Capture Selected Candidate
+                Submit Candidate
               </h2>
               <p className="mt-2 text-sm text-slate-500">
-                Record the selected worker for this approved job posting.
+                Send this candidate to the buyer for review. This does not
+                create a work order.
               </p>
             </div>
             <button
@@ -1543,14 +1825,6 @@ function SelectedCandidateModal({
                 }
               />
 
-              <FormField
-                label="Pay Rate Override"
-                value={form.payRate}
-                onChange={(value) => onChange('payRate', value)}
-                onBlur={() =>
-                  onChange('payRate', normalizeRateToTwoDecimals(form.payRate))
-                }
-              />
               <div>
                 <FieldLabel>Work Location</FieldLabel>
                 <input
@@ -1627,7 +1901,7 @@ function SelectedCandidateModal({
               disabled={busy}
               className="rounded-xl bg-[#dbeafe] px-5 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-[#bfdbfe] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? 'Saving...' : 'Continue to Job Posting'}
+              {busy ? 'Submitting...' : 'Submit candidate'}
             </button>
           </div>
         </form>

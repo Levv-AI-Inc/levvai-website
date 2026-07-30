@@ -14,7 +14,6 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { getEngagementStatusLabel } from '@/lib/api/engagements'
 import {
   getWorkOrders,
   type WorkOrderListPagination,
@@ -83,22 +82,27 @@ function approvalStatusClasses(status: string | undefined) {
   return 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
-function engagementStatusClasses(status: string | null | undefined) {
+function supplierAcceptanceClasses(status: string | null | undefined) {
   const normalized = status?.trim().toLowerCase()
 
   if (normalized === 'accepted') {
     return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   }
-  if (normalized === 'pending_supplier_acceptance') {
+  if (normalized === 'pending') {
     return 'border-cyan-200 bg-cyan-50 text-cyan-700'
   }
   if (normalized === 'changes_requested') {
     return 'border-amber-200 bg-amber-50 text-amber-700'
   }
-  if (normalized === 'cancelled') {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
-  }
   return 'border-slate-200 bg-slate-50 text-slate-700'
+}
+
+function supplierAcceptanceLabel(status?: string | null) {
+  const normalized = status?.trim().toLowerCase()
+  if (normalized === 'pending') return 'Supplier acceptance pending'
+  if (normalized === 'accepted') return 'Supplier accepted'
+  if (normalized === 'changes_requested') return 'Supplier requested changes'
+  return 'Supplier response not started'
 }
 
 const DEFAULT_PAGINATION: WorkOrderListPagination = {
@@ -373,12 +377,6 @@ export default function WorkOrdersPage() {
                               ? `Intake #${String(workOrder.intake)}`
                               : 'Work order')}
                         </div>
-                        {workOrder.engagementId ? (
-                          <div className="mt-2 text-xs font-bold text-slate-600">
-                            {workOrder.engagementNumber ||
-                              `ENG-${String(workOrder.engagementId)}`}
-                          </div>
-                        ) : null}
                       </td>
                       <td className="px-8 py-6 align-top font-semibold text-slate-700">
                         {workOrder.workerFullName || '-'}
@@ -411,17 +409,16 @@ export default function WorkOrdersPage() {
                           >
                             {workOrder.approvalStatus || 'not_started'}
                           </span>
-                          {workOrder.engagementId ? (
+                          {workOrder.supplierAcceptanceStatus &&
+                          workOrder.supplierAcceptanceStatus !==
+                            'not_started' ? (
                             <span
-                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${engagementStatusClasses(
-                                workOrder.engagementStatus,
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${supplierAcceptanceClasses(
+                                workOrder.supplierAcceptanceStatus,
                               )}`}
                             >
-                              {getEngagementStatusLabel(
-                                (workOrder.engagementStatus ||
-                                  'pending_supplier_acceptance') as Parameters<
-                                  typeof getEngagementStatusLabel
-                                >[0],
+                              {supplierAcceptanceLabel(
+                                workOrder.supplierAcceptanceStatus,
                               )}
                             </span>
                           ) : null}

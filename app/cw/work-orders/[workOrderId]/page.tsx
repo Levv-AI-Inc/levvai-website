@@ -9,16 +9,21 @@ import {
   BadgeDollarSign,
   BriefcaseBusiness,
   CalendarDays,
+  CheckCircle2,
   FileStack,
   GitBranch,
   Loader2,
   MapPin,
   ShieldCheck,
   UserRound,
+  XCircle,
 } from 'lucide-react'
-import { getEngagementStatusLabel } from '@/lib/api/engagements'
 import {
+  acceptWorkOrder,
+  approveWorkOrder,
   getWorkOrderById,
+  rejectWorkOrder,
+  requestWorkOrderChange,
   type WorkOrderRecord,
 } from '@/lib/api/workOrders'
 import {
@@ -108,13 +113,13 @@ function approvalStatusClasses(status: string | undefined) {
   return 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
-function engagementStatusClasses(status: string | null | undefined) {
+function supplierAcceptanceClasses(status: string | null | undefined) {
   const normalized = status?.trim().toLowerCase()
 
   if (normalized === 'accepted') {
     return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   }
-  if (normalized === 'pending_supplier_acceptance') {
+  if (normalized === 'pending') {
     return 'border-cyan-200 bg-cyan-50 text-cyan-700'
   }
   if (normalized === 'changes_requested') {
@@ -124,6 +129,14 @@ function engagementStatusClasses(status: string | null | undefined) {
     return 'border-rose-200 bg-rose-50 text-rose-700'
   }
   return 'border-slate-200 bg-slate-50 text-slate-700'
+}
+
+function supplierAcceptanceLabel(status?: string | null) {
+  const normalized = status?.trim().toLowerCase()
+  if (normalized === 'pending') return 'Pending supplier acceptance'
+  if (normalized === 'accepted') return 'Accepted'
+  if (normalized === 'changes_requested') return 'Changes requested'
+  return 'Not started'
 }
 
 function StepStatusBadge({
@@ -159,6 +172,12 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [workOrder, setWorkOrder] = useState<WorkOrderRecord | null>(null)
+  const [actionBusy, setActionBusy] = useState<
+    'approve' | 'reject' | 'accept' | 'request-change' | null
+  >(null)
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+  const [decisionReason, setDecisionReason] = useState('')
 
   useEffect(() => {
     if (workOrderId === null) {
@@ -199,6 +218,70 @@ export default function WorkOrderDetailPage() {
     }
   }, [workOrderId])
 
+  const handleApprovalDecision = async (decision: 'approve' | 'reject') => {
+    if (!workOrder) return
+
+    setActionBusy(decision)
+    setActionError('')
+    setActionSuccess('')
+    try {
+      const updated =
+        decision === 'approve'
+          ? await approveWorkOrder(workOrder.id, decisionReason)
+          : await rejectWorkOrder(workOrder.id, decisionReason)
+      setWorkOrder(updated)
+      setDecisionReason('')
+      setActionSuccess(
+        decision === 'approve'
+          ? updated.approvalStatus === 'approved'
+            ? 'Work order approved and ready for supplier acceptance.'
+            : 'Approval recorded and routed to the next approver.'
+          : 'Work order rejected.',
+      )
+    } catch (actionFailure) {
+      setActionError(
+        actionFailure instanceof Error
+          ? actionFailure.message
+          : `Unable to ${decision} this work order.`,
+      )
+    } finally {
+      setActionBusy(null)
+    }
+  }
+
+  const handleSupplierDecision = async (
+    decision: 'accept' | 'request-change',
+  ) => {
+    if (!workOrder) return
+
+    setActionBusy(decision)
+    setActionError('')
+    setActionSuccess('')
+    try {
+      const updated =
+        decision === 'accept'
+          ? await acceptWorkOrder(workOrder.id, decisionReason)
+          : await requestWorkOrderChange(workOrder.id, decisionReason)
+      setWorkOrder(updated)
+      setDecisionReason('')
+      setActionSuccess(
+        decision === 'accept'
+          ? updated.registrationRequired
+            ? 'Work order accepted. A registration link was emailed to the worker.'
+            : 'Work order accepted. The existing worker account was linked to onboarding.'
+          : 'Changes requested from the buyer.',
+      )
+    } catch (actionFailure) {
+      setActionError(
+        actionFailure instanceof Error
+          ? actionFailure.message
+          : `Unable to ${decision === 'accept' ? 'accept this work order' : 'request changes'}.`,
+      )
+    } finally {
+      setActionBusy(null)
+    }
+  }
+
   const approvalSubject = useMemo<ApprovalRouteSubject | null>(
     () =>
       workOrder
@@ -237,6 +320,12 @@ export default function WorkOrderDetailPage() {
     workOrder?.markupPercent ||
     workOrder?.pricing?.totalPercentMarkup ||
     null
+  const awaitingApproval =
+    workOrder?.status?.trim().toLowerCase() === 'submitted' &&
+    workOrder?.approvalStatus?.trim().toLowerCase() === 'processing'
+  const awaitingSupplierAcceptance =
+    workOrder?.supplierAcceptanceStatus?.trim().toLowerCase() ===
+    'pending'
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center gap-3 text-sm text-slate-500">
@@ -590,6 +679,152 @@ export default function WorkOrderDetailPage() {
           </div>
 
           <aside className="space-y-6">
+            {actionError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {actionError}
+              </div>
+            ) : null}
+
+            {actionSuccess ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {actionSuccess}
+              </div>
+            ) : null}
+
+            {workOrder.permissions.canApprove ||
+            workOrder.permissions.canReject ? (
+              <section className="rounded-3xl border border-cyan-200 bg-cyan-50 p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-lg font-semibold text-cyan-950">
+                  <ShieldCheck className="h-5 w-5" />
+                  Approval required
+                </div>
+                <p className="mt-2 text-sm leading-6 text-cyan-800">
+                  You are the current approver. Review the commercial terms,
+                  assignment details, and risk flags before deciding.
+                </p>
+                <label
+                  htmlFor="work-order-decision-reason"
+                  className="mt-4 block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800"
+                >
+                  Decision note
+                </label>
+                <textarea
+                  id="work-order-decision-reason"
+                  rows={3}
+                  value={decisionReason}
+                  onChange={(event) => setDecisionReason(event.target.value)}
+                  placeholder="Optional for approval; recommended for rejection"
+                  className="mt-2 w-full rounded-lg border border-cyan-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                />
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={actionBusy !== null}
+                    onClick={() => void handleApprovalDecision('reject')}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionBusy === 'reject' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionBusy !== null}
+                    onClick={() => void handleApprovalDecision('approve')}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionBusy === 'approve' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    Approve
+                  </button>
+                </div>
+              </section>
+            ) : awaitingApproval ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">
+                  Awaiting approval
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {currentApproverName || 'The current approver'} must approve
+                  this work order before the supplier can accept it.
+                </p>
+              </section>
+            ) : null}
+
+            {workOrder.permissions.canRespondToWorkOrder ? (
+              <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-lg font-semibold text-emerald-950">
+                  <BriefcaseBusiness className="h-5 w-5" />
+                  Supplier response required
+                </div>
+                <p className="mt-2 text-sm leading-6 text-emerald-800">
+                  Accepting creates or reuses the worker, starts the matching
+                  onboarding workflow, and sends registration when required.
+                </p>
+                <label
+                  htmlFor="work-order-response-note"
+                  className="mt-4 block text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800"
+                >
+                  Response note
+                </label>
+                <textarea
+                  id="work-order-response-note"
+                  rows={3}
+                  value={decisionReason}
+                  onChange={(event) => setDecisionReason(event.target.value)}
+                  placeholder="Required when requesting changes"
+                  className="mt-2 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={
+                      actionBusy !== null || decisionReason.trim().length === 0
+                    }
+                    onClick={() =>
+                      void handleSupplierDecision('request-change')
+                    }
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-amber-200 bg-white px-4 text-sm font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionBusy === 'request-change' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Request changes
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionBusy !== null}
+                    onClick={() => void handleSupplierDecision('accept')}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {actionBusy === 'accept' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    Accept work order
+                  </button>
+                </div>
+              </section>
+            ) : awaitingSupplierAcceptance ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">
+                  Awaiting supplier acceptance
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {workOrder.supplierName || 'The assigned supplier'} must
+                  accept the work order before worker registration and
+                  onboarding begin.
+                </p>
+              </section>
+            ) : null}
+
             <section className="rounded-3xl border bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-semibold text-slate-900">
                 Work Order Summary
@@ -617,35 +852,28 @@ export default function WorkOrderDetailPage() {
                 />
               </div>
 
-              {workOrder.engagementId ? (
+              {workOrder.status?.trim().toLowerCase() === 'approved' ||
+              workOrder.status?.trim().toLowerCase() === 'active' ? (
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        Engagement
+                        Supplier acceptance
                       </div>
                       <div className="mt-2 text-base font-semibold text-slate-900">
-                        {workOrder.engagementNumber ||
-                          `ENG-${String(workOrder.engagementId)}`}
+                        {workOrder.supplierName || 'Assigned supplier'}
                       </div>
                     </div>
                     <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${engagementStatusClasses(
-                        workOrder.engagementStatus,
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${supplierAcceptanceClasses(
+                        workOrder.supplierAcceptanceStatus,
                       )}`}
                     >
-                      {getEngagementStatusLabel(
-                        (workOrder.engagementStatus ||
-                          'pending_supplier_acceptance') as Parameters<
-                          typeof getEngagementStatusLabel
-                        >[0],
+                      {supplierAcceptanceLabel(
+                        workOrder.supplierAcceptanceStatus,
                       )}
                     </span>
                   </div>
-                </div>
-              ) : workOrder.status?.trim().toLowerCase() === 'approved' ? (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
-                  Engagement pending creation.
                 </div>
               ) : null}
             </section>
