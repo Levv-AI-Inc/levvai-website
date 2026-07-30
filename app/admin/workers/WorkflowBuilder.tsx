@@ -989,6 +989,41 @@ function mapWorkflowBlock(block: WorkflowBlock, index: number): PipelineBlock {
         ? block.integration_type || 'api_call'
         : undefined,
     config: configWithWorkflowGraphFromBlock(block),
+    accountableOwner:
+      typeof block.config?.accountable_owner === 'string'
+        ? (block.config.accountable_owner as ApproverGroup)
+        : undefined,
+    completionRule:
+      block.config?.completion_rule === 'ALL' ||
+      block.config?.completion_rule === 'ANY' ||
+      block.config?.completion_rule === 'N_OF'
+        ? block.config.completion_rule
+        : undefined,
+    completionN:
+      typeof block.config?.completion_n === 'number'
+        ? block.config.completion_n
+        : undefined,
+    systemIntegration:
+      block.config?.system_integration === 'WORKDAY' ||
+      block.config?.system_integration === 'SERVICENOW' ||
+      block.config?.system_integration === 'SAP_FG' ||
+      block.config?.system_integration === 'ORACLE'
+        ? block.config.system_integration
+        : undefined,
+    push:
+      typeof block.config?.push === 'boolean' ? block.config.push : undefined,
+    pull:
+      typeof block.config?.pull === 'boolean' ? block.config.pull : undefined,
+    reads: readStringList(block.config?.reads),
+    writes: readStringList(block.config?.writes),
+    reconcile:
+      typeof block.config?.reconcile === 'boolean'
+        ? block.config.reconcile
+        : undefined,
+    systemUnwind:
+      isRecord(block.config?.system_unwind)
+        ? (block.config.system_unwind as SystemUnwind)
+        : undefined,
   }
 }
 
@@ -1014,6 +1049,14 @@ function serializePipelineBlock(
       config: {
         endpoint_key: endpointKeyFromName(block.name),
         ...persistedConfig,
+        accountable_owner: block.accountableOwner,
+        system_integration: block.systemIntegration,
+        push: block.push,
+        pull: block.pull,
+        reads: block.reads,
+        writes: block.writes,
+        reconcile: block.reconcile,
+        system_unwind: block.systemUnwind,
       },
       layout: {
         level: block.graphLevel,
@@ -1030,7 +1073,12 @@ function serializePipelineBlock(
     block_type: 'requirement',
     name: block.name.trim(),
     gate_type: block.gate,
-    config: persistedConfig,
+    config: {
+      ...persistedConfig,
+      accountable_owner: block.accountableOwner,
+      completion_rule: block.completionRule ?? 'ALL',
+      completion_n: block.completionN,
+    },
     layout: {
       level: block.graphLevel,
       position: encodeGraphPosition(block, dependencies, blocks),

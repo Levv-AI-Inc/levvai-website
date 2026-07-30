@@ -63,6 +63,12 @@ export type EngagementDetail = EngagementListItem & {
   changeRequestedBy: number | null
   createdBy: number | null
   updatedAt: string
+  workerId?: number | null
+  workerIsNew?: boolean
+  workerEngagementId?: number | null
+  onboardingRunId?: number | null
+  matchedWorkflowId?: number | null
+  registrationRequired?: boolean
 }
 
 export type EngagementListPagination = {
@@ -314,6 +320,13 @@ function normalizeEngagementDetail(
       readOptionalNumber(row.created_by_id) ??
       null,
     updatedAt: readOptionalString(row.updated_at) || '',
+    workerId: readOptionalNumber(row.worker_id) ?? null,
+    workerIsNew: readOptionalBoolean(row.worker_is_new),
+    workerEngagementId:
+      readOptionalNumber(row.worker_engagement_id) ?? null,
+    onboardingRunId: readOptionalNumber(row.onboarding_run_id) ?? null,
+    matchedWorkflowId: readOptionalNumber(row.matched_workflow_id) ?? null,
+    registrationRequired: readOptionalBoolean(row.registration_required),
   }
 }
 

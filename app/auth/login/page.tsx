@@ -22,6 +22,7 @@ type SessionStatusResponse = {
 
 type RegisterResponse = {
   linked_existing_user?: boolean
+  next?: string
 }
 
 type JsonLike =
@@ -75,6 +76,8 @@ export default function TenantLoginPage() {
   const router = useRouter()
   const modeParam = searchParams.get('mode')
   const inviteToken = searchParams.get('invite_token')?.trim() || ''
+  const workerInviteToken =
+    searchParams.get('worker_invite_token')?.trim() || ''
   const inviteEmail = searchParams.get('email')?.trim() || ''
   const [mode, setMode] = useState<Mode>('login')
   const [origin, setOrigin] = useState('')
@@ -163,13 +166,19 @@ export default function TenantLoginPage() {
     })
   }, [searchParams])
 
-  const isInviteRegistration =
+  const isSupplierInviteRegistration =
     mode === 'register' && Boolean(inviteToken)
+  const isWorkerInviteRegistration =
+    mode === 'register' && Boolean(workerInviteToken)
+  const isInviteRegistration =
+    isSupplierInviteRegistration || isWorkerInviteRegistration
 
   const endpoint =
     mode === 'login'
       ? '/auth/password/login-user'
-      : isInviteRegistration
+      : isWorkerInviteRegistration
+        ? '/auth/password/register-worker'
+        : isSupplierInviteRegistration
         ? '/auth/password/register'
         : '/auth/password/register-user'
 
@@ -179,7 +188,9 @@ export default function TenantLoginPage() {
     mode === 'login'
       ? 'Use your work email to sign in.'
       : isInviteRegistration
-      ? 'Create your supplier account to access this tenant.'
+      ? isWorkerInviteRegistration
+        ? 'Create your worker account to begin onboarding.'
+        : 'Create your supplier account to access this tenant.'
       : 'Create your account to get started.'
   const passwordMismatch =
     mode === 'register' &&
@@ -233,7 +244,13 @@ export default function TenantLoginPage() {
         mode === 'login'
           ? { email, password }
           : isInviteRegistration
-          ? { email, password, invite_token: inviteToken }
+          ? isWorkerInviteRegistration
+            ? {
+                email,
+                password,
+                worker_invite_token: workerInviteToken,
+              }
+            : { email, password, invite_token: inviteToken }
           : { email, password, first_name: firstName, last_name: lastName }
 
       const target = `${origin}${endpoint}`
@@ -409,7 +426,8 @@ export default function TenantLoginPage() {
               </div>
               {isInviteRegistration && (
                 <p className="text-xs text-slate-500">
-                  Email is locked to the invited supplier contact.
+                  Email is locked to the invited{' '}
+                  {isWorkerInviteRegistration ? 'worker' : 'supplier contact'}.
                 </p>
               )}
             </div>

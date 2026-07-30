@@ -15,6 +15,8 @@ import {
   ChevronDown,
   UserCircle2,
   LogOut,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
@@ -127,6 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname()
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const isAdmin =
     (sessionUser?.role || '').trim().toLowerCase() === ROLE_ADMIN
 
@@ -225,6 +228,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return () => controller.abort()
   }, [isStandalone, pathname])
 
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [pathname])
+
   const handleSignOut = async () => {
     if (signingOut) return
     setSigningOut(true)
@@ -272,89 +279,54 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-        <aside className="w-64 min-w-[16rem] flex flex-col bg-[#0f172a] text-slate-200 border-r border-slate-800 shadow-2xl">
-          <SidebarAccount user={sessionUser} />
-
-          <nav className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
-            <NavSection label="Main">
-              <NavItem label="Home" href="/home" icon={Home} />
-              <NavGroup
-                label="My Items"
-                icon={Folder}
-                items={[
-                  { label: 'My SOWs', href: '/my-items/sow' },
-                  { label: 'My Job Postings', href: '/my-items/jobs' },
-                  { label: 'Approvals', href: '/my-items/approvals' },
-                ]}
-              />
-            </NavSection>
-
-            <NavSection label="Management">
-              <NavGroup
-                label="Contingent Workforce"
-                icon={Users}
-                items={[
-                  { label: 'Work Orders', href: '/cw/work-orders' },
-                  { label: 'Job Postings', href: '/cw/job-postings' },
-                  { label: 'Candidates', href: '/cw/candidates' },
-                ]}
-              />
-              <NavGroup
-                label="Services"
-                icon={FileText}
-                items={[
-                  { label: 'Statement of Work', href: '/services/sow' },
-                  { label: 'RFx', href: '/services/rfx' },
-                ]}
-              />
-              <NavGroup
-                label="Workers"
-                icon={Briefcase}
-                items={[
-                  { label: 'Workers', href: '/workers/workers' },
-                  { label: 'Digital Workers', href: '/workers/digital-workers' },
-                  { label: 'Worker Lifecycle', href: '/workers/123/engagements' },
-                  { label: 'Timesheets', href: '/workers/timesheets' },
-                  { label: 'Expenses', href: '/workers/expenses' },
-                ]}
-              />
-              <NavItem label="Suppliers" href="/suppliers" icon={Building2} />
-            </NavSection>
-
-            <NavSection label="System">
-              <NavGroup
-                label="Finance"
-                icon={CreditCard}
-                items={[
-                  { label: 'Invoices', href: '/payments/invoices' },
-                  { label: 'Payments', href: '/payments/payments' },
-                ]}
-              />
-              {isAdmin && (
-                <NavItem label="Settings" href="/admin" icon={Settings} />
-              )}
-            </NavSection>
-          </nav>
-
-          {sessionUser && (
-            <div className="p-4 border-t border-white/5">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={signingOut}
-                className="flex items-center gap-3 px-3 py-2 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all text-sm font-medium disabled:opacity-60"
-              >
-                <LogOut className="w-4 h-4" />
-                {signingOut ? 'Signing Out...' : 'Sign Out'}
-              </button>
-            </div>
-          )}
+      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 lg:flex">
+        <aside className="hidden w-64 min-w-[16rem] flex-col border-r border-slate-800 bg-[#0f172a] text-slate-200 shadow-2xl lg:flex">
+          <SidebarContents
+            user={sessionUser}
+            isAdmin={isAdmin}
+            signingOut={signingOut}
+            onSignOut={handleSignOut}
+          />
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 justify-between sticky top-0 z-10">
+        {mobileNavOpen ? (
+          <div className="fixed inset-0 z-[60] lg:hidden">
+            <button
+              type="button"
+              aria-label="Close navigation"
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              onClick={() => setMobileNavOpen(false)}
+            />
+            <aside className="relative flex h-full w-[min(18rem,calc(100vw-3rem))] flex-col border-r border-slate-800 bg-[#0f172a] text-slate-200 shadow-2xl">
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileNavOpen(false)}
+                className="absolute right-3 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <SidebarContents
+                user={sessionUser}
+                isAdmin={isAdmin}
+                signingOut={signingOut}
+                onSignOut={handleSignOut}
+              />
+            </aside>
+          </div>
+        ) : null}
+
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Open navigation"
+                onClick={() => setMobileNavOpen(true)}
+                className="mr-1 flex h-9 w-9 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center font-bold text-white text-[10px]">
                 L
               </div>
@@ -364,7 +336,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
 
             <div className="flex items-center gap-5">
-              <div className="text-xs font-medium text-slate-400 flex items-center gap-2">
+              <div className="hidden items-center gap-2 text-xs font-medium text-slate-400 sm:flex">
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
                 {formatCurrentPage(pathname)}
               </div>
@@ -378,12 +350,105 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main className="flex-1 p-8">
+          <main className="min-w-0 flex-1 p-0 sm:p-6 lg:p-8">
             <CWRequestProvider>{children}</CWRequestProvider>
           </main>
         </div>
       </body>
     </html>
+  )
+}
+
+function SidebarContents({
+  user,
+  isAdmin,
+  signingOut,
+  onSignOut,
+}: {
+  user: SessionUser | null
+  isAdmin: boolean
+  signingOut: boolean
+  onSignOut: () => void
+}) {
+  return (
+    <>
+      <SidebarAccount user={user} />
+
+      <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-6">
+        <NavSection label="Main">
+          <NavItem label="Home" href="/home" icon={Home} />
+          <NavGroup
+            label="My Items"
+            icon={Folder}
+            items={[
+              { label: 'My SOWs', href: '/my-items/sow' },
+              { label: 'My Job Postings', href: '/my-items/jobs' },
+              { label: 'Approvals', href: '/my-items/approvals' },
+            ]}
+          />
+        </NavSection>
+
+        <NavSection label="Management">
+          <NavGroup
+            label="Contingent Workforce"
+            icon={Users}
+            items={[
+              { label: 'Work Orders', href: '/cw/work-orders' },
+              { label: 'Job Postings', href: '/cw/job-postings' },
+              { label: 'Candidates', href: '/cw/candidates' },
+            ]}
+          />
+          <NavGroup
+            label="Services"
+            icon={FileText}
+            items={[
+              { label: 'Statement of Work', href: '/services/sow' },
+              { label: 'RFx', href: '/services/rfx' },
+            ]}
+          />
+          <NavGroup
+            label="Workers"
+            icon={Briefcase}
+            items={[
+              { label: 'Workers', href: '/workers/workers' },
+              { label: 'Digital Workers', href: '/workers/digital-workers' },
+              { label: 'Worker Lifecycle', href: '/workers/123/engagements' },
+              { label: 'Timesheets', href: '/workers/timesheets' },
+              { label: 'Expenses', href: '/workers/expenses' },
+            ]}
+          />
+          <NavItem label="Suppliers" href="/suppliers" icon={Building2} />
+        </NavSection>
+
+        <NavSection label="System">
+          <NavGroup
+            label="Finance"
+            icon={CreditCard}
+            items={[
+              { label: 'Invoices', href: '/payments/invoices' },
+              { label: 'Payments', href: '/payments/payments' },
+            ]}
+          />
+          {isAdmin ? (
+            <NavItem label="Settings" href="/admin" icon={Settings} />
+          ) : null}
+        </NavSection>
+      </nav>
+
+      {user ? (
+        <div className="border-t border-white/5 p-4">
+          <button
+            type="button"
+            onClick={onSignOut}
+            disabled={signingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-all hover:bg-red-400/10 hover:text-red-400 disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            {signingOut ? 'Signing Out...' : 'Sign Out'}
+          </button>
+        </div>
+      ) : null}
+    </>
   )
 }
 
@@ -438,16 +503,17 @@ function AccountMenu({
     <div ref={containerRef} className="relative">
       <button
         type="button"
+        aria-label={`${display.name} account menu`}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:px-3"
       >
         <UserCircle2 className="h-4 w-4 text-slate-500" />
-        <span>{display.name}</span>
-        <ChevronDown className={open ? 'h-4 w-4 rotate-180 text-slate-500' : 'h-4 w-4 text-slate-500'} />
+        <span className="hidden sm:inline">{display.name}</span>
+        <ChevronDown className={open ? 'hidden h-4 w-4 rotate-180 text-slate-500 sm:block' : 'hidden h-4 w-4 text-slate-500 sm:block'} />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-slate-100 shadow-2xl">
+        <div className="absolute right-0 z-40 mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-white/10 bg-slate-900 text-slate-100 shadow-2xl">
           <div className="border-b border-white/10 px-4 py-3">
             <div className="text-sm font-semibold text-white">{display.name}</div>
             <div className="mt-1 text-xs text-slate-300">{display.label}</div>

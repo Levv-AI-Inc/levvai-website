@@ -1,393 +1,650 @@
-"use client";
+'use client'
 
-import React, { useState, useMemo } from "react";
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
-  Search,
-  User,
-  Clock,
-  X,
-  ChevronRight,
-  Sparkles,
-  ChevronDown,
-  Filter,
-  Eye,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
   Calendar,
-  ShieldCheck,
-  Zap,
-  ShieldAlert,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Layers,
-  Link2
-} from "lucide-react";
+  Link2,
+  Loader2,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  User,
+  X,
+  Zap,
+} from 'lucide-react'
 
-// --- Updated Data to reflect the Logic from the Requirements Store ---
-const onboardingRows = [
-  {
-    workerId: '123',
-    name: 'John Smith',
-    role: 'Senior React Developer',
-    supplier: 'TEKsystems',
-    startDate: 'Sep 23, 2026',
-    readiness: 50,
-    status: 'In Progress',
-    pendingWith: 'IT',
-    currentBlockerTask: 'Hardware Provisioning',
-    manager: 'Alex Morgan',
-    department: 'Engineering'
-  },
-  {
-    workerId: '124',
-    name: 'Maria Gonzalez',
-    role: 'Business Analyst',
-    supplier: 'Randstad',
-    startDate: 'Sep 25, 2026',
-    readiness: 72,
-    status: 'Blocked',
-    pendingWith: 'LEGAL',
-    currentBlockerTask: 'Non-Standard NDA Review',
-    manager: 'Rachel Adams',
-    department: 'Transformation Office'
-  },
-  {
-    workerId: '125',
-    name: 'David Chen',
-    role: 'QA Engineer',
-    supplier: 'Insight Global',
-    startDate: 'Oct 01, 2026',
-    readiness: 100,
-    status: 'Ready',
-    pendingWith: 'SYSTEM',
-    currentBlockerTask: 'Fully Validated',
-    manager: 'Daniel Lee',
-    department: 'Product Quality'
-  },
-  {
-    workerId: '126',
-    name: 'Elena Rossi',
-    role: 'UX Designer',
-    supplier: 'Aquent',
-    startDate: 'Oct 05, 2026',
-    readiness: 45,
-    status: 'In Progress',
-    pendingWith: 'HR',
-    currentBlockerTask: 'ID Document Verification',
-    manager: 'Sarah Jenkins',
-    department: 'Product Design'
-  }
-];
+import {
+  getWorkerLifecycle,
+  getWorkerLifecycles,
+  type LifecycleDetail,
+  type LifecycleSummary,
+} from '@/lib/api/workerLifecycle'
 
-export default function EngagementsPage() {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
-  const [selectedRecord, setSelectedRecord] = useState<any>(null);
-  const [aiInput, setAiInput] = useState("");
+const STATUSES = ['All', 'Ready', 'In Progress', 'Blocked', 'Pending']
 
-  const statuses = ["All", "Ready", "In Progress", "Blocked"];
+function formatDate(value: string | null) {
+  if (!value) return '-'
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
 
-  const filteredEngagements = useMemo(() => {
-    return onboardingRows.filter((row) => {
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+}
+
+export default function WorkerLifecyclePage() {
+  const router = useRouter()
+  const [rows, setRows] = useState<LifecycleSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('All')
+  const [selectedRecord, setSelectedRecord] =
+    useState<LifecycleSummary | null>(null)
+  const [selectedDetail, setSelectedDetail] =
+    useState<LifecycleDetail | null>(null)
+  const [drawerLoading, setDrawerLoading] = useState(false)
+  const [drawerError, setDrawerError] = useState('')
+  const [aiInput, setAiInput] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadRows() {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await getWorkerLifecycles({
+          lifecycle_type: 'onboarding',
+          page_size: 200,
+        })
+        if (!cancelled) setRows(response.results)
+      } catch (loadError) {
+        if (!cancelled) {
+          setRows([])
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Unable to load worker lifecycles.',
+          )
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadRows()
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
+
+  useEffect(() => {
+    if (!selectedRecord) {
+      setSelectedDetail(null)
+      setDrawerError('')
+      return
+    }
+
+    let cancelled = false
+    async function loadDetail() {
+      setDrawerLoading(true)
+      setDrawerError('')
+      try {
+        const detail = await getWorkerLifecycle(
+          selectedRecord!.workerId,
+          'onboarding',
+          {
+            workOrderId: selectedRecord!.workOrderId,
+            engagementId: selectedRecord!.engagementId,
+          },
+        )
+        if (!cancelled) setSelectedDetail(detail)
+      } catch (loadError) {
+        if (!cancelled) {
+          setSelectedDetail(null)
+          setDrawerError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Unable to load onboarding details.',
+          )
+        }
+      } finally {
+        if (!cancelled) setDrawerLoading(false)
+      }
+    }
+
+    void loadDetail()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedRecord])
+
+  const filteredLifecycles = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase()
+    return rows.filter((row) => {
       const matchesSearch =
-        row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.workerId.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = selectedStatus === "All" || row.status === selectedStatus;
-      return matchesSearch && matchesStatus;
-    });
-  }, [searchTerm, selectedStatus]);
+        !search ||
+        row.name.toLowerCase().includes(search) ||
+        String(row.workerId).includes(search) ||
+        row.email.toLowerCase().includes(search) ||
+        row.workOrderNumber.toLowerCase().includes(search)
+      const matchesStatus =
+        selectedStatus === 'All' || row.status === selectedStatus
+      return matchesSearch && matchesStatus
+    })
+  }, [rows, searchTerm, selectedStatus])
 
-  const blockedCount = onboardingRows.filter(r => r.status === 'Blocked').length;
+  const blockedCount = rows.filter((row) => row.activeGateBlocker).length
+
+  function closeDrawer() {
+    setSelectedRecord(null)
+    setSelectedDetail(null)
+  }
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-
-        {/* Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 p-4 font-sans text-slate-900 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div>
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Workers Lifecycle</h1>
-            <p className="text-slate-500 font-medium">Monitoring requirement blocks & departmental bottlenecks.</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+              Workers Lifecycle
+            </h1>
+            <p className="font-medium text-slate-500">
+              Monitoring requirement blocks and departmental bottlenecks.
+            </p>
           </div>
 
-          {/* Nova AI Command Bar */}
-          <div className="relative w-full md:w-96 group">
-            <div className="absolute inset-0 bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-all rounded-3xl" />
-            <div className="relative flex items-center bg-white border border-cyan-100 rounded-2xl shadow-sm overflow-hidden p-1 focus-within:ring-2 focus-within:ring-cyan-400/30 transition-all">
-              <div className="bg-slate-950 p-2 rounded-xl text-cyan-400 ml-1">
+          <div className="group relative w-full md:w-96">
+            <div className="absolute inset-0 rounded-3xl bg-cyan-400/10 blur-xl transition-all group-hover:bg-cyan-400/20" />
+            <div className="relative flex items-center overflow-hidden rounded-2xl border border-cyan-100 bg-white p-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-cyan-400/30">
+              <div className="ml-1 rounded-xl bg-slate-950 p-2 text-cyan-400">
                 <Sparkles size={18} />
               </div>
               <input
                 type="text"
                 value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
+                onChange={(event) => setAiInput(event.target.value)}
                 placeholder="Ask Nova: 'Who is blocking John?'"
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold px-3 py-2 placeholder:text-slate-400"
+                className="flex-1 border-none bg-transparent px-3 py-2 text-sm font-semibold placeholder:text-slate-400 focus:ring-0"
               />
-              <button className="pr-3 text-cyan-500 font-bold text-xs uppercase hover:text-cyan-700 transition-colors">
+              <button
+                type="button"
+                className="pr-3 text-xs font-bold uppercase text-cyan-500 transition-colors hover:text-cyan-700"
+              >
                 Ask
               </button>
             </div>
           </div>
         </div>
 
-        {/* ANALYTICS & FILTERS */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center border-l-4 border-l-rose-500">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Gate Blockers</span>
-            <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              <ShieldAlert size={24} className={blockedCount > 0 ? "text-rose-500" : "text-emerald-500"} />
+        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4">
+          <div className="flex flex-col justify-center rounded-3xl border border-l-4 border-slate-200 border-l-rose-500 bg-white p-6 shadow-sm">
+            <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Active Gate Blockers
+            </span>
+            <div className="flex items-center gap-2 text-3xl font-black text-slate-900">
+              <ShieldAlert
+                size={24}
+                className={blockedCount > 0 ? 'text-rose-500' : 'text-emerald-500'}
+              />
               {blockedCount}
             </div>
           </div>
 
-          <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6 text-slate-900">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Engagement Status</label>
+          <div className="flex flex-wrap items-center gap-6 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm lg:col-span-3">
+            <div className="min-w-[200px] flex-1">
+              <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Lifecycle Status
+              </label>
               <div className="relative">
                 <select
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
+                  onChange={(event) => setSelectedStatus(event.target.value)}
+                  className="w-full appearance-none rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-4 pr-10 text-sm font-bold outline-none transition-all focus:ring-2 focus:ring-cyan-400"
                 >
-                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((status) => (
+                    <option key={status}>{status}</option>
+                  ))}
                 </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
               </div>
             </div>
 
-            <div className="flex-1 min-w-[300px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Search Records</label>
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
+            <div className="min-w-[280px] flex-1">
+              <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Search Records
+              </label>
+              <div className="group relative">
+                <Search
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500"
+                />
                 <input
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                  className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   placeholder="Worker name or ID..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(event) => setSearchTerm(event.target.value)}
                 />
               </div>
             </div>
 
             <button
-              onClick={() => {setSearchTerm(""); setSelectedStatus("All");}}
-              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
+              type="button"
+              onClick={() => {
+                setSearchTerm('')
+                setSelectedStatus('All')
+              }}
+              className="flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-rose-500"
             >
               <X size={14} /> Reset
             </button>
           </div>
         </div>
 
-        {/* ENGAGEMENT TABLE */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Worker</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Block Readiness</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Departmental Gate</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Day 1 Target</th>
-                  <th className="px-8 py-5"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredEngagements.map((row) => (
-                  <tr
-                    key={row.workerId}
-                    className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
-                    onClick={() => setSelectedRecord(row)}
-                  >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-cyan-400 font-bold text-sm border border-slate-700 shadow-lg shadow-cyan-900/10">
-                          {row.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 leading-tight mb-0.5">{row.name}</div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none italic">{row.role}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                         <div className="w-12 h-12 relative flex items-center justify-center">
-                            <svg className="w-full h-full transform -rotate-90">
-                              <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-slate-100" />
-                              <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="3" fill="transparent" strokeDasharray={125.6} strokeDashoffset={125.6 - (125.6 * row.readiness) / 100} className={row.readiness === 100 ? "text-emerald-500" : "text-cyan-500"} />
-                            </svg>
-                            <span className="absolute text-[10px] font-black">{row.readiness}%</span>
-                         </div>
-                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-slate-700 uppercase leading-none">Complete</span>
-                            <span className="text-[9px] font-bold text-slate-400 italic">Requirements</span>
-                         </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      {row.status === 'Ready' ? (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-100 w-fit">
-                          <CheckCircle2 size={12} /> Certified Ready
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border shadow-sm bg-white w-fit ${
-                             row.status === 'Blocked' ? 'text-rose-700 border-rose-100' : 'text-amber-700 border-amber-100'
-                           }`}>
-                             <div className={`w-1.5 h-1.5 rounded-full ${row.status === 'Blocked' ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
-                             Pending {row.pendingWith}
-                           </div>
-                           <div className="text-[10px] text-slate-400 font-bold px-1 truncate max-w-[180px]">
-                              {row.currentBlockerTask}
-                           </div>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-black text-slate-800 tracking-tight">{row.startDate}</div>
-                      <div className="text-[10px] text-rose-500 font-bold uppercase tracking-tighter mt-1 italic">
-                        {row.status === 'Blocked' ? 'Risks Delay' : 'On Track'}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <ChevronRight size={20} className="text-slate-300 group-hover:text-cyan-500 transition-colors inline" />
-                    </td>
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          {loading ? (
+            <div className="flex min-h-72 items-center justify-center gap-3 text-sm font-medium text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading worker lifecycles
+            </div>
+          ) : error ? (
+            <div className="flex min-h-72 flex-col items-center justify-center gap-4 px-6 text-center">
+              <ShieldAlert className="h-7 w-7 text-rose-500" />
+              <p className="max-w-lg text-sm font-medium text-rose-700">{error}</p>
+              <button
+                type="button"
+                onClick={() => setRefreshKey((value) => value + 1)}
+                className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-separate border-spacing-0 text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      Worker
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      Block Readiness
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      Departmental Gate
+                    </th>
+                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                      Day 1 Target
+                    </th>
+                    <th className="px-8 py-5" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredLifecycles.map((row) => (
+                    <tr
+                      key={row.runId}
+                      className="group cursor-pointer transition-all hover:bg-cyan-50/40"
+                      onClick={() => setSelectedRecord(row)}
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-sm font-bold text-cyan-400 shadow-lg shadow-cyan-900/10">
+                            {initials(row.name)}
+                          </div>
+                          <div>
+                            <div className="mb-0.5 font-bold leading-tight text-slate-900">
+                              {row.name}
+                            </div>
+                            <div className="text-[10px] font-bold uppercase leading-none tracking-tight text-slate-400">
+                              {row.role || 'Role not assigned'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex h-12 w-12 items-center justify-center">
+                            <svg className="h-full w-full -rotate-90">
+                              <circle
+                                cx="24"
+                                cy="24"
+                                r="20"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                                fill="transparent"
+                                className="text-slate-100"
+                              />
+                              <circle
+                                cx="24"
+                                cy="24"
+                                r="20"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                                fill="transparent"
+                                strokeDasharray={125.6}
+                                strokeDashoffset={
+                                  125.6 - (125.6 * row.readiness) / 100
+                                }
+                                className={
+                                  row.readiness === 100
+                                    ? 'text-emerald-500'
+                                    : 'text-cyan-500'
+                                }
+                              />
+                            </svg>
+                            <span className="absolute text-[10px] font-black">
+                              {row.readiness}%
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase leading-none text-slate-700">
+                              Complete
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400">
+                              Requirements
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        {row.status === 'Ready' ? (
+                          <div className="flex w-fit items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase text-emerald-700">
+                            <CheckCircle2 size={12} /> Certified Ready
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            <div
+                              className={`inline-flex w-fit items-center gap-2 rounded-xl border bg-white px-3 py-1.5 text-[10px] font-black uppercase shadow-sm ${
+                                row.status === 'Blocked'
+                                  ? 'border-rose-100 text-rose-700'
+                                  : 'border-amber-100 text-amber-700'
+                              }`}
+                            >
+                              <div
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  row.status === 'Blocked'
+                                    ? 'animate-pulse bg-rose-500'
+                                    : 'bg-amber-500'
+                                }`}
+                              />
+                              Pending {row.pendingWith || 'Team'}
+                            </div>
+                            <div className="max-w-[180px] truncate px-1 text-[10px] font-bold text-slate-400">
+                              {row.currentBlockerTask || 'Waiting to start'}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="text-sm font-black tracking-tight text-slate-800">
+                          {formatDate(row.startDate)}
+                        </div>
+                        <div
+                          className={`mt-1 text-[10px] font-bold uppercase tracking-tight ${
+                            row.status === 'Blocked'
+                              ? 'text-rose-500'
+                              : 'text-emerald-600'
+                          }`}
+                        >
+                          {row.status === 'Blocked' ? 'Risks Delay' : 'On Track'}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <ChevronRight
+                          size={20}
+                          className="inline text-slate-300 transition-colors group-hover:text-cyan-500"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {filteredLifecycles.length === 0 ? (
+                <div className="flex min-h-64 items-center justify-center px-6 text-sm font-medium text-slate-500">
+                  No worker lifecycles match the current filters.
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* PREVIEW DRAWER - REFACTORED FOR GOVERNANCE */}
-      {selectedRecord && (
+      {selectedRecord ? (
         <>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40" onClick={() => setSelectedRecord(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-slate-200 flex flex-col text-slate-900">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-md"
+            onClick={closeDrawer}
+          />
+          <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col border-l border-slate-200 bg-white text-slate-900 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-8">
               <div className="flex items-center gap-5">
-                <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center text-cyan-400 font-black text-2xl shadow-xl shadow-cyan-900/20 border border-slate-800">
-                  {selectedRecord.name.split(' ').map((n: string) => n[0]).join('')}
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950 text-2xl font-black text-cyan-400 shadow-xl shadow-cyan-900/20">
+                  {initials(selectedRecord.name)}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black tracking-tight leading-tight">{selectedRecord.name}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-bold text-cyan-600 uppercase tracking-widest">{selectedRecord.role}</span>
+                  <h2 className="text-2xl font-black leading-tight tracking-tight">
+                    {selectedRecord.name}
+                  </h2>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-600">
+                      {selectedRecord.role || 'Role not assigned'}
+                    </span>
                     <span className="h-1 w-1 rounded-full bg-slate-300" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedRecord.workerId}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {selectedRecord.workerId}
+                    </span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 border border-transparent hover:border-slate-200">
+              <button
+                type="button"
+                aria-label="Close worker preview"
+                onClick={closeDrawer}
+                className="rounded-xl border border-transparent p-2 text-slate-400 transition-all hover:border-slate-200 hover:bg-white hover:shadow-sm"
+              >
                 <X size={24} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {/* BLOCKER ALERT */}
-              {selectedRecord.status !== "Ready" && (
-                  <div className={`p-4 rounded-2xl flex gap-4 border-l-4 ${
-                    selectedRecord.status === 'Blocked' ? 'bg-rose-50 border-rose-500' : 'bg-amber-50 border-amber-500'
-                  }`}>
-                    <ShieldAlert className={selectedRecord.status === 'Blocked' ? 'text-rose-600' : 'text-amber-600'} size={24} />
-                    <div>
-                        <p className={`text-sm font-black uppercase tracking-tight ${selectedRecord.status === 'Blocked' ? 'text-rose-900' : 'text-amber-900'}`}>
-                          Halt: Pending {selectedRecord.pendingWith} Approval
-                        </p>
-                        <p className="text-xs font-medium text-slate-600 mt-1 italic">
-                          "{selectedRecord.currentBlockerTask}" is currently preventing this worker from progressing to the next requirement block.
-                        </p>
-                    </div>
-                  </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest flex items-center gap-2">
-                    <Layers size={12}/> Readiness
-                  </p>
-                  <p className="text-4xl font-black text-cyan-600">{selectedRecord.readiness}<span className="text-lg text-slate-400">%</span></p>
-                  <div className="h-1.5 w-full bg-slate-200 rounded-full mt-3 overflow-hidden">
-                     <div className="h-full bg-cyan-500" style={{width: `${selectedRecord.readiness}%`}} />
+            <div className="flex-1 space-y-8 overflow-y-auto p-5 sm:p-8">
+              {selectedRecord.status !== 'Ready' ? (
+                <div
+                  className={`flex gap-4 rounded-2xl border-l-4 p-4 ${
+                    selectedRecord.status === 'Blocked'
+                      ? 'border-rose-500 bg-rose-50'
+                      : 'border-amber-500 bg-amber-50'
+                  }`}
+                >
+                  <ShieldAlert
+                    size={24}
+                    className={
+                      selectedRecord.status === 'Blocked'
+                        ? 'text-rose-600'
+                        : 'text-amber-600'
+                    }
+                  />
+                  <div>
+                    <p
+                      className={`text-sm font-black uppercase tracking-tight ${
+                        selectedRecord.status === 'Blocked'
+                          ? 'text-rose-900'
+                          : 'text-amber-900'
+                      }`}
+                    >
+                      {selectedRecord.status === 'Blocked' ? 'Halt' : 'Pending'}:{' '}
+                      {selectedRecord.pendingWith || 'Team'} activity
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-600">
+                      {selectedRecord.currentBlockerTask || 'Waiting to start'} is
+                      the current requirement in this workflow.
+                    </p>
                   </div>
                 </div>
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest flex items-center gap-2">
-                    <Calendar size={12}/> Launch
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <p className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <Layers size={12} /> Readiness
                   </p>
-                  <p className="text-2xl font-black text-slate-900">{selectedRecord.startDate}</p>
-                  <p className="text-[10px] font-bold text-rose-500 uppercase mt-2 italic">In 4 Business Days</p>
+                  <p className="text-4xl font-black text-cyan-600">
+                    {selectedRecord.readiness}
+                    <span className="text-lg text-slate-400">%</span>
+                  </p>
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full bg-cyan-500"
+                      style={{ width: `${selectedRecord.readiness}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <p className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <Calendar size={12} /> Launch
+                  </p>
+                  <p className="text-xl font-black text-slate-900">
+                    {formatDate(selectedRecord.startDate)}
+                  </p>
+                  <p className="mt-2 text-[10px] font-bold uppercase text-rose-500">
+                    {selectedRecord.businessDaysUntilStart === null
+                      ? 'Target date pending'
+                      : selectedRecord.businessDaysUntilStart === 0
+                        ? 'Due now'
+                        : `In ${selectedRecord.businessDaysUntilStart} business days`}
+                  </p>
                 </div>
               </div>
 
-              {/* AUTOMATED VERIFICATION LOG */}
               <section className="space-y-4">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <CheckCircle2 size={14} className="text-emerald-500"/> Governance Log
+                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  <CheckCircle2 size={14} className="text-emerald-500" />
+                  Governance Log
                 </h3>
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="flex items-center gap-3">
-                        <Zap size={14} className="text-indigo-500"/>
-                        <span className="text-sm font-bold text-slate-700 leading-none">Government ID Verification</span>
+                {drawerLoading ? (
+                  <div className="flex items-center gap-2 py-4 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading governance history
+                  </div>
+                ) : drawerError ? (
+                  <p className="text-sm font-medium text-rose-600">{drawerError}</p>
+                ) : selectedDetail?.governanceLog.length ? (
+                  <div className="space-y-3">
+                    {selectedDetail.governanceLog.slice(0, 5).map((event) => (
+                      <div
+                        key={event.activityId}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {event.owner === 'system' ? (
+                            <Zap size={14} className="shrink-0 text-indigo-500" />
+                          ) : (
+                            <Link2 size={14} className="shrink-0 text-blue-500" />
+                          )}
+                          <span className="truncate text-sm font-bold text-slate-700">
+                            {event.name}
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-md bg-emerald-100 px-2 py-1 text-[9px] font-black uppercase text-emerald-700">
+                          {event.status}
+                        </span>
                       </div>
-                      <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md uppercase">AI Verified</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 opacity-60">
-                      <div className="flex items-center gap-3">
-                        <Link2 size={14} className="text-blue-500"/>
-                        <span className="text-sm font-bold text-slate-700 leading-none">Background Screening</span>
-                      </div>
-                      <span className="text-[9px] font-black bg-blue-100 text-blue-700 px-2 py-1 rounded-md uppercase">Partner Integrated</span>
-                    </div>
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                    No completed governance activities yet.
+                  </p>
+                )}
               </section>
 
-              {/* TEAM & ACCOUNTABILITY */}
-              <section className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-100">
+              <section className="grid grid-cols-2 gap-8 border-t border-slate-100 pt-6">
                 <div className="space-y-4">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                     <User size={14} /> Stakeholders
                   </h3>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Hiring Manager</p>
-                    <p className="text-sm font-black text-slate-900 leading-none">{selectedRecord.manager}</p>
+                    <p className="mb-1 text-[9px] font-black uppercase text-slate-400">
+                      Hiring Manager
+                    </p>
+                    <p className="text-sm font-black leading-none text-slate-900">
+                      {selectedRecord.manager || '-'}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Supplier</p>
-                    <p className="text-sm font-bold text-slate-700 leading-none">{selectedRecord.supplier}</p>
+                    <p className="mb-1 text-[9px] font-black uppercase text-slate-400">
+                      Supplier
+                    </p>
+                    <p className="text-sm font-bold leading-none text-slate-700">
+                      {selectedRecord.supplier || '-'}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                     <ShieldCheck size={14} /> Compliance
                   </h3>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Cost Center</p>
-                    <p className="text-sm font-black text-slate-900 leading-none">NA-ENG-2025</p>
+                    <p className="mb-1 text-[9px] font-black uppercase text-slate-400">
+                      Cost Center
+                    </p>
+                    <p className="text-sm font-black leading-none text-slate-900">
+                      {selectedRecord.costCenter || '-'}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Dept.</p>
-                    <p className="text-sm font-bold text-slate-700 leading-none truncate">{selectedRecord.department}</p>
+                    <p className="mb-1 text-[9px] font-black uppercase text-slate-400">
+                      Registration
+                    </p>
+                    <p className="truncate text-sm font-bold capitalize leading-none text-slate-700">
+                      {selectedRecord.registrationStatus.replace(/_/g, ' ')}
+                    </p>
                   </div>
                 </div>
               </section>
 
               <div className="pt-8">
                 <button
-                  onClick={() => router.push(`/workers/${selectedRecord.workerId}/engagements/onboarding/workspace`)}
-                  className="w-full bg-slate-950 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-2xl shadow-cyan-900/20 active:scale-[0.98]"
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/workers/${selectedRecord.workerId}/engagements/onboarding/workspace?work_order=${selectedRecord.workOrderId}`,
+                    )
+                  }
+                  className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 py-4 font-black text-white shadow-2xl shadow-cyan-900/20 transition-all hover:bg-black active:scale-[0.98]"
                 >
-                    Review Onboarding Block <Zap size={18} className="fill-amber-400 text-amber-400 group-hover:rotate-12 transition-transform" />
+                  Review Onboarding Block
+                  <Zap
+                    size={18}
+                    className="fill-amber-400 text-amber-400 transition-transform group-hover:rotate-12"
+                  />
                 </button>
               </div>
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
-  );
+  )
 }
