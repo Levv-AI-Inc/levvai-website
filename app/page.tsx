@@ -28,50 +28,62 @@ interface ChatMessage {
   rail?: RailData | null
 }
 
+// ─── Portfolio stats ──────────────────────────────────────────────────────────
+// The denominator Nova's brief is derived from. Wire these to real counts.
+
+const STATS = [
+  { value: '247', label: 'External workers', sub: 'Active today', href: '/workers', tone: 'neutral' as const },
+  { value: '18', label: 'In onboarding', sub: '4 blocked on requirements', href: '/onboarding', tone: 'warn' as const },
+  { value: '$2.4M', label: 'Contract value', sub: '38 open SOWs', href: '/sow', tone: 'neutral' as const },
+  { value: '94%', label: 'Of approved cap', sub: 'Q3 spend to date', href: '/spend', tone: 'warn' as const },
+]
+
 // ─── Nova's observations ──────────────────────────────────────────────────────
+// Operational voice: entity, fact, consequence, deadline. The recommendation is
+// the last clause, never the frame.
 
 const OBSERVATIONS = [
   {
     id: 1,
-    severity: 'CRITICAL',
-    tag: 'Expiry risk',
-    time: 'Flagged 12 min ago',
-    body: "Accenture SOW-2024-0041 expires in 14 days and no renewal is in flight. Given the strategic nature of this work, I'd suggest contacting procurement by Friday.",
-    primary: { label: 'Draft renewal', href: '/sow/2024-0041/renew', prompt: 'Draft a renewal for Accenture SOW-2024-0041 expiring in 14 days' },
+    severity: 'Critical',
+    metric: '14d',
+    metricLabel: 'To expiry',
+    entity: 'Accenture',
+    record: 'SOW-2024-0041',
+    body: 'Expires Sep 2 with no renewal in flight. $840k of scope remains open and procurement lead time runs 21 days — a gap is already unavoidable unless drafting starts this week.',
+    primary: { label: 'Draft renewal', prompt: 'Draft a renewal for Accenture SOW-2024-0041 expiring in 14 days' },
     secondary: { label: 'Open SOW', href: '/sow/2024-0041' },
-    barClass: 'bg-rose-500',
-    dotClass: 'bg-rose-500',
-    pulseClass: 'bg-rose-400',
-    chipClass: 'text-rose-700',
-    primaryBtnClass: 'bg-rose-600 hover:bg-rose-700 text-white shadow-[0_6px_18px_-6px_rgba(225,29,72,0.5)]',
+    ruleClass: 'bg-rose-500',
+    metricClass: 'text-rose-600',
+    chipClass: 'text-rose-700 bg-rose-50 border-rose-200',
   },
   {
     id: 2,
-    severity: 'ELEVATED',
-    tag: 'Spend velocity',
-    time: 'Flagged 47 min ago',
-    body: "The Deloitte engagement is tracking 12% above its approved cap, which projects a $182k overage by quarter-end. You'll want to either expand scope or trim.",
-    primary: { label: 'Adjust budget', href: '/engagements/deloitte/budget', prompt: 'Review the Deloitte budget overrun and suggest remediation options' },
+    severity: 'Elevated',
+    metric: '$182k',
+    metricLabel: 'Projected over',
+    entity: 'Deloitte',
+    record: 'SOW-2024-0088',
+    body: 'Burn is running 12% above the approved cap. At current velocity the engagement breaches in six weeks, before quarter-end reporting closes.',
+    primary: { label: 'Adjust budget', prompt: 'Review the Deloitte budget overrun and suggest remediation options' },
     secondary: { label: 'View spend', href: '/spend' },
-    barClass: 'bg-amber-500',
-    dotClass: 'bg-amber-500',
-    pulseClass: 'bg-amber-400',
-    chipClass: 'text-amber-700',
-    primaryBtnClass: 'bg-amber-600 hover:bg-amber-700 text-white shadow-[0_6px_18px_-6px_rgba(217,119,6,0.5)]',
+    ruleClass: 'bg-amber-500',
+    metricClass: 'text-amber-600',
+    chipClass: 'text-amber-700 bg-amber-50 border-amber-200',
   },
   {
     id: 3,
-    severity: 'ADVISORY',
-    tag: 'Tenure limit',
-    time: 'Flagged 2 hours ago',
-    body: "Three contingent workers are within 60 days of the 18-month policy ceiling under §4.2. They'll need recertification or off-boarding.",
-    primary: { label: 'Start recertification', href: '/recertification', prompt: 'Show me the workers approaching the 18-month tenure limit and start recertification' },
+    severity: 'Advisory',
+    metric: '3',
+    metricLabel: 'Workers',
+    entity: 'Tenure policy',
+    record: '§4.2',
+    body: 'Sarah Cheng, Marcus Holloway and Priya Kapoor reach the 18-month ceiling within 60 days. Each needs recertification or an off-boarding date on file before the limit lands.',
+    primary: { label: 'Start recertification', prompt: 'Show me the workers approaching the 18-month tenure limit and start recertification' },
     secondary: { label: 'Review workers', href: '/workers?filter=tenure-risk' },
-    barClass: 'bg-cyan-500',
-    dotClass: 'bg-cyan-500',
-    pulseClass: 'bg-cyan-400',
-    chipClass: 'text-cyan-700',
-    primaryBtnClass: 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-[0_6px_18px_-6px_rgba(8,145,178,0.5)]',
+    ruleClass: 'bg-slate-300',
+    metricClass: 'text-slate-900',
+    chipClass: 'text-slate-600 bg-slate-50 border-slate-200',
   },
 ]
 
@@ -202,6 +214,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [dismissedRailIndex, setDismissedRailIndex] = useState<number | null>(null)
+  const [dismissedIds, setDismissedIds] = useState<number[]>([])
   // Whether a policy is loaded/enforcing. When false, Nova advises rather than blocks.
   // Wire this to your real "policy uploaded" signal; the pill below also toggles it.
   const [policyActive, setPolicyActive] = useState(false)
@@ -210,6 +223,7 @@ export default function Home() {
   const conversationRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const hasChat = chatMessages.length > 0
+  const openObservations = OBSERVATIONS.filter((o) => !dismissedIds.includes(o.id))
 
   // The active rail = the most recent Nova turn's rail. No rail on that turn → panel disappears.
   // We also track which message it came from so the user can dismiss this one specifically;
@@ -287,11 +301,6 @@ export default function Home() {
     }
   }, [input, isLoading, policyActive])
 
-  const prefill = (text: string) => {
-    setInput(text)
-    textareaRef.current?.focus()
-  }
-
   // Render Nova's prose with record mentions turned into links into the record.
   const linkifyRecords = (content: string) =>
     content.split(RECORD_RE).map((part, idx) => {
@@ -350,15 +359,12 @@ export default function Home() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-colors ${
                 policyActive
                   ? 'bg-emerald-50 border-emerald-100 hover:border-emerald-200'
-                  : 'bg-red-50 border-red-100 hover:border-red-200'
+                  : 'bg-slate-50 border-slate-200 hover:border-slate-300'
               }`}
             >
-              <span className="relative flex h-1.5 w-1.5">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-70 ${policyActive ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${policyActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              </span>
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${policyActive ? 'text-emerald-700' : 'text-red-700'}`}>
-                {policyActive ? 'Policy Active' : 'Policy Inactive'}
+              <span className={`inline-flex rounded-full h-1.5 w-1.5 ${policyActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${policyActive ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {policyActive ? 'Policy enforcing' : 'No policy loaded'}
               </span>
             </button>
 
@@ -537,87 +543,203 @@ export default function Home() {
     )
   }
 
-  // ─── HOME MODE — regular page flow ──────────────────────────────────────────
+  // ─── HOME MODE — one console: portfolio band above, decision queue below ────
   return (
     <div className="max-w-[1100px] mx-auto px-8 py-10 antialiased" style={{ fontFamily: '"Inter", sans-serif' }}>
 
-      {/* Status bar */}
-      <div className="flex items-center justify-between mb-10">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-60" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600">Nova Online</span>
-          <span className="text-slate-200 select-none">·</span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 tabular-nums">
-            {clockTime || '··:··'}
+      {/* Greeting + quiet system state */}
+      <div className="flex items-start justify-between gap-6 mb-7">
+        <div>
+          <h1 className="text-[34px] leading-[1.1] font-semibold text-slate-900 tracking-tight mb-2">
+            {greeting}
+          </h1>
+          <p className="text-[15px] text-slate-500">
+            {openObservations.length > 0 ? (
+              <>
+                <span className="text-slate-800 font-medium">
+                  {openObservations.length} {openObservations.length === 1 ? 'item needs' : 'items need'} a decision today.
+                </span>{' '}
+                Nova is watching 247 workers and 38 open contracts.
+              </>
+            ) : (
+              <>Nothing needs a decision. Nova is watching 247 workers and 38 open contracts.</>
+            )}
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 shrink-0 pt-2">
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="text-[11px] font-medium text-slate-400 tabular-nums">
+            Synced {clockTime || '··:··'}
           </span>
         </div>
       </div>
 
-      {/* Greeting */}
-      <div className="mb-8">
-        <h1 className="text-[40px] leading-[1.05] font-semibold text-slate-900 tracking-tight mb-3">
-          {greeting}
-        </h1>
-        <p className="text-[17px] text-slate-500 font-normal animate-in fade-in duration-300">
-          <span className="text-slate-700 font-medium">Three things</span> need your attention today
-          {' . '}
-          <span className="text-rose-600 font-medium">One critical</span>,{' '}two advisories.
-        </p>
-      </div>
-
       {/* Nova input */}
-      <div className="mb-4">
+      <div className="mb-3">
         {novaInputBox}
       </div>
 
-      {/* Quick action pills */}
-      <div className="flex flex-wrap gap-2 mb-12 animate-in fade-in duration-300">
+      {/* Quick actions — quiet text buttons, not competing with the console below */}
+      <div className="flex flex-wrap items-center gap-1 mb-8">
         <button
           onClick={() => router.push('/requests/new/sow')}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.08)]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-[13px] font-medium transition-colors"
         >
-          <FileText className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
+          <FileText className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
           Create SOW
         </button>
         <button
           onClick={() => router.push('/requests/new/job_posting')}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.08)]"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-[13px] font-medium transition-colors"
         >
-          <Briefcase className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
-          Create Job Posting
+          <Briefcase className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
+          Create job posting
         </button>
       </div>
 
-      {/* Nova's Brief */}
-      <div className="animate-in fade-in duration-300">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-70" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
-            </span>
-            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600">Nova's Brief</p>
-          </div>
-          <span className="text-slate-200 select-none">·</span>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            3 observations · Monitoring active
-          </p>
-          <div className="flex-1 h-px bg-slate-100" />
-        </div>
+      {/* ── The console: portfolio band + decision queue in one object ────────── */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
 
-        <div className="space-y-3">
-          {OBSERVATIONS.map((o) => (
-            <NovaMessage
-              key={o.id}
-              o={o}
-              onAct={(href) => router.push(href)}
-              onAskNova={(prompt) => sendMessage(prompt)}
-            />
+        {/* Portfolio band — the denominator the brief is derived from */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100 border-b border-slate-100">
+          {STATS.map((s) => (
+            <button
+              key={s.label}
+              onClick={() => router.push(s.href)}
+              className="group text-left px-5 py-4 hover:bg-slate-50 transition-colors first:border-l-0"
+            >
+              <div className="text-[24px] font-semibold tracking-tight text-slate-900 tabular-nums leading-none mb-1.5">
+                {s.value}
+              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">
+                {s.label}
+              </div>
+              <div className={`text-[11px] ${s.tone === 'warn' ? 'text-amber-600' : 'text-slate-400'}`}>
+                {s.sub}
+              </div>
+            </button>
           ))}
         </div>
+
+        {/* Queue header */}
+        <div className="flex items-center justify-between px-5 py-3 bg-slate-50/60 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3 h-3 text-cyan-600" strokeWidth={2.5} />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Nova's brief</span>
+            <span className="text-slate-300 select-none">·</span>
+            <span className="text-[11px] font-medium text-slate-400 tabular-nums">
+              {openObservations.length} open
+            </span>
+          </div>
+          <button
+            onClick={() => router.push('/worklist')}
+            className="text-[11px] font-semibold text-cyan-700 hover:text-cyan-800 transition-colors"
+          >
+            Open worklist
+          </button>
+        </div>
+
+        {/* Decision rows */}
+        {openObservations.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {openObservations.map((o) => (
+              <ObservationRow
+                key={o.id}
+                o={o}
+                onAskNova={(prompt) => sendMessage(prompt)}
+                onNavigate={(href) => router.push(href)}
+                onDismiss={() => setDismissedIds((prev) => [...prev, o.id])}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-12 text-center">
+            <p className="text-[14px] text-slate-600 font-medium mb-1">Queue is clear.</p>
+            <p className="text-[13px] text-slate-400 mb-5">
+              Nova will surface the next item as soon as something crosses a threshold.
+            </p>
+            <button
+              onClick={() => setDismissedIds([])}
+              className="text-[12px] font-semibold text-cyan-700 hover:text-cyan-800 transition-colors"
+            >
+              Restore dismissed items
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Observation row ──────────────────────────────────────────────────────────
+// Left column carries the quantified stake in tabular numerals so the queue reads
+// in one vertical pass. Severity lives in the rule + chip only; every primary
+// action is the same slate-900 so colour means severity, not importance.
+
+function ObservationRow({
+  o,
+  onAskNova,
+  onNavigate,
+  onDismiss,
+}: {
+  o: typeof OBSERVATIONS[number]
+  onAskNova: (prompt: string) => void
+  onNavigate: (href: string) => void
+  onDismiss: () => void
+}) {
+  return (
+    <div className="group relative flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5 px-5 py-4 pl-6 hover:bg-slate-50/70 transition-colors">
+      <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${o.ruleClass}`} aria-hidden="true" />
+
+      {/* Stake */}
+      <div className="sm:w-[104px] shrink-0">
+        <div className={`text-[21px] font-semibold tracking-tight tabular-nums leading-none ${o.metricClass}`}>
+          {o.metric}
+        </div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">
+          {o.metricLabel}
+        </div>
+      </div>
+
+      {/* Detail */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-1">
+          <span className="text-[13.5px] font-semibold text-slate-900">{o.entity}</span>
+          <button
+            onClick={() => onNavigate(o.secondary.href)}
+            className="text-[12.5px] font-medium text-cyan-700 hover:text-cyan-800 underline decoration-cyan-200 hover:decoration-cyan-400 underline-offset-2 transition-colors tabular-nums"
+          >
+            {o.record}
+          </button>
+          <span className={`text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${o.chipClass}`}>
+            {o.severity}
+          </span>
+        </div>
+        <p className="text-[13.5px] text-slate-600 leading-[1.6] max-w-[600px]">{o.body}</p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1.5 shrink-0 sm:pt-0.5">
+        <button
+          onClick={() => onAskNova(o.primary.prompt)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors active:scale-[0.98]"
+        >
+          {o.primary.label}
+          <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={() => onNavigate(o.secondary.href)}
+          className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        >
+          {o.secondary.label}
+        </button>
+        <button
+          onClick={onDismiss}
+          aria-label={`Dismiss ${o.entity} item`}
+          className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+        >
+          <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+        </button>
       </div>
     </div>
   )
@@ -649,74 +771,7 @@ function RailTile({ t, onClick }: { t: RailTileData; onClick: () => void }) {
         {actionLabel}
         <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
       </div>
+      {!isRoute && <span className="sr-only">Ask Nova</span>}
     </button>
-  )
-}
-
-// ─── NovaMessage card ─────────────────────────────────────────────────────────
-
-function NovaMessage({
-  o,
-  onAct,
-  onAskNova,
-}: {
-  o: typeof OBSERVATIONS[number]
-  onAct: (href: string) => void
-  onAskNova: (prompt: string) => void
-}) {
-  const [dismissed, setDismissed] = useState(false)
-  if (dismissed) return null
-
-  return (
-    <div className="group relative flex bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition-all duration-200 hover:shadow-[0_10px_30px_-12px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 overflow-hidden">
-      <div className={`w-1.5 flex-shrink-0 ${o.barClass} group-hover:w-2 transition-all duration-200`} />
-
-      <div className="flex items-start gap-5 flex-1 p-6">
-        <div className="flex-shrink-0 pt-1.5">
-          <span className="relative flex h-3 w-3">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-50 ${o.pulseClass}`} />
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${o.dotClass} ring-4 ring-white`} />
-          </span>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-[10px] font-black uppercase tracking-widest ${o.chipClass}`}>{o.tag}</span>
-            <span className="text-slate-200 select-none">·</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{o.severity}</span>
-            <span className="text-slate-200 select-none">·</span>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-slate-300">{o.time}</span>
-          </div>
-
-          <p className="text-[15px] text-slate-700 leading-[1.65] font-normal mb-4 max-w-[720px]">{o.body}</p>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onAskNova(o.primary.prompt)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-semibold transition-all hover:translate-y-[-1px] active:scale-95 ${o.primaryBtnClass}`}
-            >
-              {o.primary.label}
-              <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
-            </button>
-
-            <button
-              onClick={() => onAct(o.secondary.href)}
-              className="px-4 py-2 rounded-full text-[12px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            >
-              {o.secondary.label}
-            </button>
-
-            <button
-              onClick={() => setDismissed(true)}
-              className="flex items-center gap-1 px-3 py-2 rounded-full text-[12px] font-medium text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-0 group-hover:opacity-100"
-              aria-label="Dismiss"
-            >
-              <X className="w-3 h-3" strokeWidth={2.5} />
-              Dismiss
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }

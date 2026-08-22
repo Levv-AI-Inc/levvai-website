@@ -128,7 +128,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           {/* Sidebar Footer */}
-          <div className="p-4 border-t border-white/5">
+          <div className="p-4 border-t border-white/5 space-y-1">
+            <Link
+              href="/external/act-as-worker"
+              className="flex items-center gap-3 px-3 py-2 w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-all text-sm font-medium"
+            >
+              <Users className="w-4 h-4" />
+              Act As Worker
+            </Link>
             <button className="flex items-center gap-3 px-3 py-2 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all text-sm font-medium">
               <LogOut className="w-4 h-4" />
               Sign Out

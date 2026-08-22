@@ -1,8 +1,7 @@
 {
+  "/api/nova/assign-cost-allocation/route": "app/api/nova/assign-cost-allocation/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js",
-  "/workers/[workerId]/engagements/onboarding/workspace/page": "app/workers/[workerId]/engagements/onboarding/workspace/page.js",
-  "/admin/compliance/policies/[policyID]/page": "app/admin/compliance/policies/[policyID]/page.js",
-  "/admin/page": "app/admin/page.js",
-  "/admin/users/page": "app/admin/users/page.js",
-  "/admin/workers/requirements/page": "app/admin/workers/requirements/page.js"
+  "/external/act-as-worker/page": "app/external/act-as-worker/page.js",
+  "/external/act-as-worker/timesheet/page": "app/external/act-as-worker/timesheet/page.js"
 }

@@ -11,150 +11,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/requests/layout": [
+    "/external/act-as-worker/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/requests/layout.js"
+      "static/chunks/app/external/act-as-worker/page.js"
     ],
-    "/requests/new/[intent]/page": [
+    "/external/act-as-worker/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/[intent]/page.js"
+      "static/chunks/app/external/act-as-worker/layout.js"
     ],
-    "/requests/new/layout": [
+    "/external/act-as-worker/timesheet/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/layout.js"
-    ],
-    "/requests/sow/create/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/sow/create/page.js"
-    ],
-    "/requests/sow/create/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/sow/create/layout.js"
-    ],
-    "/requests/sow/create/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/sow/create/loading.js"
-    ],
-    "/requests/new/job/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/job/layout.js"
-    ],
-    "/requests/new/job/create/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/job/create/layout.js"
-    ],
-    "/requests/new/job/create/define/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/requests/new/job/create/define/page.js"
-    ],
-    "/cw/work-orders/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/cw/work-orders/page.js"
-    ],
-    "/workers/[workerId]/engagements/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/workers/[workerId]/engagements/page.js"
-    ],
-    "/workers/[workerId]/engagements/onboarding/workspace/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/workers/[workerId]/engagements/onboarding/workspace/page.js"
-    ],
-    "/admin/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/page.js"
-    ],
-    "/admin/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/layout.js"
-    ],
-    "/admin/users/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/users/page.js"
-    ],
-    "/admin/configuration/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/configuration/page.js"
-    ],
-    "/admin/workers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/workers/page.js"
-    ],
-    "/admin/workers/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/workers/layout.js"
-    ],
-    "/admin/workers/onboarding/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/workers/onboarding/page.js"
-    ],
-    "/admin/compliance/policies/[policyID]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/compliance/policies/[policyID]/page.js"
-    ],
-    "/admin/workers/requirements/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/workers/requirements/page.js"
-    ],
-    "/admin/workers/offboarding/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/workers/offboarding/page.js"
-    ],
-    "/admin/tenant-docs/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/tenant-docs/page.js"
-    ],
-    "/admin/financial/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/financial/page.js"
-    ],
-    "/admin/rates/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/rates/page.js"
-    ],
-    "/admin/rates/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/rates/layout.js"
-    ],
-    "/admin/suppliers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/suppliers/page.js"
-    ],
-    "/workers/workers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/workers/workers/page.js"
-    ],
-    "/workers/digital-workers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/workers/digital-workers/page.js"
+      "static/chunks/app/external/act-as-worker/timesheet/page.js"
     ]
   }
 }
