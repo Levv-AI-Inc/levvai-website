@@ -36,11 +36,10 @@ export type WorkItem = {
   period: string
   status: 'Draft' | 'Submitted' | 'Approved'
   flagged?: boolean
-  kind?: 'timesheet' | 'expense'
   weekStart?: string // ISO date of the Monday this item's period covers
 }
 
-// Single source of truth for "what week is this" — both Home's mock data and
+// Single source of truth for "what week is this" — both mock work items and
 // the Timesheet page's week dropdown derive from this, so they can't drift
 // out of sync with each other or with the real current date.
 export function getMondayOfWeek(offsetWeeks: number): { iso: string; label: string } {
@@ -152,7 +151,6 @@ type ContextValue = {
   switchClient: (clientId: string) => void
   workItemsByClient: Record<string, WorkItem[]>
   submitCurrentWeek: (weekStart: string) => void
-  submitExpenseSheet: (period: string) => void
 }
 
 const WorkerClientContext = createContext<ContextValue | null>(null)
@@ -205,41 +203,24 @@ export default function ActAsWorkerLayout({ children }: { children: React.ReactN
     setActiveClientId(clientId)
   }
 
-  // Flips this client's most recent Draft item to Submitted — the piece that
-  // makes the timesheet flow feel real without a backend: the state change
-  // is visible back on Home immediately after submitting.
+  // Flips this client's most recent Draft item to Submitted so the timesheet
+  // flow feels real without a backend.
   const submitCurrentWeek = (weekStart: string) => {
     setWorkItemsByClient((prev) => {
       const items = prev[activeClientId] ?? []
       let index = items.findIndex(
-        (i) => i.status === 'Draft' && i.kind !== 'expense' && i.weekStart === weekStart
+        (i) => i.status === 'Draft' && i.weekStart === weekStart
       )
       // Fall back to "first draft" only if nothing matches this exact week —
       // keeps this working even for mock rows that don't carry a weekStart.
       if (index === -1) {
-        index = items.findIndex((i) => i.status === 'Draft' && i.kind !== 'expense')
+        index = items.findIndex((i) => i.status === 'Draft')
       }
       if (index === -1) return prev
 
       const updated = [...items]
       updated[index] = { ...updated[index], status: 'Submitted', flagged: false }
       return { ...prev, [activeClientId]: updated }
-    })
-  }
-
-  // Expense sheets aren't pre-queued as drafts the way time sheets are — they're
-  // created on demand — so submitting adds a new row rather than flipping an
-  // existing one.
-  const submitExpenseSheet = (period: string) => {
-    setWorkItemsByClient((prev) => {
-      const items = prev[activeClientId] ?? []
-      const newItem: WorkItem = {
-        id: `LVEX-${Date.now().toString().slice(-6)}`,
-        period,
-        status: 'Submitted',
-        kind: 'expense',
-      }
-      return { ...prev, [activeClientId]: [newItem, ...items] }
     })
   }
 
@@ -258,7 +239,6 @@ export default function ActAsWorkerLayout({ children }: { children: React.ReactN
         switchClient,
         workItemsByClient,
         submitCurrentWeek,
-        submitExpenseSheet,
       }}
     >
       {children}

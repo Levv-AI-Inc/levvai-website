@@ -7,8 +7,6 @@ import {
   Calendar,
   MessageSquare,
   X,
-  Receipt,
-  ArrowLeft,
   AlertTriangle,
   CheckCircle2,
   ShieldCheck,
@@ -16,10 +14,9 @@ import {
   Loader2,
   Scale,
   Ban,
-  Paperclip,
 } from 'lucide-react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { WorkerTopNav } from '../page'
+import { useSearchParams } from 'next/navigation'
+import { WorkerTopNav } from '../WorkerTopNav'
 import { useWorkerClient, Assignment, getMondayOfWeek } from '../layout'
 
 const WORKER_NAME = 'Jordan Reyes'
@@ -33,48 +30,7 @@ type TaskAllocation = {
   assignedForName: string
 }
 
-// Mirrors FG's Expense Code + Expense Type model, but pre-configured instead
-// of requiring an admin to create each one via a support ticket. Unit-based
-// codes (mileage, per diem) auto-calculate the amount from a rate, exactly
-// like FG's Table 7.1 examples — just without the setup step.
-type ExpenseCode = {
-  code: string
-  name: string
-  glAccount: string
-  requiresReceipt: boolean
-  unit?: { label: string; rate: number }
-}
-
-const EXPENSE_CODES: ExpenseCode[] = [
-  { code: 'E001', name: 'Flights', glAccount: '6210-Travel', requiresReceipt: true },
-  { code: 'E002', name: 'Lodging', glAccount: '6210-Travel', requiresReceipt: true },
-  { code: 'E003', name: 'Meals (Per Diem)', glAccount: '6230-Meals', requiresReceipt: false, unit: { label: 'day', rate: 30 } },
-  { code: 'E004', name: 'Mileage', glAccount: '6240-Transport', requiresReceipt: false, unit: { label: 'mile', rate: 0.3 } },
-  { code: 'E005', name: 'Other', glAccount: '6290-Misc', requiresReceipt: false },
-]
-
-type Expense = {
-  id: string
-  date: string
-  expenseCode: string // ExpenseCode.code
-  merchant: string
-  description: string
-  amount: string // used directly for variable-amount codes
-  units: string // used for unit-based codes; amount is derived from this
-  hasReceipt: boolean
-  fileName?: string
-}
 type JurisdictionFlag = { text: string; severity: 'high' | 'info' }
-
-function expenseCodeFor(code: string) {
-  return EXPENSE_CODES.find((c) => c.code === code) ?? EXPENSE_CODES[0]
-}
-
-function lineAmount(exp: Expense): number {
-  const code = expenseCodeFor(exp.expenseCode)
-  if (code.unit) return (parseFloat(exp.units) || 0) * code.unit.rate
-  return parseFloat(exp.amount) || 0
-}
 
 let idCounter = 0
 function makeId(prefix: string) {
@@ -109,12 +65,9 @@ function PageFonts() {
 }
 
 export default function WorkerTimesheetPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const openExpensesOnLoad = searchParams.get('tab') === 'expenses'
   const requestedWeek = searchParams.get('week')
-  const { activeClient, activeClientId, engagementStatuses, submitCurrentWeek, submitExpenseSheet } =
-    useWorkerClient()
+  const { activeClient, activeClientId, engagementStatuses, submitCurrentWeek } = useWorkerClient()
   const status = engagementStatuses[activeClientId]
   const isExpired = status?.status === 'expired'
   const [submitted, setSubmitted] = useState(false)
@@ -127,32 +80,19 @@ export default function WorkerTimesheetPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F4F6F9] to-[#EEF1F6]">
       <PageFonts />
-      <WorkerTopNav active="Time Sheets" />
+      <WorkerTopNav />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <button
-          onClick={() => router.push('/external/act-as-worker')}
-          className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </button>
-
         {isExpired ? (
           <ExpiredEngagementNotice clientName={activeClient.name} status={status} />
         ) : submitted ? (
-          <SubmittedNotice
-            clientName={activeClient.name}
-            onBackToHome={() => router.push('/external/act-as-worker')}
-          />
+          <SubmittedNotice clientName={activeClient.name} onNewSheet={() => setSubmitted(false)} />
         ) : (
           <div className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)]">
             <TimesheetPanel
               key={activeClientId}
               assignments={activeClient.assignments}
               onSubmit={handleSubmit}
-              autoOpenExpenses={openExpensesOnLoad}
-              onExpenseSubmit={submitExpenseSheet}
               initialWeek={requestedWeek}
             />
           </div>
@@ -162,7 +102,7 @@ export default function WorkerTimesheetPage() {
   )
 }
 
-function SubmittedNotice({ clientName, onBackToHome }: { clientName: string; onBackToHome: () => void }) {
+function SubmittedNotice({ clientName, onNewSheet }: { clientName: string; onNewSheet: () => void }) {
   return (
     <div className="rounded-2xl border border-emerald-200 bg-white shadow-[0_12px_32px_-16px_rgba(5,150,105,0.25)] p-10 text-center animate-in fade-in zoom-in-95 duration-300">
       <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto mb-5">
@@ -171,13 +111,13 @@ function SubmittedNotice({ clientName, onBackToHome }: { clientName: string; onB
       <h2 className="font-display text-xl font-semibold text-[#0B1220]">Timesheet submitted</h2>
       <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
         Your time sheet has been sent to {clientName} for approval. You'll see it marked{' '}
-        <span className="font-data text-emerald-700 text-[13px]">Submitted</span> on your Home page.
+        <span className="font-data text-emerald-700 text-[13px]">Submitted</span> in the worker profile.
       </p>
       <button
-        onClick={onBackToHome}
+        onClick={onNewSheet}
         className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 shadow-[0_8px_20px_-6px_rgba(5,150,105,0.5)]"
       >
-        Back to Home
+        Start another timesheet
       </button>
     </div>
   )
@@ -215,14 +155,10 @@ function ExpiredEngagementNotice({
 function TimesheetPanel({
   assignments,
   onSubmit,
-  autoOpenExpenses,
-  onExpenseSubmit,
   initialWeek,
 }: {
   assignments: Assignment[]
   onSubmit: (weekStart: string) => void
-  autoOpenExpenses?: boolean
-  onExpenseSubmit: (period: string) => void
   initialWeek?: string | null
 }) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -234,10 +170,6 @@ function TimesheetPanel({
   )
   const [showComments, setShowComments] = useState(false)
   const [comment, setComment] = useState('')
-  const [showExpenses, setShowExpenses] = useState(false)
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [expenseSheetSubmitted, setExpenseSheetSubmitted] = useState(false)
-  const [showExpenseBlockedNotice, setShowExpenseBlockedNotice] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([
     { id: 'seed-1', name: 'Client workshops' },
     { id: 'seed-2', name: 'Design & documentation' },
@@ -259,10 +191,6 @@ function TimesheetPanel({
     setAssignment(assignments[0])
     setTaskAllocations({})
   }, [assignments])
-
-  useEffect(() => {
-    if (autoOpenExpenses) setShowExpenses(true)
-  }, [autoOpenExpenses])
 
   const addTask = () => {
     const id = makeId('task')
@@ -301,56 +229,6 @@ function TimesheetPanel({
     for (let i = 0; i < 5; i++) if (dayTotal(i) > 0) covered++
     return covered
   }, [tasks, hours])
-
-  const addExpense = () =>
-    setExpenses((prev) => [
-      ...prev,
-      {
-        id: makeId('exp'),
-        date: weekStart,
-        expenseCode: EXPENSE_CODES[0].code,
-        merchant: '',
-        description: '',
-        amount: '',
-        units: '',
-        hasReceipt: false,
-      },
-    ])
-  const updateExpense = (id: string, field: keyof Omit<Expense, 'id'>, value: string | boolean) =>
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)))
-  const deleteExpense = (id: string) => setExpenses((prev) => prev.filter((e) => e.id !== id))
-  const expenseTotal = expenses.reduce((sum, e) => sum + lineAmount(e), 0)
-
-  const expenseIssues = useMemo(() => {
-    const issues: string[] = []
-    if (expenses.length === 0) return issues
-    expenses.forEach((exp) => {
-      const code = expenseCodeFor(exp.expenseCode)
-      if (code.requiresReceipt && !exp.hasReceipt) {
-        issues.push(`${code.name} on ${exp.date || 'this date'} requires a receipt — none attached.`)
-      }
-      if (code.unit && (parseFloat(exp.units) || 0) <= 0) {
-        issues.push(`${code.name} needs a ${code.unit.label} count greater than 0.`)
-      }
-      if (!code.unit && (parseFloat(exp.amount) || 0) <= 0) {
-        issues.push(`${code.name} needs an amount greater than $0.`)
-      }
-    })
-    return issues
-  }, [expenses])
-
-  const expenseReadiness: 'empty' | 'blocked' | 'ready' =
-    expenses.length === 0 ? 'empty' : expenseIssues.length > 0 ? 'blocked' : 'ready'
-
-  const handleExpenseSubmit = () => {
-    if (expenseReadiness !== 'ready') {
-      setShowExpenseBlockedNotice(true)
-      return
-    }
-    const period = selectableWeeks.find((w) => w.value === weekStart)?.label.replace(/^Current week · /, '') ?? weekStart
-    onExpenseSubmit(period)
-    setExpenseSheetSubmitted(true)
-  }
 
   const runNovaAllocation = async () => {
     setAllocating(true)
@@ -534,27 +412,13 @@ function TimesheetPanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setShowExpenses(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-600 hover:border-cyan-300 hover:bg-cyan-50/50 hover:text-cyan-800 transition-all"
-            >
-              <Receipt className="h-3.5 w-3.5" />
-              Expenses
-              {expenses.length > 0 && (
-                <span className="font-data ml-0.5 rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                  {expenses.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setShowComments(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-600 hover:border-cyan-300 hover:bg-cyan-50/50 hover:text-cyan-800 transition-all"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              Comment
-            </button>
-          </div>
+          <button
+            onClick={() => setShowComments(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-600 hover:border-cyan-300 hover:bg-cyan-50/50 hover:text-cyan-800 transition-all flex-shrink-0"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Comment
+          </button>
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
@@ -898,11 +762,6 @@ function TimesheetPanel({
             <span className="text-slate-500">Week total </span>
             <span className="font-data font-semibold text-[#0B1220]">{weekTotal}</span>
             <span className="text-slate-500"> hours</span>
-            {expenses.length > 0 && (
-              <span className="ml-3 text-slate-500">
-                · Expenses <span className="font-data font-semibold text-[#0B1220]">${expenseTotal.toFixed(2)}</span>
-              </span>
-            )}
           </div>
 
           <button
@@ -944,224 +803,6 @@ function TimesheetPanel({
                 Save comment
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showExpenses && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/30" onClick={() => setShowExpenses(false)} />
-          <div className="w-[460px] bg-white shadow-xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <div>
-                <div className="font-display text-sm font-semibold text-[#0B1220]">Expense Sheet</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  {selectableWeeks.find((w) => w.value === weekStart)?.label ?? 'Current week'}
-                </div>
-              </div>
-              <button onClick={() => setShowExpenses(false)}>
-                <X className="h-4 w-4 text-slate-400" />
-              </button>
-            </div>
-
-            {expenseSheetSubmitted ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center px-8 animate-in fade-in zoom-in-95 duration-300">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                </div>
-                <h3 className="font-display text-base font-semibold text-[#0B1220]">Expense sheet submitted</h3>
-                <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                  <span className="font-data">${expenseTotal.toFixed(2)}</span> across {expenses.length} line
-                  item{expenses.length === 1 ? '' : 's'} sent for approval.
-                </p>
-                <button
-                  onClick={() => setShowExpenses(false)}
-                  className="mt-6 rounded-full bg-[#0B1220] hover:bg-slate-800 px-5 py-2 text-sm font-semibold text-white transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="p-5 flex-1 overflow-y-auto space-y-3">
-                  {expenses.length === 0 && (
-                    <div className="text-xs text-slate-400 text-center py-10">
-                      No expenses added yet. Every code below is pre-configured — no admin setup needed to use
-                      any of them.
-                    </div>
-                  )}
-
-                  {expenses.map((exp) => {
-                    const code = expenseCodeFor(exp.expenseCode)
-                    return (
-                      <div key={exp.id} className="rounded-xl border border-slate-200 p-3.5 space-y-2.5">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={exp.expenseCode}
-                            onChange={(e) => updateExpense(exp.id, 'expenseCode', e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium"
-                          >
-                            {EXPENSE_CODES.map((c) => (
-                              <option key={c.code} value={c.code}>
-                                {c.code} · {c.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="date"
-                            value={exp.date}
-                            onChange={(e) => updateExpense(exp.id, 'date', e.target.value)}
-                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                          />
-                          <button onClick={() => deleteExpense(exp.id)} className="text-slate-300 hover:text-red-600 flex-shrink-0">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-data text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
-                            GL {code.glAccount}
-                          </span>
-                          {code.unit && (
-                            <span className="font-data text-[10px] text-slate-400">
-                              ${code.unit.rate.toFixed(2)}/{code.unit.label}
-                            </span>
-                          )}
-                        </div>
-
-                        {code.unit ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.1"
-                              placeholder="0"
-                              value={exp.units}
-                              onChange={(e) => updateExpense(exp.id, 'units', e.target.value)}
-                              className="font-data w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-center"
-                            />
-                            <span className="text-xs text-slate-400">{code.unit.label}(s)</span>
-                            <span className="text-xs text-slate-300 ml-auto">
-                              = <span className="font-data text-slate-600 font-medium">${lineAmount(exp).toFixed(2)}</span>
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="font-data text-xs text-slate-400">$</span>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              placeholder="0.00"
-                              value={exp.amount}
-                              onChange={(e) => updateExpense(exp.id, 'amount', e.target.value)}
-                              className="font-data w-24 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            placeholder="Merchant (optional)"
-                            value={exp.merchant}
-                            onChange={(e) => updateExpense(exp.id, 'merchant', e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Description (optional)"
-                            value={exp.description}
-                            onChange={(e) => updateExpense(exp.id, 'description', e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
-                          />
-                        </div>
-
-                        {code.requiresReceipt && (
-                          <label
-                            className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
-                              exp.hasReceipt
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : 'border-red-200 bg-red-50 text-red-700'
-                            }`}
-                          >
-                            <Paperclip className="w-3 h-3 flex-shrink-0" />
-                            <span className="flex-1 truncate">
-                              {exp.hasReceipt ? exp.fileName ?? 'Receipt attached' : 'Receipt required — click to attach'}
-                            </span>
-                            <input
-                              type="file"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  updateExpense(exp.id, 'hasReceipt', true)
-                                  updateExpense(exp.id, 'fileName', file.name)
-                                }
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  <button
-                    onClick={addExpense}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-cyan-700 hover:text-cyan-800"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add expense
-                  </button>
-                </div>
-
-                {expenses.length > 0 && (
-                  <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="font-display text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
-                        Sheet Readiness
-                      </span>
-                    </div>
-                    {expenseReadiness === 'ready' ? (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-700">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Ready to submit.
-                      </div>
-                    ) : (
-                      <ul className="space-y-0.5">
-                        {expenseIssues.map((issue, i) => (
-                          <li key={i} className="flex items-start gap-1.5 text-xs text-red-700">
-                            <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                            {issue}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {showExpenseBlockedNotice && expenseReadiness !== 'ready' && (
-                      <div className="mt-1.5 text-[11px] text-slate-500">Resolve the items above to submit.</div>
-                    )}
-                  </div>
-                )}
-
-                <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="text-sm">
-                    Total: <span className="font-data font-semibold text-[#0B1220]">${expenseTotal.toFixed(2)}</span>
-                  </div>
-                  <button
-                    onClick={handleExpenseSubmit}
-                    disabled={expenseReadiness === 'empty'}
-                    className={`rounded-full px-5 py-2 text-sm font-semibold text-white transition-colors ${
-                      expenseReadiness === 'ready'
-                        ? 'bg-[#0B1220] hover:bg-slate-800'
-                        : 'bg-slate-300 cursor-not-allowed'
-                    }`}
-                  >
-                    Submit Expense Sheet
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}
