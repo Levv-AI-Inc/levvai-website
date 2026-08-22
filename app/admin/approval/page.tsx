@@ -109,7 +109,7 @@ export default function ApprovalConfigurationPage() {
               Not Enabled
             </span>
             <button className="text-gray-400 hover:text-slate-300">
-
+              
             </button>
           </div>
         </div>
@@ -126,8 +126,8 @@ export default function ApprovalConfigurationPage() {
             active={activeScope === 'spend'}
             onClick={() => setActiveScope('spend')}
           />
-
-
+          
+          
         </nav>
       </div>
 
@@ -158,7 +158,7 @@ export default function ApprovalConfigurationPage() {
                 disabled={loading}
                 className="mt-3 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:opacity-50"
               >
-
+                
                 ✨ {loading ? 'Generating…' : 'Generate rules'}
               </button>
             </div>
@@ -239,7 +239,7 @@ export default function ApprovalConfigurationPage() {
                 </ul>
               </div>
 
-
+                
 
                 {/* ASSUMPTIONS */}
                 <div className="space-y-3">
@@ -290,13 +290,13 @@ export default function ApprovalConfigurationPage() {
 
 
                 <p className="text-xs text-slate-400">
-
+                
                 </p>
               </div>
             )}
           </div>
         </div>
-         </div>
+         </div> 
       )}
     </div>
   )

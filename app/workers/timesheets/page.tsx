@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Search,
-  Clock,
-  X,
-  ChevronRight,
+import { 
+  Search, 
+  Clock, 
+  X, 
+  ChevronRight, 
   Sparkles,
   ChevronDown,
   Filter,
@@ -91,7 +91,7 @@ export default function TimesheetsPage() {
   // --- Logic: Filtering ---
   const filteredTimesheets = useMemo(() => {
     return timesheets.filter((ts) => {
-      const matchesSearch =
+      const matchesSearch = 
         ts.worker.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ts.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = selectedStatus === "All" || ts.approval === selectedStatus;
@@ -104,7 +104,7 @@ export default function TimesheetsPage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-
+        
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -119,8 +119,8 @@ export default function TimesheetsPage() {
               <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
                 <Sparkles size={18} />
               </div>
-              <input
-                type="text"
+              <input 
+                type="text" 
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 placeholder="Ask Nova to analyze labor costs..."
@@ -147,7 +147,7 @@ export default function TimesheetsPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Approval Status</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
@@ -162,7 +162,7 @@ export default function TimesheetsPage() {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Records</label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
+                <input 
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="ID or Worker Name..."
                   value={searchTerm}
@@ -171,7 +171,7 @@ export default function TimesheetsPage() {
               </div>
             </div>
 
-            <button
+            <button 
               onClick={() => {setSearchTerm(""); setSelectedStatus("All");}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
@@ -195,8 +195,8 @@ export default function TimesheetsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredTimesheets.map((ts) => (
-                  <tr
-                    key={ts.id}
+                  <tr 
+                    key={ts.id} 
                     className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
                     onClick={() => setSelectedRecord(ts)}
                   >
@@ -232,7 +232,7 @@ export default function TimesheetsPage() {
                     <td className="px-8 py-6">
                       <div className="flex flex-col gap-1.5">
                         <div className={`w-fit inline-flex items-center gap-2 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border shadow-sm bg-white ${
-                          ts.approval === 'Approved' ? 'text-emerald-700 border-emerald-100' :
+                          ts.approval === 'Approved' ? 'text-emerald-700 border-emerald-100' : 
                           ts.approval === 'Pending' ? 'text-amber-700 border-amber-100' : 'text-rose-700 border-rose-100'
                         }`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${ts.approval === 'Approved' ? 'bg-emerald-500' : ts.approval === 'Pending' ? 'bg-amber-500' : 'bg-rose-500'}`} />
@@ -277,7 +277,7 @@ export default function TimesheetsPage() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {selectedRecord.approval === "Rejected" && (
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">

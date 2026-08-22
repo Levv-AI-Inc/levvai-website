@@ -1,14 +1,15 @@
-import RatesModuleLayout from './components/RatesModuleLayout'
+'use client'
+
 import { RatesConfigProvider } from './context/RatesConfigContext'
 
-export default function AdminRatesLayout({
+export default function RatesLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
     <RatesConfigProvider>
-      <RatesModuleLayout>{children}</RatesModuleLayout>
+      {children}
     </RatesConfigProvider>
   )
 }

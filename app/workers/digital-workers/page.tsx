@@ -1250,7 +1250,7 @@ export default function DigitalWorkersPage() {
                   <div className="flex items-center gap-2 text-sm text-cyan-600">
                     <FileText className="h-4 w-4" />Linked SOW
                   </div>
-                  <a href={`/services/sow/${selectedWorker.linkedSowId}`}
+                  <a href={`/requests/sow/${selectedWorker.linkedSowId}`}
                     className="inline-flex items-center gap-1 text-sm font-bold text-cyan-600 hover:underline">
                     {selectedWorker.linkedSowId}<ExternalLink className="h-3.5 w-3.5" />
                   </a>

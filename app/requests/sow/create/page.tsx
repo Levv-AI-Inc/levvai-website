@@ -55,7 +55,7 @@ export default function CreateSOWPage() {
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
       <div className="max-w-4xl mx-auto px-6 py-12">
-
+        
         {/* Header Section */}
         <header className="mb-10">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">

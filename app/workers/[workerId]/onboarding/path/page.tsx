@@ -5,17 +5,7 @@ import ReadinessScore from '@/components/onboarding/ReadinessScore'
 import Stepper from '@/components/onboarding/Stepper'
 import BlockerBanner from '@/components/onboarding/BlockerBanner'
 
-type Step = {
-  id: string
-  label: string
-  status: 'Pending' | 'In Progress' | 'Complete'
-  owner: 'Worker' | 'Supplier' | 'Internal'
-  blocker?: string
-  etaDays?: number
-  href?: string
-}
-
-const steps: Step[] = [
+const steps = [
   {
     id: 'worker-info',
     label: 'Worker Information',

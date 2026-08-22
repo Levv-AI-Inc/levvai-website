@@ -42,7 +42,7 @@ export default function IntegrationsPage() {
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-6 py-12">
-
+        
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
@@ -67,8 +67,8 @@ export default function IntegrationsPage() {
                 key={cat}
                 onClick={() => setActiveTab(cat)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === cat
-                    ? 'bg-white text-gray-900 shadow-sm'
+                  activeTab === cat 
+                    ? 'bg-white text-gray-900 shadow-sm' 
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -93,9 +93,9 @@ export default function IntegrationsPage() {
         {filteredIntegrations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredIntegrations.map((integration) => (
-              <IntegrationCard
-                key={integration.name}
-                integration={integration}
+              <IntegrationCard 
+                key={integration.name} 
+                integration={integration} 
                 onOpenSettings={() => setActiveIntegration(integration)}
               />
             ))}
@@ -111,9 +111,9 @@ export default function IntegrationsPage() {
 
       {/* Settings Drawer */}
       {activeIntegration && (
-        <SettingsDrawer
-          integration={activeIntegration}
-          onClose={() => setActiveIntegration(null)}
+        <SettingsDrawer 
+          integration={activeIntegration} 
+          onClose={() => setActiveIntegration(null)} 
         />
       )}
     </div>
@@ -153,7 +153,7 @@ function IntegrationCard({ integration, onOpenSettings }: { integration: Integra
       </div>
 
       <div className="mt-6 pt-6 border-t flex items-center justify-between">
-        <button
+        <button 
           onClick={onOpenSettings}
           className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition"
         >
@@ -171,7 +171,7 @@ function SettingsDrawer({ integration, onClose }: { integration: Integration, on
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-
+        
         <div className="p-8 border-b flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-black text-white flex items-center justify-center font-bold">

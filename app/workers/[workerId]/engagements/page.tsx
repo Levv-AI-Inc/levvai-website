@@ -2,21 +2,21 @@
 
 import React, { useState, useMemo } from "react";
 import { useRouter } from 'next/navigation';
-import {
-  Search,
-  User,
-  Clock,
-  X,
-  ChevronRight,
-  Sparkles,
-  ChevronDown,
-  Filter,
-  Eye,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
-  Calendar,
-  ShieldCheck,
+import { 
+  Search, 
+  User, 
+  Clock, 
+  X, 
+  ChevronRight, 
+  Sparkles, 
+  ChevronDown, 
+  Filter, 
+  Eye, 
+  ArrowRight, 
+  AlertCircle, 
+  CheckCircle2, 
+  Calendar, 
+  ShieldCheck, 
   Zap,
   ShieldAlert,
   Layers,
@@ -90,7 +90,7 @@ export default function EngagementsPage() {
 
   const filteredEngagements = useMemo(() => {
     return onboardingRows.filter((row) => {
-      const matchesSearch =
+      const matchesSearch = 
         row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         row.workerId.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = selectedStatus === "All" || row.status === selectedStatus;
@@ -103,11 +103,11 @@ export default function EngagementsPage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-
+        
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-
+            
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Workers Lifecycle</h1>
             <p className="text-slate-500 font-medium">Monitoring requirement blocks & departmental bottlenecks.</p>
           </div>
@@ -119,8 +119,8 @@ export default function EngagementsPage() {
               <div className="bg-slate-950 p-2 rounded-xl text-cyan-400 ml-1">
                 <Sparkles size={18} />
               </div>
-              <input
-                type="text"
+              <input 
+                type="text" 
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 placeholder="Ask Nova: 'Who is blocking John?'"
@@ -147,7 +147,7 @@ export default function EngagementsPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Engagement Status</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
@@ -162,7 +162,7 @@ export default function EngagementsPage() {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Search Records</label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
+                <input 
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="Worker name or ID..."
                   value={searchTerm}
@@ -171,7 +171,7 @@ export default function EngagementsPage() {
               </div>
             </div>
 
-            <button
+            <button 
               onClick={() => {setSearchTerm(""); setSelectedStatus("All");}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
@@ -195,8 +195,8 @@ export default function EngagementsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEngagements.map((row) => (
-                  <tr
-                    key={row.workerId}
+                  <tr 
+                    key={row.workerId} 
                     className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
                     onClick={() => setSelectedRecord(row)}
                   >
@@ -285,7 +285,7 @@ export default function EngagementsPage() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {/* BLOCKER ALERT */}
               {selectedRecord.status !== "Ready" && (
@@ -377,7 +377,7 @@ export default function EngagementsPage() {
               </section>
 
               <div className="pt-8">
-                <button
+                <button 
                   onClick={() => router.push(`/workers/${selectedRecord.workerId}/engagements/onboarding/workspace`)}
                   className="w-full bg-slate-950 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-2xl shadow-cyan-900/20 active:scale-[0.98]"
                 >

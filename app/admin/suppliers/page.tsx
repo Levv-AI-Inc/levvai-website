@@ -47,7 +47,7 @@ export default function SuppliersPage() {
       }))
 
       setSupplierList((prev) => [...newSuppliers, ...prev])
-
+      
       // Reset input so the same file can be uploaded again if needed
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -101,14 +101,14 @@ export default function SuppliersPage() {
           <p className="text-xs text-gray-500 mt-1 mb-4">
             Upload an .xlsx with name, supplierId, country, and status.
           </p>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-            accept=".xlsx,.xls"
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+            accept=".xlsx,.xls" 
           />
-          <button
+          <button 
             onClick={() => fileInputRef.current?.click()}
             className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >

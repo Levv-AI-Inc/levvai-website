@@ -16,35 +16,27 @@ export default function WorkersLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const showTabs = TABS.some((tab) => pathname === tab.href)
-
-  if (!showTabs) {
-    return <>{children}</>
-  }
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-6 text-sm">
-          {TABS.map((tab) => {
-            const active = pathname.startsWith(tab.href)
-
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={clsx(
-                  'pb-3 transition',
-                  active
-                    ? 'border-b-2 border-black font-medium text-gray-950'
-                    : 'text-slate-500 hover:text-slate-800',
-                )}
-              >
-                {tab.label}
-              </Link>
-            )
-          })}
-        </nav>
+      <div className="flex gap-6 border-b">
+        {TABS.map((tab) => {
+          const active = pathname.startsWith(tab.href)
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={clsx(
+                'pb-2 text-sm',
+                active
+                  ? 'border-b-2 border-slate-900 font-medium text-slate-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              )}
+            >
+              {tab.label}
+            </Link>
+          )
+        })}
       </div>
 
       {children}

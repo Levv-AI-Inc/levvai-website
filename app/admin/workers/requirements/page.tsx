@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import {
-  Cog, Zap, Link2, Plus, X, Search, Filter,
-  ArrowRight, RotateCcw, Users, Globe, Layers,
-  AlertCircle, CheckCircle2, Sliders, Target, User, ChevronDown, Check,
+  Cog, Zap, Link2, Clock, Plus, X, Search, Filter,
+  ShieldCheck, ArrowRight, RotateCcw, Users, Globe, Layers,
+  AlertCircle, CheckCircle2, Sliders, Trash2, Target, User, ChevronDown, Check,
   FileText, PenLine, Upload, CheckSquare,
 } from 'lucide-react'
 import {
@@ -13,6 +13,7 @@ import {
   smartUnwind,
   composeAction,
   VERB_MODE,
+  unwindRunner,
   allowedApprovers,
   coerceApprover,
   approverLabel,
@@ -32,8 +33,10 @@ import {
   type UnwindVerb,
   type Approver,
   type Person,
+  type Nova,
   type NovaCheckKind,
   type Requirement,
+  type ValidationStrategy,
   type OwnerRole,
   type ApproverGroup,
   type UnwindCondition,
@@ -52,7 +55,18 @@ const OWNER_CONFIG: Record<string, { bg: string; color: string; border: string; 
   System:           { bg: '#f8fafc', color: '#475569', border: '#cbd5e1', dot: '#94a3b8' },
 }
 
+const STRATEGY_LABEL: Record<ValidationStrategy, string> = {
+  manual: 'Human review',
+  third_party: 'Integration',
+}
+const PRIMARY_LABEL: Record<ValidationStrategy, string> = {
+  manual: 'Human review',
+  third_party: 'Integration',
+}
+
 const OWNER_OPTIONS: OwnerRole[] = ['Worker', 'IT', 'Supplier', 'Hiring Manager', 'System']
+const APPROVER_OPTIONS: ApproverGroup[] = ['HR', 'LEGAL', 'IT', 'FINANCE', 'SECURITY', 'PROCUREMENT']
+const UNWIND_OWNER_OPTIONS = ['HR', 'IT', 'LEGAL', 'SECURITY', 'PROCUREMENT', 'FINANCE', 'System']
 const UNWIND_WHEN: UnwindCondition[] = ['on end-date', 'within 3 days of end-date', 'immediately on exit', 'on final invoice']
 const WORKER_TYPES = ['Contingent', 'SOW', 'Staff-aug'] as const
 const DOC_METHOD_ICON: Record<DocMethod, typeof PenLine> = { esign: PenLine, upload: Upload, acknowledge: CheckSquare }
@@ -273,6 +287,27 @@ export default function RequirementsPage() {
           />
         )}
       </div>
+    </>
+  )
+}
+
+/* approver dropdown options, grouped and filtered by owner */
+function ApproverOptions({ owner }: { owner: OwnerRole }) {
+  const allowed = allowedApprovers(owner)
+  const autos = allowed.filter(a => a === 'Integration')
+  const humans = allowed.filter(a => a !== 'Integration')
+  return (
+    <>
+      {autos.length > 0 && (
+        <optgroup label="Automated">
+          {autos.map(a => <option key={a} value={a}>{approverLabel(a)}</option>)}
+        </optgroup>
+      )}
+      {humans.length > 0 && (
+        <optgroup label="People">
+          {humans.map(a => <option key={a} value={a}>{a}</option>)}
+        </optgroup>
+      )}
     </>
   )
 }

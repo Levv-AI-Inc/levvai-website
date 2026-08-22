@@ -100,7 +100,7 @@ export default function OnboardingOverviewPage() {
                       <span>{row.readiness}% Complete</span>
                     </div>
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                      <div
+                      <div 
                         className={`h-full transition-all duration-1000 ${
                           row.readiness === 100 ? 'bg-emerald-500' : 'bg-indigo-600'
                         }`}

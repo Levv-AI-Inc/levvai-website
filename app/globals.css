@@ -41,7 +41,6 @@ small,
 
 /* =========================
    Semantic color helpers
-   (optional, non-breaking)
 ========================= */
 :root {
   --cws-bg: #f8fafc;
@@ -51,7 +50,6 @@ small,
   --cws-text-primary: #0f172a; /* slate-900 */
   --cws-text-secondary: #475569; /* slate-600 */
 
-  /* Primary accent (used sparingly) */
   --cws-accent: #22d3ee; /* cyan-400 */
 }
 
@@ -84,6 +82,7 @@ small,
 .animate-banner {
   animation: bannerFadeOut 3s forwards;
 }
+
 /* =========================
    Button normalization fix
 ========================= */
@@ -91,4 +90,3 @@ button {
   appearance: none;
   -webkit-appearance: none;
 }
-

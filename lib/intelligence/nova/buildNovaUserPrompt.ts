@@ -1,6 +1,4 @@
-import type { GPTMessage } from '@/lib/intelligence/gpt/callGPT'
-
-export function buildNovaUserPrompt(input: string): GPTMessage[] {
+export function buildNovaUserPrompt(input: string) {
   return [
     {
       role: 'system',

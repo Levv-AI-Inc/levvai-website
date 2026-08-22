@@ -181,7 +181,7 @@ function getBlockIssues(block: Block): string[] {
   const issues: string[] = []
   if (block.type === 'MANUAL') {
     if (block.requirements.length === 0) issues.push('No requirements added')
-    const unassigned = block.requirements.filter(r => !r.owner)
+    const unassigned = block.requirements.filter(r => !r.owner || r.owner === '')
     if (unassigned.length > 0) issues.push(`${unassigned.length} requirement(s) have no owner`)
   }
   if (block.type === 'SYSTEM') {
@@ -413,6 +413,7 @@ export default function PolicyArchitectPage() {
           id: crypto.randomUUID(), name: activeDragBlock.name, type: activeDragBlock.type,
           order: prev.length + 1, gate: activeDragBlock.gate ?? 'HARD',
           completionRule: activeDragBlock.completionRule ?? 'ALL', completionN: activeDragBlock.completionN,
+          integration: 'NONE',
           accountableOwner: activeDragBlock.accountableOwner,
           integration: activeDragBlock.integration, push: activeDragBlock.push, pull: activeDragBlock.pull,
           reads: activeDragBlock.reads, writes: activeDragBlock.writes,
@@ -492,7 +493,7 @@ export default function PolicyArchitectPage() {
     for (const b of blocks) m.set(b.id, getBlockIssues(b))
     return m
   }, [blocks])
-  const totalIssues = React.useMemo(() => Array.from(blockIssuesMap.values()).reduce((count, issues) => count + issues.length, 0), [blockIssuesMap])
+  const totalIssues = React.useMemo(() => { let c = 0; for (const i of blockIssuesMap.values()) c += i.length; return c }, [blockIssuesMap])
   const totalRequirements = blocks.reduce((s, b) => s + b.requirements.length, 0)
   const hardGateCount = blocks.filter(b => b.gate === 'HARD').length
   const softGateCount = blocks.filter(b => b.gate === 'SOFT').length
@@ -664,7 +665,7 @@ export default function PolicyArchitectPage() {
     }
     // eslint-disable-next-line no-console
     console.log('[LEVV] saving policy', policy)
-    addWorkflow({ id: policy.id, name: policy.name, status: 'Draft', active: true })
+    addWorkflow({ id: policy.id, name: policy.name, status: 'Draft' })
     setSaveSuccess(true)
     setTimeout(() => router.push('/admin/workers/onboarding'), 900)
   }

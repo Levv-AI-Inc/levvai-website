@@ -2,96 +2,95 @@
 
 import { useRouter } from 'next/navigation'
 import {
+  DollarSign,
+  Table,
   Calculator,
   Clock,
-  CreditCard,
-  DollarSign,
-  Layers,
-  Table,
+  Layers
 } from 'lucide-react'
 
-const MODULES = [
+const modules = [
   {
     title: 'Units of Measure',
-    description: 'Define local work billing units such as hour, day, and unit.',
+    description: 'Define how work is billed (hour, day, unit).',
     icon: Layers,
-    path: '/admin/rates/units',
+    path: '/admin/rates/units'
   },
   {
     title: 'Rate Categories',
-    description: 'Define local standard, overtime, and premium rate categories.',
+    description: 'Define standard, overtime, and premium rates.',
     icon: Clock,
-    path: '/admin/rates/categories',
+    path: '/admin/rates/categories'
   },
   {
-    title: 'Structure Designer',
-    description: 'Sketch local pay, tax, and markup calculation components.',
+    title: 'Rate Structure',
+    description: 'Configure pay, tax, and markup calculations.',
     icon: Calculator,
-    path: '/admin/rates/structure',
+    path: '/admin/rates/structure'
   },
   {
-    title: 'Backend Rate Structures',
-    description: 'Create reusable API-backed structures for rate cards.',
+    title: 'Rate Cards',
+    description: 'Manage supplier pricing by role and location.',
     icon: Table,
-    path: '/admin/rates/structures',
+    path: '/admin/rates/cards'
   },
   {
-    title: 'Backend Rate Cards',
-    description: 'Manage supplier pricing by role, location, and effective date.',
-    icon: CreditCard,
-    path: '/admin/rates/cards',
-  },
-  {
-    title: 'Backend Rate Rules',
-    description: 'Automate overtime, shift, and pricing adjustments.',
+    title: 'Rate Rules',
+    description: 'Automate overtime and shift logic.',
     icon: DollarSign,
-    path: '/admin/rates/rules',
-  },
+    path: '/admin/rates/rules'
+  }
 ]
 
-export default function AdminRatesPage() {
+export default function RateConfigurationPage() {
   const router = useRouter()
 
   return (
     <div className="space-y-6">
+
+      {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-xl font-semibold text-slate-900">
           Rate Configuration
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Use local design surfaces for setup work and backend-backed modules
-          for production rate structures, cards, and rules.
+        </h1>
+        <p className="text-sm text-slate-500">
+          Configure pricing models, supplier rate cards, and billing rules.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {MODULES.map((module) => {
+      {/* Module Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+        {modules.map((module) => {
           const Icon = module.icon
 
           return (
             <button
-              key={module.path}
-              type="button"
+              key={module.title}
               onClick={() => router.push(module.path)}
-              className="group rounded-lg border border-slate-200 bg-white p-5 text-left transition hover:border-slate-400 hover:shadow-sm"
+              className="group rounded-lg border bg-white p-5 text-left hover:border-slate-400 hover:shadow-sm transition"
             >
               <div className="flex items-start gap-3">
-                <div className="rounded-md bg-slate-100 p-2 group-hover:bg-slate-200">
-                  <Icon className="h-5 w-5 text-slate-700" />
+
+                <div className="p-2 rounded-md bg-slate-100 group-hover:bg-slate-200">
+                  <Icon size={18} />
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
+                  <h2 className="text-sm font-semibold text-slate-900">
                     {module.title}
-                  </h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                  </h2>
+
+                  <p className="text-xs text-slate-500 mt-1">
                     {module.description}
                   </p>
                 </div>
+
               </div>
             </button>
           )
         })}
+
       </div>
     </div>
   )

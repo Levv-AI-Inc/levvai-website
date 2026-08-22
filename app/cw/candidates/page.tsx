@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Search,
-  User,
-  MapPin,
-  Clock,
-  X,
-  ChevronRight,
-  FileText,
-  Calendar,
+import { 
+  Search, 
+  User, 
+  MapPin, 
+  Clock, 
+  X, 
+  ChevronRight, 
+  FileText, 
+  Calendar, 
   Sparkles,
   ChevronDown,
   Filter,
@@ -90,12 +90,10 @@ const candidates = [
   }
 ];
 
-type CandidateRecord = (typeof candidates)[number];
-
 export default function CandidatesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStage, setSelectedStage] = useState("All");
-  const [selectedRecord, setSelectedRecord] = useState<CandidateRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [aiInput, setAiInput] = useState("");
 
   const stages = ["All", "Submitted", "Interview", "Offer", "Hired"];
@@ -103,13 +101,13 @@ export default function CandidatesPage() {
   // --- Logic: Filtering ---
   const filteredCandidates = useMemo(() => {
     return candidates.filter((c) => {
-      const matchesSearch =
+      const matchesSearch = 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.jobId.toLowerCase().includes(searchTerm.toLowerCase());
-
+      
       const matchesStage = selectedStage === "All" || c.stage === selectedStage;
-
+      
       return matchesSearch && matchesStage;
     });
   }, [searchTerm, selectedStage]);
@@ -119,7 +117,7 @@ export default function CandidatesPage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-
+        
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -134,8 +132,8 @@ export default function CandidatesPage() {
               <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
                 <Sparkles size={18} />
               </div>
-              <input
-                type="text"
+              <input 
+                type="text" 
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 placeholder="Ask Nova about stalled candidates..."
@@ -162,7 +160,7 @@ export default function CandidatesPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Pipeline Stage</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedStage}
                   onChange={(e) => setSelectedStage(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
@@ -177,7 +175,7 @@ export default function CandidatesPage() {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Candidates</label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
+                <input 
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="Name, role, or Job ID..."
                   value={searchTerm}
@@ -186,7 +184,7 @@ export default function CandidatesPage() {
               </div>
             </div>
 
-            <button
+            <button 
               onClick={() => {setSearchTerm(""); setSelectedStage("All");}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
@@ -210,8 +208,8 @@ export default function CandidatesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredCandidates.map((c) => (
-                  <tr
-                    key={`${c.name}-${c.jobId}`}
+                  <tr 
+                    key={`${c.name}-${c.jobId}`} 
                     className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
                     onClick={() => setSelectedRecord(c)}
                   >
@@ -295,7 +293,7 @@ export default function CandidatesPage() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {selectedRecord.daysInStage > 7 && (
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">

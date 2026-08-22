@@ -65,8 +65,8 @@ export default function NovaPage() {
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 antialiased animate-in fade-in duration-700" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="max-w-5xl mx-auto w-full pt-12 space-y-8">
-
-        <button
+        
+        <button 
           onClick={() => router.back()}
           className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-cyan-600 transition-colors uppercase tracking-widest"
         >

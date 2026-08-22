@@ -25,10 +25,10 @@ export default function NovaClarifyPage() {
   return (
     <div className="flex flex-col min-h-screen p-6 bg-gray-50/50 font-sans">
       <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-12 flex-1 pt-8">
-
+        
         {/* LEFT: Main Content */}
         <div className="lg:w-2/3 w-full space-y-8">
-          <button
+          <button 
             onClick={() => router.back()}
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-cyan-600 transition-colors uppercase tracking-widest"
           >
@@ -49,20 +49,20 @@ export default function NovaClarifyPage() {
             value={selection}
             onChange={setSelection}
             options={[
-              {
-                value: "ongoing_role",
-                label: "Ongoing Role",
-                description: "Someone performing ongoing work (e.g., contractor, technician, analyst)."
+              { 
+                value: "ongoing_role", 
+                label: "Ongoing Role", 
+                description: "Someone performing ongoing work (e.g., contractor, technician, analyst)." 
               },
-              {
-                value: "defined_outcome",
-                label: "Defined Outcome",
-                description: "A vendor delivering a project, milestone, or specific result."
+              { 
+                value: "defined_outcome", 
+                label: "Defined Outcome", 
+                description: "A vendor delivering a project, milestone, or specific result." 
               },
-              {
-                value: "not_sure",
-                label: "Not sure yet",
-                description: "Nova will guide this further as more details are provided."
+              { 
+                value: "not_sure", 
+                label: "Not sure yet", 
+                description: "Nova will guide this further as more details are provided." 
               },
             ]}
           />
@@ -89,15 +89,15 @@ export default function NovaClarifyPage() {
               </div>
 
               <div className="space-y-6">
-                <ReadinessItem
-                  label="Work Definition"
-                  status={selection ? "Clear" : "Pending"}
-                  isComplete={!!selection}
+                <ReadinessItem 
+                  label="Work Definition" 
+                  status={selection ? "Clear" : "Pending"} 
+                  isComplete={!!selection} 
                 />
-                <ReadinessItem
-                  label="Policy Alignment"
-                  status={riskAnalysis ? "Review" : selection ? "High" : "Pending"}
-                  isComplete={!!selection && !riskAnalysis}
+                <ReadinessItem 
+                  label="Policy Alignment" 
+                  status={riskAnalysis ? "Review" : selection ? "High" : "Pending"} 
+                  isComplete={!!selection && !riskAnalysis} 
                   isWarning={!!riskAnalysis}
                 />
               </div>

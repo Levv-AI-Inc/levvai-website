@@ -3,14 +3,14 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useSOW } from '../context'
-import {
-  DollarSign,
-  Plus,
-  X,
-  ChevronRight,
-  ChevronLeft,
-  CheckCircle2,
-  Circle,
+import { 
+  DollarSign, 
+  Plus, 
+  X, 
+  ChevronRight, 
+  ChevronLeft, 
+  CheckCircle2, 
+  Circle, 
   Percent,
   Calculator
 } from 'lucide-react'
@@ -80,7 +80,7 @@ export default function FinancialsPage() {
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
       <div className="max-w-7xl mx-auto px-10 py-12 grid grid-cols-[1fr_300px] gap-12">
-
+        
         {/* LEFT: MAIN CONTENT */}
         <div className="space-y-10">
           <header className="space-y-2">
@@ -145,13 +145,13 @@ export default function FinancialsPage() {
 
                   <div className="flex items-end gap-10">
                     <div className="flex bg-gray-50 p-1 border border-gray-200 rounded-md">
-                      <button
+                      <button 
                         onClick={() => updateAllocation(a.costCenterId, { mode: 'percentage', value: 0 })}
                         className={`px-4 py-1.5 rounded text-[10px] font-black uppercase transition-all ${a.mode === 'percentage' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-400'}`}
                       >
                         Percent
                       </button>
-                      <button
+                      <button 
                         onClick={() => updateAllocation(a.costCenterId, { mode: 'amount', value: 0 })}
                         className={`px-4 py-1.5 rounded text-[10px] font-black uppercase transition-all ${a.mode === 'amount' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-400'}`}
                       >

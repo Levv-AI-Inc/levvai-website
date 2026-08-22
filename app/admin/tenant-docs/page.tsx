@@ -22,7 +22,7 @@ const CONFIG_OPTIONS: Option[] = [
     id: 'roles',
     label: 'Users, Roles & Permissions',
     sub: 'Roles, permissions by module, and role assignment counts',
-
+    
   },
   {
     id: 'workflow',
@@ -149,7 +149,7 @@ export default function TenantDocsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentType,
-          sections: Array.from(selected),
+          sections: [...selected],
         }),
       })
 

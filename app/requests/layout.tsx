@@ -4,8 +4,8 @@ export default function NewRequestLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white min-h-full">
-      <div className="mx-auto w-full max-w-5xl p-8">{children}</div>
+    <div className="bg-white min-h-screen flex items-center justify-center">
+      <div className="w-full max-w-5xl p-8">{children}</div>
     </div>
   );
 }

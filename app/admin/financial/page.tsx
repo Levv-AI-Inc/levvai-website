@@ -28,7 +28,7 @@ type TableConfig = {
 
 export default function FinancialPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Currency')
-
+  
   // Manage data in state to allow for dynamic updates via upload
   const [financialData, setFinancialData] = useState<Record<Tab, TableRow[]>>({
     'Currency': [
@@ -156,7 +156,7 @@ function BulkUploadPanel({ activeTab, onUpload }: { activeTab: Tab, onUpload: (d
         Headers must match the {activeTab} table columns.
       </p>
       <input type="file" ref={fileRef} onChange={handleFile} className="hidden" accept=".xlsx,.xls" />
-      <button
+      <button 
         onClick={() => fileRef.current?.click()}
         className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
       >

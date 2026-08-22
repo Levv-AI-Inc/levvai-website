@@ -20,6 +20,8 @@ export async function callApprovalGPT(
     },
     ])
 
-  return parseApprovalResponse(response)
+    return parseApprovalResponse(
+    typeof response === 'string' ? response : response.content
+    )
 
 }

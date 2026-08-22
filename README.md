@@ -1,44 +1,36 @@
-# LevvAI Website
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Local Development
+## Getting Started
 
-The frontend uses same-origin backend paths such as `/api/session` and
-`/auth/password/login-user`. Set `LOCAL_BACKEND_URL` to proxy unmatched API,
-auth, and Django admin requests to the local backend.
+First, run the development server:
 
 ```bash
-cp .env.example .env.local
-npm install
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Run the Django backend on `http://127.0.0.1:8000`, then open:
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```text
-http://localhost:3000/auth/login
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-Verify the proxy before logging in:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```bash
-curl -i http://localhost:3000/healthz
-```
+## Learn More
 
-It should return the Django health response rather than a Next.js `404`.
+To learn more about Next.js, take a look at the following resources:
 
-The proxy is disabled when `LOCAL_BACKEND_URL` is unset. Production routing
-continues to use the load balancer.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-See the backend README for the one-time local tenant and admin bootstrap.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy To Cloud Run
+## Deploy on Vercel
 
-Run this command to deploy the `levvai-website` service to Cloud Run:
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-```bash
-gcloud run deploy levvai-website \
-    --source . \
-    --region us-east1 \
-    --allow-unauthenticated \
-    --env-vars-file cloudrun.env
-```
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -118,7 +118,7 @@ const RUN: RunBlock[] = [
 /* deterministic avatar (same model as the builder) */
 function Avatar({ name }: { name: string }) {
   const colors = ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#14b8a6']
-  const h = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  const h = [...name].reduce((a, c) => a + c.charCodeAt(0), 0)
   const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('')
   return <span className="ava" style={{ background: colors[h % colors.length] }}>{initials}</span>
 }

@@ -1,38 +1,23 @@
 import OpenAI from 'openai'
 
-let client: OpenAI | null = null
-
-function getOpenAIClient() {
-  if (client) return client
-
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error(
-      'OPENAI_API_KEY is not configured.'
-    )
-  }
-
-  client = new OpenAI({ apiKey })
-  return client
-}
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+})
 
 export type GPTMessage = {
-  role: 'system' | 'user'
+  role: 'system' | 'user' | 'assistant'
   content: string
 }
 
 export async function callGPT(messages: GPTMessage[]) {
-  const openai = getOpenAIClient()
-
-  const response = await openai.responses.create({
+  const response = await client.responses.create({
     model: 'gpt-4.1-mini',
     input: messages.map(m => ({
       role: m.role,
       content: [
-        {
-          type: 'input_text',
-          text: m.content,
-        },
+        m.role === 'assistant'
+          ? { type: 'output_text' as const, text: m.content }
+          : { type: 'input_text' as const, text: m.content },
       ],
     })),
   })

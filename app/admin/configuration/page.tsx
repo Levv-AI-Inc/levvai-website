@@ -23,7 +23,7 @@ import {
 ====================================================== */
 
 const MODULES = [
-  'INTAKE', 'JOB_POSTING', 'SOW', 'WORKER',
+  'INTAKE', 'JOB_POSTING', 'SOW', 'WORKER', 
   'SUPPLIER', 'WORK_ORDER', 'TIMESHEET', 'INVOICE'
 ] as const
 
@@ -171,7 +171,7 @@ export default function ConfigurationPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
+            <button 
               onClick={() => {
                 const blob = new Blob([JSON.stringify(fields, null, 2)], { type: 'application/json' })
                 const url = URL.createObjectURL(blob); const a = document.createElement('a')
@@ -322,15 +322,15 @@ export default function ConfigurationPage() {
               <section className="space-y-6">
                 <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Visibility Rules ({form.visibilityRules.length})</span>
-                    <button
-                        type="button"
+                    <button 
+                        type="button" 
                         onClick={addVisibilityRule}
                         className="text-xs font-bold flex items-center gap-1.5 text-blue-600 hover:underline"
                     >
                         <Plus className="h-3 w-3" /> Add Logic Rule
                     </button>
                 </div>
-
+                
                 <div className="space-y-3">
                     {form.visibilityRules.length === 0 && (
                         <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 text-xs font-bold">
@@ -339,7 +339,7 @@ export default function ConfigurationPage() {
                     )}
                     {form.visibilityRules.map((rule, idx) => (
                         <div key={rule.id} className="p-5 bg-slate-50 rounded-[24px] border border-slate-200 relative animate-in zoom-in-95">
-                            <button
+                            <button 
                                 onClick={() => removeVisibilityRule(rule.id)}
                                 className="absolute -top-2 -right-2 bg-white border border-slate-200 p-1 rounded-full text-slate-400 hover:text-red-500 shadow-sm"
                             >
@@ -348,7 +348,7 @@ export default function ConfigurationPage() {
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Scope</label>
-                                    <select
+                                    <select 
                                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
                                         value={rule.scopeType}
                                         onChange={(e) => updateVisibilityRule(rule.id, { scopeType: e.target.value as any })}
@@ -358,15 +358,15 @@ export default function ConfigurationPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Matching Value</label>
-                                    <input
-                                        placeholder="e.g. 100-Corporate"
+                                    <input 
+                                        placeholder="e.g. 100-Corporate" 
                                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
                                         value={rule.scopeValue}
                                         onChange={(e) => updateVisibilityRule(rule.id, { scopeValue: e.target.value })}
                                     />
                                 </div>
                             </div>
-                            <select
+                            <select 
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
                                 value={rule.mandatory ? 'MANDATORY' : 'OPTIONAL'}
                                 onChange={(e) => updateVisibilityRule(rule.id, { mandatory: e.target.value === 'MANDATORY' })}
@@ -399,15 +399,15 @@ export default function ConfigurationPage() {
 
                     {form.dependency?.dependsOnFieldId && (
                         <div className="flex gap-3 animate-in fade-in slide-in-from-top-2">
-                            <select
+                            <select 
                                 className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm"
                                 onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, operator: e.target.value as any }})}
                             >
                                 <option value="EQUALS">Is equal to</option>
                                 <option value="NOT_EQUALS">Is not equal to</option>
                             </select>
-                            <input
-                                placeholder="Target value..."
+                            <input 
+                                placeholder="Target value..." 
                                 className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm outline-none"
                                 onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, value: e.target.value }})}
                             />

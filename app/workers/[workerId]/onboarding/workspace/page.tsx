@@ -12,16 +12,7 @@ import ActionPanel from '@/components/onboarding/ActionPanel'
  */
 const viewerRole: 'Internal' | 'Worker' | 'Supplier' = 'Internal'
 
-type Step = {
-  id: string
-  label: string
-  status: 'Pending' | 'In Progress' | 'Complete'
-  owner: 'Worker' | 'Supplier' | 'Internal'
-  blocker?: string
-  etaDays?: number
-}
-
-const steps: Step[] = [
+const steps = [
   {
     id: 'worker-info',
     label: 'Worker Information',

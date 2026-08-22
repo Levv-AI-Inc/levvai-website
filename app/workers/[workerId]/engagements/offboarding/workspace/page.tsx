@@ -103,7 +103,7 @@ export default function EngagementOffboardingWorkspacePage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] p-12 antialiased" style={{ fontFamily: '"Inter", sans-serif' }}>
-
+      
       {/* HEADER: MIRRORED FROM ONBOARDING */}
       <div className="max-w-7xl mx-auto mb-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -113,13 +113,13 @@ export default function EngagementOffboardingWorkspacePage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">John Smith</h1>
             <div className="flex gap-4">
-              <button
+              <button 
                 onClick={() => setActiveTab('onboarding')}
                 className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${activeTab === 'onboarding' ? 'text-cyan-600 border-b-2 border-cyan-600' : 'text-slate-400'}`}
               >
                 Onboarding
               </button>
-              <button
+              <button 
                 onClick={() => setActiveTab('offboarding')}
                 className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${activeTab === 'offboarding' ? 'text-cyan-600 border-b-2 border-cyan-600' : 'text-slate-400'}`}
               >
@@ -132,7 +132,7 @@ export default function EngagementOffboardingWorkspacePage() {
         <div className="flex gap-4">
           <StatTile label="Offboarding Readiness" value="0%" />
           <StatTile label="Est. Cleanup" value="7 Days" />
-
+          
           {/* NOVA INTEL TILE (OFFBOARDING MODE) */}
           <div className="bg-slate-900 rounded-2xl p-4 px-6 text-white shadow-xl border border-white/10 flex items-center gap-4 max-w-sm opacity-50">
             <div className="p-2 bg-slate-700 rounded-lg shrink-0">
@@ -150,10 +150,10 @@ export default function EngagementOffboardingWorkspacePage() {
 
       {/* ORCHESTRATION CANVAS: REVERSE FLOW */}
       <div className="max-w-7xl mx-auto py-20 flex items-center justify-center relative">
-
+        
         {/* BLOCK 1: START (NOTIFICATION) */}
-        <CompactNode
-          block={OFFBOARDING_BLOCKS[0]}
+        <CompactNode 
+          block={OFFBOARDING_BLOCKS[0]} 
           isSelected={selectedBlockId === "off-b1"}
           onClick={() => setSelectedBlockId(selectedBlockId === "off-b1" ? null : "off-b1")}
         />
@@ -169,18 +169,18 @@ export default function EngagementOffboardingWorkspacePage() {
         <div className="flex flex-col gap-16 relative">
           {/* Top: Access (System) */}
           <div className="flex items-center">
-            <CompactNode
-              block={OFFBOARDING_BLOCKS[1]}
+            <CompactNode 
+              block={OFFBOARDING_BLOCKS[1]} 
               isSelected={selectedBlockId === "off-b2"}
               onClick={() => setSelectedBlockId(selectedBlockId === "off-b2" ? null : "off-b2")}
               customIcon={ShieldX}
             />
           </div>
-
+          
           {/* Bottom: Asset (Manual) */}
           <div className="flex items-center">
-            <CompactNode
-              block={OFFBOARDING_BLOCKS[2]}
+            <CompactNode 
+              block={OFFBOARDING_BLOCKS[2]} 
               isSelected={selectedBlockId === "off-b3"}
               onClick={() => setSelectedBlockId(selectedBlockId === "off-b3" ? null : "off-b3")}
               customIcon={PackageCheck}
@@ -197,8 +197,8 @@ export default function EngagementOffboardingWorkspacePage() {
         {/* CONVERGENCE TO FINAL HCM DEACTIVATION */}
         <div className="px-16 flex items-center">
            <GitMerge className="w-6 h-6 text-slate-200 mr-10" />
-           <CompactNode
-            block={OFFBOARDING_BLOCKS[3]}
+           <CompactNode 
+            block={OFFBOARDING_BLOCKS[3]} 
             isSelected={selectedBlockId === "off-b4"}
             onClick={() => setSelectedBlockId(selectedBlockId === "off-b4" ? null : "off-b4")}
             customIcon={PowerOff}
@@ -227,7 +227,7 @@ function CompactNode({ block, isSelected, onClick, customIcon: CustomIcon }: any
   const isLocked = block.status === "locked";
 
   return (
-    <div
+    <div 
       onClick={onClick}
       className={`
       relative flex flex-col w-64 rounded-[2rem] border transition-all duration-500 cursor-pointer bg-white

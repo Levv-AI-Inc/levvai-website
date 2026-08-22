@@ -1,3 +1,7 @@
+import OpenAI from 'openai'
+
+const client = new OpenAI()
+
 type DocumentType = 'configuration' | 'integration'
 
 type RequestBody = {
@@ -231,42 +235,9 @@ export async function POST(req: Request) {
     }
 
     const snapshot = await getTenantSnapshot()
-    const document = process.env.OPENAI_API_KEY
-      ? await generateDocumentWithOpenAI(body.documentType, body.sections, snapshot)
-      : generateFallbackDocument(body.documentType, body.sections, snapshot)
+    const prompt = buildPrompt(body.documentType, body.sections, snapshot)
 
-    const rtf = buildRtf(document)
-    const date = new Date().toISOString().slice(0, 10)
-
-    return new Response(rtf, {
-      headers: {
-        'Content-Type': 'application/rtf',
-        'Content-Disposition': `attachment; filename="${
-          body.documentType === 'configuration'
-            ? 'Tenant_Configuration_Document'
-            : 'Integration_Specification'
-        }_${date}.rtf"`,
-      },
-    })
-  } catch (err: any) {
-    console.error('[tenant-docs]', err)
-    return Response.json(
-      { error: err?.message ?? 'Failed to generate tenant documentation.' },
-      { status: 500 }
-    )
-  }
-}
-
-async function generateDocumentWithOpenAI(
-  documentType: DocumentType,
-  sections: string[],
-  snapshot: TenantSnapshot
-): Promise<GeneratedDocument> {
-  const { default: OpenAI } = await import('openai')
-  const client = new OpenAI()
-  const prompt = buildPrompt(documentType, sections, snapshot)
-
-  const response = await client.responses.create({
+    const response = await client.responses.create({
       model: 'gpt-5.4',
       input: prompt,
       text: {
@@ -331,42 +302,29 @@ async function generateDocumentWithOpenAI(
       },
     })
 
-  return JSON.parse(response.output_text) as GeneratedDocument
-}
+    const raw = response.output_text
+    const document = JSON.parse(raw) as GeneratedDocument
 
-function generateFallbackDocument(
-  documentType: DocumentType,
-  sections: string[],
-  snapshot: TenantSnapshot
-): GeneratedDocument {
-  const title =
-    documentType === 'configuration'
-      ? 'Tenant Configuration Document'
-      : 'Integration Specification Document'
+    const rtf = buildRtf(document)
+    const date = new Date().toISOString().slice(0, 10)
 
-  return {
-    title,
-    subtitle: `${snapshot.tenant.companyName} - ${snapshot.tenant.environment}`,
-    generatedAt: snapshot.tenant.generatedAt || new Date().toISOString(),
-    sections: sections.map((section) => ({
-      title: humanizeSection(section),
-      narrative:
-        'This local draft was generated from the current tenant snapshot. Configure OpenAI credentials to generate a richer narrative document.',
-      bullets: [
-        `Tenant: ${snapshot.tenant.companyName}`,
-        `Environment: ${snapshot.tenant.environment}`,
-        'Source: local tenant documentation snapshot',
-      ],
-      table: null,
-    })),
+    return new Response(rtf, {
+      headers: {
+        'Content-Type': 'application/rtf',
+        'Content-Disposition': `attachment; filename="${
+          body.documentType === 'configuration'
+            ? 'Tenant_Configuration_Document'
+            : 'Integration_Specification'
+        }_${date}.rtf"`,
+      },
+    })
+  } catch (err: any) {
+    console.error('[tenant-docs]', err)
+    return Response.json(
+      { error: err?.message ?? 'Failed to generate tenant documentation.' },
+      { status: 500 }
+    )
   }
-}
-
-function humanizeSection(section: string) {
-  return section
-    .split(/[-_]/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
 }
 
 async function getTenantSnapshot(): Promise<TenantSnapshot> {

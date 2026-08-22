@@ -27,10 +27,10 @@ export default function LocationPage() {
     // Updated font-family to Inter and added font smoothing
     <div className="flex flex-col min-h-screen p-6 bg-gray-50/50 antialiased" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-12 flex-1 pt-8">
-
+        
         {/* LEFT: Main Content */}
         <div className="lg:w-2/3 w-full space-y-8">
-          <button
+          <button 
             onClick={() => router.back()}
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-cyan-600 transition-colors uppercase tracking-widest"
           >
@@ -45,7 +45,7 @@ export default function LocationPage() {
             {/* Added tracking-tight for the professional Inter look */}
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Work location</h1>
             <p className="text-gray-600 font-medium leading-relaxed max-w-2xl">
-              Specifying the primary work location allows Nova to determine local labor laws,
+              Specifying the primary work location allows Nova to determine local labor laws, 
               tax requirements, and worksite-specific policies.
             </p>
           </header>
@@ -56,7 +56,7 @@ export default function LocationPage() {
                 <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-widest">
                    <Globe2 className="w-3 h-3" /> Jurisdiction Selection
                 </label>
-
+                
                 <div className="relative">
                   <select
                     value={country}
@@ -111,16 +111,16 @@ export default function LocationPage() {
 
               <div className="space-y-6">
                 <ReadinessItem label="Work Definition" status="Clear" isComplete={true} />
-                <ReadinessItem
-                  label="Policy Alignment"
-                  status={country ? "High" : "Analyzing"}
-                  isComplete={!!country}
+                <ReadinessItem 
+                  label="Policy Alignment" 
+                  status={country ? "High" : "Analyzing"} 
+                  isComplete={!!country} 
                   isActive={!country}
                 />
                 <ReadinessItem label="Execution Risk" status="Pending" isComplete={false} />
               </div>
             </div>
-
+            
             <div className="px-4 py-3 flex items-center justify-between opacity-50">
                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">AI Precision: High</span>
                <BarChart3 className="w-3 h-3 text-gray-400" />

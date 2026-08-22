@@ -13,106 +13,79 @@ export type ContractTerms = {
   pricingModel?: 'fixed' | 'tm' | 'recurring'
   currency?: string
   totalValue?: number
-
-  // Recurring-only
   billingFrequency?: 'monthly' | 'quarterly' | 'annually'
   recurringAmount?: number
-
   paymentTerms?: string
-  sowStatus?: 'draft' | 'signed' | 'uploaded' | 'not_provided'
+  sowStatus?: 'draft' | 'signed' | 'not_provided'
 }
 
 export type OveragePolicy = 'hard_stop' | 'escalate' | 'continue_flag'
 export type ReviewCadence = 'monthly' | 'quarterly' | 'at_renewal'
-export type CostModel =
-  | 'API Usage'
-  | 'Usage Based'
-  | 'Subscription'
-  | 'Fixed Fee'
-  | 'Included in SOW'
+export type CostModel = 'API Usage' | 'Usage Based' | 'Subscription' | 'Fixed Fee' | 'Included in SOW'
+
+// Whether spend governance fields are relevant for a given cost model
+export function isUsageBased(costModel?: CostModel): boolean {
+  return costModel === 'API Usage' || costModel === 'Usage Based'
+}
 
 export type AIAutomationItem = {
   id: string
+
+  // Identity
   name: string
   category: 'AI Agent' | 'Automation Bot' | 'AI Platform' | 'Workflow Assistant'
+
+  // "aiPlatform" replaces "vendor" — this is the underlying technology stack,
+  // NOT the SOW supplier. e.g. "Azure OpenAI", "UiPath", "AWS Bedrock".
+  // The SOW supplier (SI, consultancy) is already captured at the SOW level.
   aiPlatform?: string
+
+  // Ownership — both required for governance approval
   businessOwner?: string
   technicalOwner?: string
+
+  // What it does and what data it touches
   purpose?: string
   dataClassification?: 'Public' | 'Internal' | 'Confidential' | 'PII' | 'Financial Data'
   accessScope?: string[]
   riskLevel?: 'Low' | 'Medium' | 'High'
+
+  // Cost model — determines whether spend governance fields apply
   costModel?: CostModel
-  spendCap?: number
-  alertThreshold?: number
+
+  // Spend governance — only populated when costModel is usage-based.
+  // These become the live policy on the digital worker record after SOW approval.
+  spendCap?: number           // Monthly approved ceiling in USD
+  alertThreshold?: number     // % of cap that triggers a Nova work item (e.g. 80)
   overpagePolicy?: OveragePolicy
-  spendApprover?: string
+  spendApprover?: string      // Who receives the Nova escalation
   reviewCadence?: ReviewCadence
-  deploymentModel?: 'your_tenant' | 'vendor_hosted' | 'hybrid'
-  oversightLevel?: 'autonomous' | 'human_in_loop' | 'human_on_loop'
-  vendorRetainsData?: boolean
-  vendorTrainsOnData?: boolean
-  complianceScope?: string[]
-  exitPlan?: 'decommission' | 'transition_internal' | 'continue_renewal'
-}
 
-export type FinancialAllocation = {
-  costCenterId: string
-  costCenterName: string
-  mode: 'percentage' | 'amount'
-  value: number
-}
-
-export type Financials = {
-  totalValue?: number
-  currency?: string
-  allocations?: FinancialAllocation[]
-}
-
-export type CommercialMilestone = {
-  id: string
-  name: string
-  amount: number
-  due: string
-}
-
-export type CommercialTMRole = {
-  id: string
-  role: string
-  rate: number
-  startDate: string
-  endDate: string
-}
-
-export type Commercials = {
-  pricingModel?: string
-  paymentTrigger?: string
-  milestones?: CommercialMilestone[]
-  recurringAmount?: number | string
-  billingFrequency?: string
-  tmRoles?: CommercialTMRole[]
-}
-
-export type SOWAttachment = {
-  name?: string
-  [key: string]: unknown
+  // Digital worker record is always created — not optional
+  // Status on creation: 'Pending Review'
 }
 
 export type SOWData = {
   workType?: string
+  rawScope?: string
+  structuredScope?: StructuredScope
+  contractTerms?: ContractTerms
+
+  // Whether the user explicitly answered the AI gate question
+  // (relevant for managed_services and other work types)
+  aiGateAnswer?: 'yes' | 'no' | null
+
+  aiAutomation?: AIAutomationItem[]
+
+  // Legacy fields retained for compatibility
   name?: string
   vendor?: string
   startDate?: string
   endDate?: string
   scope?: string
-  rawScope?: string
-  structuredScope?: StructuredScope
-  contractTerms?: ContractTerms
-  financials?: Financials
-  commercials?: Commercials
-  aiGateAnswer?: 'yes' | 'no' | null
-  aiAutomation?: AIAutomationItem[]
-  attachments?: SOWAttachment[]
+  financials?: Record<string, any>
+  commercials?: Record<string, any>
+  attachments?: any[]
 }
 
 type SOWContextValue = {
@@ -132,24 +105,10 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
     setSOWState(prev => ({
       ...prev,
       ...data,
-      contractTerms: data.contractTerms
-        ? {
-            ...prev.contractTerms,
-            ...data.contractTerms,
-          }
-        : prev.contractTerms,
-      financials: data.financials
-        ? {
-            ...prev.financials,
-            ...data.financials,
-          }
-        : prev.financials,
-      commercials: data.commercials
-        ? {
-            ...prev.commercials,
-            ...data.commercials,
-          }
-        : prev.commercials,
+      contractTerms: {
+        ...prev.contractTerms,
+        ...data.contractTerms,
+      },
       aiAutomation: data.aiAutomation ?? prev.aiAutomation,
     }))
   }

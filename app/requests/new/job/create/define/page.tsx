@@ -1,643 +1,270 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCWRequest } from '../../context/CWRequestContext'
-import {
-  IntakeApiError,
-  createIntakeDraft,
-  getCostCenters,
-  getSites,
-  patchIntake,
-  type ReferenceOption,
-} from '@/lib/api/intake'
-import {
-  getRoles,
-  RolesApiError,
-  type RoleRecord,
-} from '@/lib/api/roles'
-import {
-  LegalEntitiesApiError,
-  getLegalEntities,
-  type LegalEntityRecord,
-} from '@/lib/api/legalEntities'
+import { Search, X, Briefcase, MapPin, Calendar, ChevronRight } from 'lucide-react'
 
-function readErrorMessage(reason: unknown, fallback: string) {
-  return reason instanceof Error ? reason.message : fallback
-}
-
-function isUnauthorizedError(reason: unknown) {
-  return (
-    (reason instanceof IntakeApiError ||
-      reason instanceof RolesApiError ||
-      reason instanceof LegalEntitiesApiError) &&
-    reason.status === 401
-  )
-}
-
-function mapRoleUnitToRateUnit(unit: RoleRecord['default_unit']) {
-  return unit === 'day' ? 'daily' : 'hourly'
-}
-
-function readRoleLocation(role: RoleRecord) {
-  return (
-    role.location_label ||
-    [role.city, role.region, role.country]
-      .filter((value) => value && value.trim())
-      .join(', ')
-  )
-}
-
-function readOptionalString(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed || undefined
-}
-
-function readFirstDefinedString(
-  source: Record<string, unknown>,
-  keys: string[],
-) {
-  for (const key of keys) {
-    const value = readOptionalString(source[key])
-    if (value) return value
-  }
-  return undefined
-}
-
-function readSiteDerivedFields(siteOption: ReferenceOption | null) {
-  if (!siteOption) {
-    return {
-      city: undefined,
-      stateProvince: undefined,
-      country: undefined,
-      legalEntityId: undefined,
-    }
-  }
-
-  const raw = siteOption.raw || {}
-  const city = readFirstDefinedString(raw, ['city', 'site_city'])
-  const stateProvince = readFirstDefinedString(raw, [
-    'state_province',
-    'state',
-    'province',
-    'region',
-  ])
-  const country = readFirstDefinedString(raw, ['country', 'site_country'])
-
-  const legalEntityIdRaw = raw.legal_entity_id ?? raw.legal_entity
-  const legalEntityId =
-    typeof legalEntityIdRaw === 'string'
-      ? legalEntityIdRaw.trim() || undefined
-      : typeof legalEntityIdRaw === 'number' && Number.isFinite(legalEntityIdRaw)
-        ? String(legalEntityIdRaw)
-        : undefined
-
-  return {
-    city,
-    stateProvince,
-    country,
-    legalEntityId,
-  }
-}
+/* -----------------------------
+    Mock JP Templates
+-------------------------------- */
+const JP_TEMPLATES = [
+  {
+    id: 'jp-da-ii',
+    title: 'Data Analyst II',
+    role: 'Data Analyst II',
+    description: 'Support analytics initiatives by building dashboards, validating data quality, and partnering with business stakeholders.',
+    country: 'United States',
+    region: 'New York',
+  },
+  {
+    id: 'jp-se-sr',
+    title: 'Senior Software Engineer',
+    role: 'Senior Software Engineer',
+    description: 'Design and build scalable backend services. Collaborate with product and platform teams.',
+    country: 'United States',
+    region: 'California',
+  },
+]
 
 export default function CWDefinePage() {
   const router = useRouter()
   const { request, update } = useCWRequest()
+  const [showTemplatePanel, setShowTemplatePanel] = useState(false)
+  const [search, setSearch] = useState('')
 
-  const [roles, setRoles] = useState<RoleRecord[]>([])
-  const [costCenters, setCostCenters] = useState<ReferenceOption[]>(
-    [],
+  const filteredTemplates = JP_TEMPLATES.filter(t =>
+    `${t.title} ${t.role}`.toLowerCase().includes(search.toLowerCase())
   )
-  const [sites, setSites] = useState<ReferenceOption[]>([])
-  const [legalEntities, setLegalEntities] = useState<LegalEntityRecord[]>(
-    [],
-  )
-  const [referenceLoading, setReferenceLoading] = useState(false)
-  const [referenceError, setReferenceError] = useState('')
-  const [saveError, setSaveError] = useState('')
-  const [savingStep, setSavingStep] = useState(false)
 
-  const selectedRole =
-    request.roleId !== undefined
-      ? roles.find((role) => role.id === request.roleId) || null
-      : null
-  const selectedRoleLocation = selectedRole
-    ? readRoleLocation(selectedRole)
-    : ''
-  const roleSelectValue =
-    request.roleId !== undefined
-      ? String(request.roleId)
-      : request.role
-        ? '__legacy__'
-        : ''
-  const legalEntitySelectValue = request.legalEntityId || ''
-
-  const handleRoleChange = (value: string) => {
-    if (!value) {
-      update({
-        roleId: undefined,
-        jobTemplateId: undefined,
-        role: undefined,
-      })
-      return
-    }
-
-    const nextRole = roles.find((role) => role.id === Number(value))
-    if (!nextRole) return
-
+  const applyTemplate = (template: typeof JP_TEMPLATES[number]) => {
     update({
-      roleId: nextRole.id,
-      jobTemplateId: undefined,
-      role: nextRole.name,
-      description: nextRole.description || '',
-      country: nextRole.country || '',
-      stateProvince: nextRole.region || '',
-      city: nextRole.city || '',
-      region: nextRole.region || nextRole.city || '',
-      currency: nextRole.default_currency || undefined,
-      rateUnit: mapRoleUnitToRateUnit(nextRole.default_unit),
+      role: template.role,
+      description: template.description,
+      country: template.country,
+      region: template.region,
     })
+    setShowTemplatePanel(false)
+    setSearch('')
   }
-
-  const handleContinue = async () => {
-    const role = request.role?.trim() || ''
-    if (!role) {
-      setSaveError('Role is required before continuing.')
-      return
-    }
-
-    setSavingStep(true)
-    setSaveError('')
-
-    const customFields = request.customFields || {}
-
-    const definePayload = {
-      title: role,
-      description: request.description?.trim() || undefined,
-      startDate: request.startDate || undefined,
-      endDate: request.endDate || undefined,
-      workerCount:
-        typeof request.positions === 'number' &&
-        request.positions > 0
-          ? request.positions
-          : undefined,
-      costCenter: request.costCenterId,
-      site: request.siteId,
-      roleDefinition: request.roleId,
-      legalEntity: request.legalEntityId,
-      country: request.country || undefined,
-      stateProvince:
-        request.stateProvince || request.region || undefined,
-      city: request.city || undefined,
-      customFields,
-    }
-
-    try {
-      let intakeId = request.intakeId
-
-      if (!intakeId) {
-        const created = await createIntakeDraft({
-          engagementType: 'staffing',
-          ...definePayload,
-          targetRate:
-            typeof request.targetRate === 'number'
-              ? request.targetRate.toFixed(2)
-              : undefined,
-          rateUnit: request.rateUnit || 'hourly',
-          budgetAmount:
-            typeof request.budgetAmount === 'number'
-              ? request.budgetAmount.toFixed(2)
-              : undefined,
-          currency: request.currency || 'USD',
-          supplier: request.supplierId,
-          rateCard: request.selectedRateCardId,
-          overtimeEnabled: request.overtimeEnabled,
-          overtimeMultiplier:
-            typeof request.overtimeFactor === 'number'
-              ? request.overtimeFactor.toFixed(2)
-              : undefined,
-          qualificationsEnabled: request.qualificationsEnabled,
-          qualifications: request.qualifications,
-        })
-
-        intakeId = created.id
-        update({ intakeId: created.id })
-      } else {
-        await patchIntake(intakeId, definePayload)
-      }
-
-      router.push('/requests/new/job/create/qualifications')
-    } catch (error) {
-      if (
-        error instanceof IntakeApiError &&
-        error.status === 401
-      ) {
-        router.replace('/auth/login?next=/requests/new/job/create/define')
-        return
-      }
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to save this step.'
-      setSaveError(message)
-    } finally {
-      setSavingStep(false)
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false
-
-    const loadReferenceData = async () => {
-      setReferenceLoading(true)
-      setReferenceError('')
-
-      const [
-        rolesResult,
-        costCentersResult,
-        sitesResult,
-        legalEntitiesResult,
-      ] = await Promise.allSettled([
-        getRoles({ is_active: true }),
-        getCostCenters(),
-        getSites(),
-        getLegalEntities(),
-      ])
-
-      if (cancelled) return
-
-      const results = [
-        rolesResult,
-        costCentersResult,
-        sitesResult,
-        legalEntitiesResult,
-      ]
-      if (
-        results.some(
-          (result) =>
-            result.status === 'rejected' &&
-            isUnauthorizedError(result.reason),
-        )
-      ) {
-        setReferenceLoading(false)
-        router.replace('/auth/login?next=/requests/new/job/create/define')
-        return
-      }
-
-      if (rolesResult.status === 'fulfilled') {
-        setRoles(rolesResult.value)
-      } else {
-        setRoles([])
-      }
-
-      if (costCentersResult.status === 'fulfilled') {
-        setCostCenters(costCentersResult.value)
-      } else {
-        setCostCenters([])
-      }
-
-      if (sitesResult.status === 'fulfilled') {
-        setSites(sitesResult.value)
-      } else {
-        setSites([])
-      }
-
-      if (legalEntitiesResult.status === 'fulfilled') {
-        setLegalEntities(legalEntitiesResult.value)
-      } else {
-        setLegalEntities([])
-      }
-
-      const errors: string[] = []
-      if (rolesResult.status === 'rejected') {
-        errors.push(
-          readErrorMessage(rolesResult.reason, 'Unable to load roles.'),
-        )
-      }
-      if (costCentersResult.status === 'rejected') {
-        errors.push(
-          readErrorMessage(
-            costCentersResult.reason,
-            'Unable to load cost centers.',
-          ),
-        )
-      }
-      if (sitesResult.status === 'rejected') {
-        errors.push(
-          readErrorMessage(sitesResult.reason, 'Unable to load sites.'),
-        )
-      }
-      if (legalEntitiesResult.status === 'rejected') {
-        errors.push(
-          readErrorMessage(
-            legalEntitiesResult.reason,
-            'Unable to load legal entities.',
-          ),
-        )
-      }
-
-      setReferenceError(
-        Array.from(new Set(errors.filter(Boolean))).join(' '),
-      )
-      setReferenceLoading(false)
-    }
-
-    void loadReferenceData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [router])
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-semibold">Job setup</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Define the role and engagement details.
-        </p>
-      </div>
-
-      <div className="border rounded-xl p-6 space-y-4 bg-white shadow-sm">
-        <div>
-          <div className="text-sm font-semibold text-gray-900">
-            Role
+    <div className="min-h-screen bg-gray-50/50 pb-20 font-sans">
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        
+        {/* Header Section */}
+        <header className="mb-10">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">
+            <span className="bg-cyan-100 px-2 py-1 rounded">Step 1 of 3</span>
+            <span className="text-gray-400">/</span>
+            <span className="text-gray-500">Job Definition</span>
           </div>
-          <p className="mt-1 text-sm text-gray-600">
-            Job templates are deprecated. Select a role to
-            prefill the description, location, currency, and
-            rate unit defaults for this request.
-          </p>
-        </div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Create Job Request</h1>
+          <p className="text-gray-600 mt-2">Provide the core details for your contingent worker engagement.</p>
+        </header>
 
-        <div>
-          <label className="block text-sm font-medium">Role</label>
-          <select
-            className="mt-1 w-full border border-gray-300 rounded-md bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-            value={roleSelectValue}
-            onChange={(event) => handleRoleChange(event.target.value)}
-            disabled={referenceLoading}
-          >
-            <option value="">Select role</option>
-            {request.role && request.roleId === undefined && (
-              <option value="__legacy__">
-                {request.role} (legacy selection)
-              </option>
+        <div className="space-y-6">
+          
+          {/* Template Selection Card - Rectangular */}
+          <section className="bg-white border border-gray-200 rounded-xl p-1 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between p-5 bg-slate-50/50 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <Briefcase className="w-5 h-5 text-cyan-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Use a Template</h3>
+                  <p className="text-xs text-gray-500">Start faster with pre-filled role requirements.</p>
+                </div>
+              </div>
+              {/* Internal action button stays standard rounded-md to look like a tool */}
+              <button
+                onClick={() => setShowTemplatePanel(true)}
+                className="text-sm font-medium bg-white border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                Browse Templates
+              </button>
+            </div>
+            {request.role && (
+              <div className="px-6 py-3 flex items-center gap-2 text-sm text-cyan-700 bg-cyan-50/50">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                Applied: <span className="font-bold">{request.role}</span>
+              </div>
             )}
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-                {readRoleLocation(role)
-                  ? ` · ${readRoleLocation(role)}`
-                  : ''}
-              </option>
-            ))}
-          </select>
+          </section>
 
-          {selectedRole && (
-            <p className="mt-2 text-sm text-gray-600">
-              Code: {selectedRole.code} · Location:{' '}
-              {selectedRoleLocation || 'N/A'} · Defaults:{' '}
-              {selectedRole.default_currency}/
-              {selectedRole.default_unit}
-            </p>
-          )}
+          {/* Core Details Form - Rectangular Section */}
+          <section className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-8">
+            
+            {/* Role Title - Rectangular Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                Job Title
+                <span className="text-red-400">*</span>
+              </label>
+              <input
+                className="w-full border border-gray-300 rounded-md px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:border-cyan-500"
+                value={request.role || ''}
+                onChange={e => update({ role: e.target.value })}
+                placeholder="e.g. Senior Data Analyst"
+              />
+            </div>
 
-          {!selectedRole && request.role && request.roleId === undefined && (
-            <p className="mt-2 text-sm text-amber-700">
-              This request still references a deprecated freeform
-              role. Select a masterdata role to refresh the
-              defaults.
-            </p>
-          )}
-        </div>
-      </div>
+            {/* Description - Rectangular Textarea */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Description & Deliverables</label>
+              <textarea
+                className="w-full border border-gray-300 rounded-md px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:border-cyan-500 min-h-[140px]"
+                value={request.description || ''}
+                onChange={e => update({ description: e.target.value })}
+                placeholder="What will this person be responsible for?"
+              />
+            </div>
 
-      <div className="border rounded-xl p-6 bg-white space-y-6 shadow-sm">
-        <div>
-          <label className="block text-sm font-medium">
-            Description
-          </label>
-          <textarea
-            className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-            rows={4}
-            value={request.description || ''}
-            onChange={(event) =>
-              update({ description: event.target.value })
-            }
-            placeholder="Describe the work to be performed"
-          />
-        </div>
+            <hr className="border-gray-100" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <div>
-            <label className="block text-sm font-medium">
-              Start date
-            </label>
-            <input
-              type="date"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.startDate || ''}
-              onChange={(event) =>
-                update({ startDate: event.target.value })
-              }
-            />
-          </div>
+            {/* Engagement Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Timeline
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-cyan-200 focus:outline-none"
+                      value={request.startDate || ''}
+                      onChange={e => update({ startDate: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">End Date</label>
+                    <input
+                      type="date"
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-cyan-200 focus:outline-none"
+                      value={request.endDate || ''}
+                      onChange={e => update({ endDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium">
-              End date
-            </label>
-            <input
-              type="date"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.endDate || ''}
-              onChange={(event) =>
-                update({ endDate: event.target.value })
-              }
-            />
-          </div>
-        </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <MapPin className="w-4 h-4" /> Logistics
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="col-span-2">
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Country</label>
+                    <input
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-cyan-200 focus:outline-none"
+                      value={request.country || ''}
+                      onChange={e => update({ country: e.target.value })}
+                      placeholder="US"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Region</label>
+                    <input
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-cyan-200 focus:outline-none"
+                      value={request.region || ''}
+                      onChange={e => update({ region: e.target.value })}
+                      placeholder="New York"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Positions</label>
+                    <input
+                      type="number"
+                      className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-cyan-200 focus:outline-none"
+                      value={request.positions || ''}
+                      onChange={e => update({ positions: Number(e.target.value) })}
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-        <div className="grid grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium">
-              Positions
-            </label>
-            <input
-              type="number"
-              min={1}
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.positions || ''}
-              onChange={(event) =>
-                update({
-                  positions: event.target.value
-                    ? Number(event.target.value)
-                    : undefined,
-                })
-              }
-              placeholder="1"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              Cost center
-            </label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.costCenterId ?? ''}
-              onChange={(event) =>
-                update({
-                  costCenterId: event.target.value
-                    ? Number(event.target.value)
-                    : undefined,
-                  costCenter: event.target.value
-                    ? costCenters.find(
-                        (option) =>
-                          option.id === Number(event.target.value),
-                      )?.label
-                    : undefined,
-                })
-              }
-              disabled={referenceLoading}
+          {/* Navigation - Pill Buttons */}
+          <div className="flex justify-between items-center pt-8 border-t border-gray-200">
+            <button 
+              onClick={() => router.back()}
+              className="px-10 py-3.5 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors border border-transparent rounded-full"
             >
-              <option value="">Select cost center</option>
-              {costCenters.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Site</label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.siteId ?? ''}
-              onChange={(event) => {
-                if (!event.target.value) {
-                  update({
-                    siteId: undefined,
-                    city: undefined,
-                    stateProvince: undefined,
-                    region: undefined,
-                  })
-                  return
-                }
-
-                const nextSiteId = Number(event.target.value)
-                const selectedSite =
-                  sites.find((option) => option.id === nextSiteId) ||
-                  null
-                const derived = readSiteDerivedFields(selectedSite)
-
-                update({
-                  siteId: nextSiteId,
-                  city: derived.city ?? undefined,
-                  stateProvince: derived.stateProvince ?? undefined,
-                  region: derived.stateProvince ?? undefined,
-                  country: derived.country ?? request.country,
-                  legalEntityId:
-                    derived.legalEntityId ?? request.legalEntityId,
-                })
-              }}
-              disabled={referenceLoading}
+              Back
+            </button>
+            <button
+              onClick={() => router.push('/requests/new/job/create/financials')}
+              className="group flex items-center justify-center gap-2 px-12 py-3.5 rounded-full bg-black text-white text-sm font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-cyan-200/50 min-w-[180px]"
             >
-              <option value="">Select site</option>
-              {sites.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              Legal entity
-            </label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={legalEntitySelectValue}
-              onChange={(event) =>
-                update({
-                  legalEntityId: event.target.value || undefined,
-                })
-              }
-              disabled={referenceLoading}
-            >
-              <option value="">Select legal entity</option>
-              {legalEntities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name}
-                  {entity.country
-                    ? ` · ${entity.country}`
-                    : ''}
-                </option>
-              ))}
-            </select>
+              Continue
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium">Country</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.country || ''}
-              placeholder="Derived from site"
-              readOnly
+        {/* Template Slide-over Panel */}
+        {showTemplatePanel && (
+          <div className="fixed inset-0 z-50 overflow-hidden">
+            <div 
+               className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" 
+               onClick={() => setShowTemplatePanel(false)} 
             />
-          </div>
+            <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+              
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">Job Templates</h2>
+                  <p className="text-sm text-gray-500">Select a predefined role</p>
+                </div>
+                <button 
+                  onClick={() => setShowTemplatePanel(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium">
-              State / Province
-            </label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.stateProvince || request.region || ''}
-              placeholder="Derived from site"
-              readOnly
-            />
-          </div>
+              <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  {/* Internal panel search stays rectangular rounded-md */}
+                  <input
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
+                    placeholder="Search roles..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium">City</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.city || ''}
-              placeholder="Derived from site"
-              readOnly
-            />
-          </div>
-        </div>
-
-        {referenceError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {referenceError}
+                <div className="space-y-3">
+                  {filteredTemplates.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => applyTemplate(t)}
+                      className="w-full text-left p-4 rounded-xl border border-gray-100 hover:border-cyan-200 hover:bg-cyan-50/50 transition-all group"
+                    >
+                      <div className="font-bold text-gray-900 group-hover:text-cyan-700 transition-colors">{t.title}</div>
+                      <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-gray-400 uppercase tracking-tighter">
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {t.region}</span>
+                        <span>•</span>
+                        <span>Standard Template</span>
+                      </div>
+                      <p className="mt-3 text-xs text-gray-600 line-clamp-2 leading-relaxed">
+                        {t.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
-
-        {saveError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {saveError}
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={() => void handleContinue()}
-          disabled={savingStep}
-          className="px-6 py-2.5 rounded-full bg-black text-white text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-        >
-          {savingStep ? 'Saving...' : 'Continue'}
-        </button>
       </div>
     </div>
   )

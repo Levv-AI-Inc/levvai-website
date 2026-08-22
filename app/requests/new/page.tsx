@@ -529,7 +529,7 @@ const contingentChangeOptions: { id: ChangeType; label: string; sub: string }[] 
 ]
 
 function ContingentForm({ record }: { record: WorkRecord }) {
-  const [selected, setSelected] = useState<Set<ChangeType>>(new Set<ChangeType>(['extend_end_date']))
+  const [selected, setSelected] = useState<Set<ChangeType>>(new Set(['extend_end_date']))
 
   const toggle = (id: ChangeType) => {
     setSelected(prev => {
@@ -690,7 +690,7 @@ const sowChangeOptions: { id: ChangeType; label: string; sub: string }[] = [
 
 function SowForm({ record }: { record: WorkRecord }) {
   const [selected, setSelected] = useState<Set<ChangeType>>(
-    new Set<ChangeType>(['extend_end_date'])
+    new Set(['extend_end_date'])
   )
 
   const toggle = (id: ChangeType) => {
@@ -870,7 +870,7 @@ function ProfileForm({
   onSubmit: () => void
 }) {
   const [selected, setSelected] = useState<Set<ChangeType>>(
-    new Set<ChangeType>(['update_details'])
+    new Set(['update_details'])
   )
 
   const toggle = (id: ChangeType) => {

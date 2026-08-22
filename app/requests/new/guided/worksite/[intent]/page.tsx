@@ -4,15 +4,15 @@ import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import NovaFooter from "../../components/NovaFooter"
 // FIXED: Added BarChart3 to the imports below
-import {
-  Sparkles,
-  Building2,
-  Target,
-  ShieldAlert,
-  ShieldCheck,
+import { 
+  Sparkles, 
+  Building2, 
+  Target, 
+  ShieldAlert, 
+  ShieldCheck, 
   ArrowLeft,
   AlertCircle,
-  BarChart3
+  BarChart3 
 } from "lucide-react"
 
 // States where onsite external workers trigger the highest legal scrutiny
@@ -46,10 +46,10 @@ export default function WorksitePage() {
     // font-family: Inter + antialiased for that crisp SaaS look
     <div className="flex flex-col min-h-screen p-6 bg-gray-50/50 antialiased" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row gap-12 flex-1 pt-8">
-
+        
         {/* LEFT: Main Content */}
         <div className="lg:w-2/3 w-full space-y-8">
-          <button
+          <button 
             onClick={() => router.back()}
             className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-cyan-600 transition-colors uppercase tracking-widest"
           >
@@ -72,7 +72,7 @@ export default function WorksitePage() {
                   <div className="space-y-1">
                     <p className="text-white text-sm font-bold tracking-tight uppercase">Compliance Alert: Workforce Policy</p>
                     <p className="text-cyan-100/60 text-xs leading-relaxed font-medium">
-                      Engagements in <span className="text-white font-bold">{stateCode}</span> with onsite characteristics are subject to strict worker classification rules.
+                      Engagements in <span className="text-white font-bold">{stateCode}</span> with onsite characteristics are subject to strict worker classification rules. 
                       Nova identifies a <span className="text-cyan-400 font-bold">Co-Employment Risk</span>.
                     </p>
                   </div>
@@ -85,7 +85,7 @@ export default function WorksitePage() {
                 <label className="flex items-center gap-2 text-xs font-black text-gray-400 uppercase tracking-widest">
                    <Building2 className="w-3 h-3" /> Facility Selector
                 </label>
-
+                
                 <div className="relative">
                   <select
                     value={worksite}
@@ -114,10 +114,10 @@ export default function WorksitePage() {
               <div className="space-y-6">
                 <ReadinessItem label="Work Definition" status="Clear" isComplete={true} />
                 <ReadinessItem label="Policy Alignment" status="Verified" isComplete={true} />
-                <ReadinessItem
-                  label="Execution Risk"
-                  status={isCriticalRisk ? "Critical" : worksite ? "Low" : "Analyzing"}
-                  isComplete={!!worksite && !isCriticalRisk}
+                <ReadinessItem 
+                  label="Execution Risk" 
+                  status={isCriticalRisk ? "Critical" : worksite ? "Low" : "Analyzing"} 
+                  isComplete={!!worksite && !isCriticalRisk} 
                   isWarning={isCriticalRisk}
                 />
               </div>
@@ -127,15 +127,15 @@ export default function WorksitePage() {
                    <div className={`flex items-start gap-3 p-4 rounded-lg border ${isCriticalRisk ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
                       {isCriticalRisk ? <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" /> : <ShieldCheck className="w-4 h-4 text-emerald-600 mt-0.5" />}
                       <p className={`text-[11px] font-bold leading-tight ${isCriticalRisk ? 'text-amber-800' : 'text-emerald-800'}`}>
-                        {isCriticalRisk
-                          ? "Nova recommends converting this request to a CW Agency model to bypass local labor risk."
+                        {isCriticalRisk 
+                          ? "Nova recommends converting this request to a CW Agency model to bypass local labor risk." 
                           : "Worksite logistics finalized. Security and badge access requirements are queued."}
                       </p>
                    </div>
                 </div>
               )}
             </div>
-
+            
             <div className="px-4 py-3 flex items-center justify-between opacity-50">
                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">AI Precision: High</span>
                <BarChart3 className="w-3 h-3 text-gray-400" />

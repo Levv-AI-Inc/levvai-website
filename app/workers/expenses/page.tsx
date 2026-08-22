@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Search,
-  DollarSign,
-  Clock,
-  X,
-  ChevronRight,
+import { 
+  Search, 
+  DollarSign, 
+  Clock, 
+  X, 
+  ChevronRight, 
   Sparkles,
   ChevronDown,
   Filter,
@@ -97,13 +97,13 @@ export default function ExpensesPage() {
   // --- Logic: Filtering ---
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
-      const matchesSearch =
+      const matchesSearch = 
         exp.worker.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         exp.type.toLowerCase().includes(searchTerm.toLowerCase());
-
+      
       const matchesStatus = selectedStatus === "All" || exp.approval === selectedStatus;
-
+      
       return matchesSearch && matchesStatus;
     });
   }, [searchTerm, selectedStatus]);
@@ -114,7 +114,7 @@ export default function ExpensesPage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-
+        
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -129,8 +129,8 @@ export default function ExpensesPage() {
               <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
                 <Sparkles size={18} />
               </div>
-              <input
-                type="text"
+              <input 
+                type="text" 
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 placeholder="Ask Nova to flag out-of-policy items..."
@@ -157,7 +157,7 @@ export default function ExpensesPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Approval Stage</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
@@ -172,7 +172,7 @@ export default function ExpensesPage() {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Claims</label>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
+                <input 
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                   placeholder="Worker, Type, or ID..."
                   value={searchTerm}
@@ -205,8 +205,8 @@ export default function ExpensesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredExpenses.map((exp) => (
-                  <tr
-                    key={exp.id}
+                  <tr 
+                    key={exp.id} 
                     className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
                     onClick={() => setSelectedRecord(exp)}
                   >
@@ -244,7 +244,7 @@ export default function ExpensesPage() {
                     <td className="px-8 py-6">
                       <div className="flex flex-col gap-1.5">
                         <div className={`w-fit inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                          exp.approval === 'Approved' ? 'text-emerald-600' :
+                          exp.approval === 'Approved' ? 'text-emerald-600' : 
                           exp.approval === 'Pending' ? 'text-amber-600' : 'text-rose-600'
                         }`}>
                           • {exp.approval}
@@ -288,7 +288,7 @@ export default function ExpensesPage() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {selectedRecord.policy === "Exception" && (
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">

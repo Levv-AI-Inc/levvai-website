@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Search,
-  DollarSign,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  X,
-  ChevronRight,
-  FileText,
-  Calendar,
-  User,
+import { 
+  Search, 
+  DollarSign, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock, 
+  X, 
+  ChevronRight, 
+  FileText, 
+  Calendar, 
+  User, 
   Sparkles,
   ChevronDown,
   Filter,
@@ -30,20 +30,18 @@ const sowData = [
   { id: "SOW-2023-090", title: "Legacy System Decommission", supplier: "IBM", type: "Fixed Fee", value: 1100000, start: "Oct 15, 2023", end: "May 15, 2024", status: "Expiring", health: "Attention", updated: "4 days ago", description: "Final phase of sun-setting the mainframe environment.", manager: "Robert Smith" },
 ];
 
-type SOWRecord = (typeof sowData)[number];
-
 export default function MySOWsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedSupplier, setSelectedSupplier] = useState("All");
-  const [selectedRecord, setSelectedRecord] = useState<SOWRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [aiInput, setAiInput] = useState("");
 
-  const suppliers = useMemo(() => ["All", ...Array.from(new Set(sowData.map(s => s.supplier)))], []);
+  const suppliers = useMemo(() => ["All", ...new Set(sowData.map(s => s.supplier))], []);
 
   const filteredSOWs = useMemo(() => {
     return sowData.filter((sow) => {
-      const matchesSearch =
+      const matchesSearch = 
         sow.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         sow.id.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = selectedStatus === "All" || sow.status === selectedStatus;
@@ -57,7 +55,7 @@ export default function MySOWsPage() {
   return (
     <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-
+        
         {/* Header */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -72,8 +70,8 @@ export default function MySOWsPage() {
               <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
                 <Sparkles size={18} />
               </div>
-              <input
-                type="text"
+              <input 
+                type="text" 
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
                 placeholder="Ask Nova to find or analyze..."
@@ -100,7 +98,7 @@ export default function MySOWsPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Supplier</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedSupplier}
                   onChange={(e) => setSelectedSupplier(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
@@ -114,7 +112,7 @@ export default function MySOWsPage() {
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Status</label>
               <div className="relative">
-                <select
+                <select 
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-400 outline-none transition-all"
@@ -127,7 +125,7 @@ export default function MySOWsPage() {
               </div>
             </div>
 
-            <button
+            <button 
               onClick={() => {setSearchTerm(""); setSelectedStatus("All"); setSelectedSupplier("All")}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
@@ -139,7 +137,7 @@ export default function MySOWsPage() {
         {/* SEARCH BAR */}
         <div className="mb-6 relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={18} />
-          <input
+          <input 
             className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-cyan-400/10 focus:border-cyan-500 shadow-sm transition-all font-medium"
             placeholder="Quick search records..."
             value={searchTerm}
@@ -163,8 +161,8 @@ export default function MySOWsPage() {
               <tbody className="divide-y divide-slate-100">
                 {filteredSOWs.length > 0 ? (
                   filteredSOWs.map((sow) => (
-                    <tr
-                      key={sow.id}
+                    <tr 
+                      key={sow.id} 
                       className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
                       onClick={() => setSelectedRecord(sow)}
                     >
@@ -184,11 +182,11 @@ export default function MySOWsPage() {
                       </td>
                       <td className="px-8 py-6">
                         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border shadow-sm bg-white ${
-                          sow.health === 'Perfect' ? 'text-emerald-700 border-emerald-100' :
+                          sow.health === 'Perfect' ? 'text-emerald-700 border-emerald-100' : 
                           sow.health === 'Attention' ? 'text-amber-700 border-amber-100' : 'text-rose-700 border-rose-100'
                         }`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${
-                            sow.health === 'Perfect' ? 'bg-emerald-500' :
+                            sow.health === 'Perfect' ? 'bg-emerald-500' : 
                             sow.health === 'Attention' ? 'bg-amber-500' : 'bg-rose-500'
                           }`} />
                           {sow.health}
@@ -205,7 +203,7 @@ export default function MySOWsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-8 py-24 text-center text-slate-400">No records found.</td>
+                    <td colSpan="5" className="px-8 py-24 text-center text-slate-400">No records found.</td>
                   </tr>
                 )}
               </tbody>
@@ -228,7 +226,7 @@ export default function MySOWsPage() {
                 <X size={24} />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
