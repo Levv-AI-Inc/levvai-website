@@ -351,9 +351,18 @@ export default function Home() {
     textareaRef.current?.focus()
   }
 
+  const navigateToRoute = (destination: string) => {
+    if (typeof window === 'undefined') {
+      router.push(destination)
+      return
+    }
+
+    window.location.assign(destination)
+  }
+
   const handleAction = (action: { label: string; prompt: string }) => {
     if (action.prompt.startsWith('/')) {
-      router.push(action.prompt)
+      navigateToRoute(action.prompt)
     } else {
       sendMessage(action.prompt)
     }
@@ -366,7 +375,8 @@ export default function Home() {
       return (
         <button
           key={idx}
-          onClick={() => router.push(route)}
+          type="button"
+          onClick={() => navigateToRoute(route)}
           className="inline align-baseline font-medium text-cyan-700 underline decoration-cyan-200 underline-offset-2 hover:text-cyan-800 hover:decoration-cyan-400 transition-colors"
         >
           {part}
@@ -403,6 +413,7 @@ export default function Home() {
         <div className="flex items-center justify-between px-4 pb-3 pt-1">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setPolicyActive((v) => !v)}
               title={policyActive ? 'A policy is loaded — Nova enforces it. Click to simulate no policy.' : 'No policy loaded — Nova advises but never blocks. Click to simulate a loaded policy.'}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-colors ${
@@ -421,6 +432,7 @@ export default function Home() {
             </button>
 
             <button
+              type="button"
               className="flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               title="Attach a document"
             >
@@ -429,6 +441,7 @@ export default function Home() {
           </div>
 
           <button
+            type="button"
             onClick={() => sendMessage()}
             disabled={!input.trim() || isLoading}
             aria-label="Send message"
@@ -467,6 +480,7 @@ export default function Home() {
             </div>
 
             <button
+              type="button"
               onClick={endConversation}
               className="flex items-center gap-1.5 text-[12px] font-medium text-slate-400 hover:text-slate-700 transition-colors"
             >
@@ -499,6 +513,7 @@ export default function Home() {
                         return (
                           <button
                             key={a.label}
+                            type="button"
                             onClick={() => handleAction(a)}
                             className={
                               isRoute
@@ -541,6 +556,7 @@ export default function Home() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">{activeRail!.header}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={dismissRail}
                     className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:text-slate-600 transition-colors"
                     title="Hide for now — Nova will bring it back when it has something useful"
@@ -569,6 +585,7 @@ export default function Home() {
                   </div>
                 ))}
                 <button
+                  type="button"
                   onClick={dismissRail}
                   className="shrink-0 self-center px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors"
                 >
@@ -633,14 +650,16 @@ export default function Home() {
       {/* Quick action pills */}
       <div className="flex flex-wrap gap-2 mb-12 animate-in fade-in duration-300">
         <button
-          onClick={() => router.push('/requests/sow/create')}
+          type="button"
+          onClick={() => navigateToRoute('/requests/sow/create')}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.08)]"
         >
           <FileText className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
           Create SOW
         </button>
         <button
-          onClick={() => router.push('/requests/new/job/create/define')}
+          type="button"
+          onClick={() => navigateToRoute('/requests/new/job/create/define')}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-all hover:-translate-y-px hover:shadow-[0_4px_12px_-4px_rgba(15,23,42,0.08)]"
         >
           <Briefcase className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
@@ -670,7 +689,7 @@ export default function Home() {
             <NovaMessage
               key={o.id}
               o={o}
-              onAct={(href) => router.push(href)}
+              onAct={navigateToRoute}
               onAskNova={(prompt) => sendMessage(prompt)}
             />
           ))}
@@ -688,6 +707,7 @@ function RailTile({ t, onClick }: { t: RailTileData; onClick: () => void }) {
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`w-full text-left rounded-2xl border p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-16px_rgba(15,23,42,0.22)] ${v.card}`}
     >
