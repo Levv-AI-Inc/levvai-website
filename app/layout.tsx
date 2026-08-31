@@ -14,6 +14,7 @@ import {
   Settings,
   ChevronDown,
   LogOut,
+  UserRound,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
@@ -21,6 +22,7 @@ import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isExternal = pathname.startsWith('/external')
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   if (isExternal) {
     return (
@@ -128,13 +130,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Sidebar Footer */}
           <div className="p-4 border-t border-white/5 space-y-1">
-            <Link
-              href="/external/act-as-worker/timesheet"
-              className="flex items-center gap-3 px-3 py-2 w-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-lg transition-all text-sm font-medium"
-            >
-              <Users className="w-4 h-4" />
-              Worker Profile
-            </Link>
             <button className="flex items-center gap-3 px-3 py-2 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all text-sm font-medium">
               <LogOut className="w-4 h-4" />
               Sign Out
@@ -144,15 +139,64 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 justify-between sticky top-0 z-10">
+          <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 justify-between sticky top-0 z-[1000]">
             <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center font-bold text-white text-[10px]">L</div>
                 <span className="text-sm font-bold tracking-[0.2em] text-slate-900">LEVV</span>
             </div>
-            
+
             <div className="text-xs font-medium text-slate-400 flex items-center gap-2">
                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                 {pathname === '/' ? 'DASHBOARD' : pathname.split('/').pop()?.replace(/-/g, ' ').toUpperCase()}
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 text-left text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-cyan-300 hover:text-slate-950 hover:shadow-md"
+                aria-haspopup="menu"
+                aria-expanded={profileMenuOpen}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 text-[10px] font-bold text-white">
+                  FC
+                </span>
+                <span className="hidden sm:block">Faraz Chatta</span>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {profileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[1000]" onClick={() => setProfileMenuOpen(false)} />
+                  <div
+                    className="absolute right-0 top-full z-[1001] mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
+                    role="menu"
+                  >
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">Faraz Chatta</p>
+                      <p className="text-xs font-medium text-slate-500">Administrator</p>
+                    </div>
+                    <Link
+                      href="/external/act-as-worker/timesheet"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-cyan-50 hover:text-cyan-800"
+                      role="menuitem"
+                    >
+                      <UserRound className="h-4 w-4 text-cyan-600" />
+                      Switch to Worker Profile
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                      role="menuitem"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </header>
           
