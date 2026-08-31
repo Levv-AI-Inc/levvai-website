@@ -272,8 +272,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-        <aside className="w-64 min-w-[16rem] flex flex-col bg-[#0f172a] text-slate-200 border-r border-slate-800 shadow-2xl">
+      <body className="flex min-h-screen bg-[#f4f1ea] text-[#1e2528] font-sans">
+        <aside className="w-64 min-w-[16rem] flex flex-col bg-[#1e2528] text-[#d9ddd8] border-r border-[#33413d]">
           <SidebarAccount user={sessionUser} />
 
           <nav className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
@@ -338,12 +338,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           {sessionUser && (
-            <div className="p-4 border-t border-white/5">
+            <div className="p-4 border-t border-white/10">
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={signingOut}
-                className="flex items-center gap-3 px-3 py-2 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all text-sm font-medium disabled:opacity-60"
+                className="flex items-center gap-3 px-3 py-2 w-full text-[#aeb8b2] hover:text-[#ffb4a6] hover:bg-white/10 rounded-md transition-all text-sm font-medium disabled:opacity-60"
               >
                 <LogOut className="w-4 h-4" />
                 {signingOut ? 'Signing Out...' : 'Sign Out'}
@@ -353,19 +353,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 border-b border-slate-200 bg-white flex items-center px-8 justify-between sticky top-0 z-10">
+          <header className="h-16 border-b border-[#d8d1c4] bg-[#fcfbf7]/95 backdrop-blur flex items-center px-8 justify-between sticky top-0 z-10">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center font-bold text-white text-[10px]">
+              <div className="w-6 h-6 bg-[#1f3d38] rounded-md flex items-center justify-center font-bold text-white text-[10px]">
                 L
               </div>
-              <span className="text-sm font-bold tracking-[0.2em] text-slate-900">
+              <span className="text-sm font-bold text-[#1e2528]">
                 LEVV
               </span>
             </div>
 
             <div className="flex items-center gap-5">
-              <div className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <div className="text-xs font-medium text-[#6b746f] flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-[#9a651e]" />
                 {formatCurrentPage(pathname)}
               </div>
               {sessionUser && (
@@ -378,7 +378,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main className="flex-1 p-8">
+          <main className="flex-1 p-6 lg:p-8">
             <CWRequestProvider>{children}</CWRequestProvider>
           </main>
         </div>
@@ -391,15 +391,15 @@ function SidebarAccount({ user }: { user: SessionUser | null }) {
   const display = getSessionDisplay(user)
 
   return (
-    <div className="flex items-center gap-3 px-6 h-20 border-b border-white/5 bg-black/10">
-      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+    <div className="flex items-center gap-3 px-6 h-20 border-b border-white/10 bg-black/10">
+      <div className="w-9 h-9 rounded-md bg-[#89d3bd] flex items-center justify-center text-xs font-bold text-[#1e2528]">
         {display.initials}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">
           {display.name}
         </p>
-        <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">
+        <p className="text-[10px] text-[#aeb8b2] uppercase truncate">
           {display.label}
         </p>
       </div>
@@ -439,25 +439,25 @@ function AccountMenu({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+        className="inline-flex items-center gap-2 rounded-md border border-[#cfc7b8] bg-white px-3 py-2 text-sm font-semibold text-[#26312f] shadow-sm hover:bg-[#f8f5ee]"
       >
-        <UserCircle2 className="h-4 w-4 text-slate-500" />
+        <UserCircle2 className="h-4 w-4 text-[#6b746f]" />
         <span>{display.name}</span>
-        <ChevronDown className={open ? 'h-4 w-4 rotate-180 text-slate-500' : 'h-4 w-4 text-slate-500'} />
+        <ChevronDown className={open ? 'h-4 w-4 rotate-180 text-[#6b746f]' : 'h-4 w-4 text-[#6b746f]'} />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-white/10 bg-slate-900 text-slate-100 shadow-2xl">
-          <div className="border-b border-white/10 px-4 py-3">
-            <div className="text-sm font-semibold text-white">{display.name}</div>
-            <div className="mt-1 text-xs text-slate-300">{display.label}</div>
+        <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] text-[#26312f] shadow-2xl">
+          <div className="border-b border-[#d8d1c4] px-4 py-3">
+            <div className="text-sm font-semibold text-[#1e2528]">{display.name}</div>
+            <div className="mt-1 text-xs text-[#6b746f]">{display.label}</div>
           </div>
 
           <button
             type="button"
             onClick={onSignOut}
             disabled={signingOut}
-            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-100 hover:bg-white/10 disabled:opacity-60"
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-[#26312f] hover:bg-[#f4f1ea] disabled:opacity-60"
           >
             <LogOut className="h-4 w-4" />
             <span>{signingOut ? 'Signing out...' : 'Sign out'}</span>
@@ -477,7 +477,7 @@ function NavSection({
 }) {
   return (
     <div>
-      <p className="px-3 mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400/80">
+      <p className="px-3 mb-3 text-[11px] font-bold uppercase text-[#8e9a94]">
         {label}
       </p>
       <div className="space-y-1">{children}</div>
@@ -504,20 +504,20 @@ function NavItem({
     <Link
       href={href}
       className={`
-        group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+        group relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
         transition-all duration-200
         ${
           isActive
-            ? 'bg-cyan-500/15 text-white shadow-sm'
-            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+            ? 'bg-[#89d3bd]/16 text-white shadow-sm'
+            : 'text-[#d9ddd8] hover:bg-white/10 hover:text-white'
         }
       `}
     >
-      <Icon className={`w-[18px] h-[18px] transition-colors ${isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
+      <Icon className={`w-[18px] h-[18px] transition-colors ${isActive ? 'text-[#89d3bd]' : 'text-[#8e9a94] group-hover:text-[#d9ddd8]'}`} />
       {label}
 
       {isActive && (
-        <span className="absolute left-[-12px] top-2 bottom-2 w-1 bg-cyan-400 rounded-r-full shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+        <span className="absolute left-[-12px] top-2 bottom-2 w-1 bg-[#89d3bd] rounded-r-full" />
       )}
     </Link>
   )
@@ -548,21 +548,21 @@ function NavGroup({
       <button
         onClick={() => setOpen(!open)}
         className={`
-          w-full flex items-center justify-between px-3 py-2.5 rounded-lg
+          w-full flex items-center justify-between px-3 py-2.5 rounded-md
           text-sm font-medium transition-all duration-200
           ${
             isAnyActive
               ? 'text-white'
-              : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              : 'text-[#d9ddd8] hover:bg-white/10 hover:text-white'
           }
         `}
       >
         <span className="flex items-center gap-3">
-          <Icon className={`w-[18px] h-[18px] ${isAnyActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+          <Icon className={`w-[18px] h-[18px] ${isAnyActive ? 'text-[#89d3bd]' : 'text-[#8e9a94]'}`} />
           {label}
         </span>
         <ChevronDown
-          className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-slate-500'}`}
+          className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-[#8e9a94]'}`}
         />
       </button>
 
@@ -571,7 +571,7 @@ function NavGroup({
           open ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="ml-5 pl-4 border-l border-slate-700/60 my-1 space-y-1">
+        <div className="ml-5 pl-4 border-l border-white/12 my-1 space-y-1">
           {items.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -582,8 +582,8 @@ function NavGroup({
                   block px-3 py-2 rounded-md text-[13px] transition-colors
                   ${
                     isActive
-                      ? 'text-cyan-400 font-bold bg-cyan-400/5'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'text-[#89d3bd] font-bold bg-[#89d3bd]/8'
+                      : 'text-[#aeb8b2] hover:text-white hover:bg-white/5'
                   }
                 `}
               >
