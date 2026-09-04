@@ -14,6 +14,7 @@ import {
   Settings,
   ChevronDown,
   UserCircle2,
+  UserRound,
   LogOut,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -453,11 +454,22 @@ function AccountMenu({
             <div className="mt-1 text-xs text-[#6b746f]">{display.label}</div>
           </div>
 
+          <Link
+            href="/external/act-as-worker/timesheet"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-[#26312f] hover:bg-[#f4f1ea]"
+            role="menuitem"
+          >
+            <UserRound className="h-4 w-4" />
+            <span>Switch to Worker Profile</span>
+          </Link>
+
           <button
             type="button"
             onClick={onSignOut}
             disabled={signingOut}
-            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-[#26312f] hover:bg-[#f4f1ea] disabled:opacity-60"
+            className="flex w-full items-center gap-2 border-t border-[#d8d1c4] px-4 py-3 text-sm font-medium text-[#26312f] hover:bg-[#f4f1ea] disabled:opacity-60"
+            role="menuitem"
           >
             <LogOut className="h-4 w-4" />
             <span>{signingOut ? 'Signing out...' : 'Sign out'}</span>
