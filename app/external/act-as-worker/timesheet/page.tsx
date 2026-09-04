@@ -17,30 +17,34 @@ import {
 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { WorkerTopNav } from '../WorkerTopNav'
-import { useWorkerClient, Assignment, getMondayOfWeek } from '../layout'
+import { useWorkerClient, Assignment } from '../workerClient'
+import {
+  ANOMALY_THRESHOLD_PCT,
+  TIMESHEET_DAYS,
+  TaskAllocation,
+  TimesheetTask,
+  getDayTotal,
+  getDaysCovered,
+  getDeviationPct,
+  getHistoricalAverage,
+  getMondayOfWeek,
+  getJurisdictionFlags,
+  getReadinessLevel,
+  getRowTotal,
+  getTasksNeedingAllocation,
+  getTimesheetQaIssues,
+  getWeekTotal,
+  parseApprovalBrief,
+} from '@/lib/timesheets'
 
 const WORKER_NAME = 'Jordan Reyes'
 const MOCK_HISTORY_HOURS = [39, 41, 38, 43]
-
-type Task = { id: string; name: string }
-type TaskAllocation = {
-  costCenter: string
-  taskCode: string
-  rationale: string
-  assignedForName: string
-}
-
-type JurisdictionFlag = { text: string; severity: 'high' | 'info' }
 
 let idCounter = 0
 function makeId(prefix: string) {
   idCounter += 1
   return `${prefix}-${Date.now()}-${idCounter}`
 }
-
-const ANOMALY_THRESHOLD_PCT = 15
-const MAX_REASONABLE_DAY_HOURS = 16
-const GERMANY_DAILY_CAP = 10
 
 function getSelectableWeeks(count = 8) {
   const weeks: { value: string; label: string }[] = []
@@ -147,7 +151,7 @@ function TimesheetPanel({
   onSubmit: (weekStart: string) => void
   initialWeek?: string | null
 }) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  const days = TIMESHEET_DAYS
   const selectableWeeks = useMemo(() => getSelectableWeeks(8), [])
 
   const [assignment, setAssignment] = useState<Assignment>(assignments[0])
@@ -156,7 +160,7 @@ function TimesheetPanel({
   )
   const [showComments, setShowComments] = useState(false)
   const [comment, setComment] = useState('')
-  const [tasks, setTasks] = useState<Task[]>([
+  const [tasks, setTasks] = useState<TimesheetTask[]>([
     { id: 'seed-1', name: 'Client workshops' },
     { id: 'seed-2', name: 'Design & documentation' },
   ])
@@ -205,16 +209,12 @@ function TimesheetPanel({
       return { ...prev, [id]: updated }
     })
   }
-  const rowTotal = (id: string) => (hours[id] ?? []).reduce((a, b) => a + b, 0)
-  const dayTotal = (dayIndex: number) => tasks.reduce((sum, t) => sum + (hours[t.id]?.[dayIndex] ?? 0), 0)
-  const weekTotal = tasks.reduce((sum, t) => sum + rowTotal(t.id), 0)
+  const rowTotal = (id: string) => getRowTotal(hours, id)
+  const dayTotal = (dayIndex: number) => getDayTotal(tasks, hours, dayIndex)
+  const weekTotal = useMemo(() => getWeekTotal(tasks, hours), [tasks, hours])
   const overtime = weekTotal > 40
 
-  const daysCovered = useMemo(() => {
-    let covered = 0
-    for (let i = 0; i < 5; i++) if (dayTotal(i) > 0) covered++
-    return covered
-  }, [tasks, hours])
+  const daysCovered = useMemo(() => getDaysCovered(tasks, hours), [tasks, hours])
 
   const runNovaAllocation = async () => {
     setAllocating(true)
@@ -256,70 +256,30 @@ function TimesheetPanel({
     }
   }
 
-  const tasksNeedingAllocation = tasks.filter((t) => {
-    const alloc = taskAllocations[t.id]
-    return !alloc || alloc.assignedForName !== t.name
-  })
+  const tasksNeedingAllocation = useMemo(
+    () => getTasksNeedingAllocation(tasks, taskAllocations),
+    [tasks, taskAllocations]
+  )
 
-  const qaIssues = useMemo(() => {
-    const issues: string[] = []
-    const unnamedTasks = tasks.filter((t) => t.name.trim() === 'New task')
-    if (unnamedTasks.length > 0)
-      issues.push(
-        `${unnamedTasks.length} task${unnamedTasks.length > 1 ? 's' : ''} still labeled "New task" — rename before submitting.`
-      )
-    const emptyTasks = tasks.filter((t) => rowTotal(t.id) === 0)
-    if (emptyTasks.length > 0) issues.push(`"${emptyTasks[0].name}" has no hours logged. Remove the row or add time.`)
-    tasks.forEach((t) => {
-      const dayHours = hours[t.id] ?? []
-      dayHours.forEach((h, i) => {
-        if (h > MAX_REASONABLE_DAY_HOURS)
-          issues.push(`${days[i]} shows ${h} hours on "${t.name}" — please confirm this is correct.`)
-      })
-    })
-    if (weekTotal === 0) issues.push('No hours entered for this week yet.')
-    if (tasksNeedingAllocation.length > 0 && weekTotal > 0)
-      issues.push(
-        `${tasksNeedingAllocation.length} task${tasksNeedingAllocation.length > 1 ? 's need' : ' needs'} a cost allocation — click "Auto-assign with Nova."`
-      )
-    return issues
-  }, [tasks, hours, weekTotal, tasksNeedingAllocation])
+  const qaIssues = useMemo(
+    () => getTimesheetQaIssues({ tasks, hours, tasksNeedingAllocation, weekTotal }),
+    [tasks, hours, weekTotal, tasksNeedingAllocation]
+  )
 
-  const jurisdictionFlags: JurisdictionFlag[] = useMemo(() => {
-    const flags: JurisdictionFlag[] = []
-    if (assignment.jurisdiction === 'Germany') {
-      for (let i = 0; i < 5; i++) {
-        const total = dayTotal(i)
-        if (total > GERMANY_DAILY_CAP) {
-          flags.push({
-            text: `${days[i]} shows ${total} hours, above Germany's standard ${GERMANY_DAILY_CAP}-hour daily limit under the Arbeitszeitgesetz — confirm rest-period compliance before approval.`,
-            severity: 'high',
-          })
-        }
-      }
-    }
-    if (assignment.jurisdiction === 'United States' && weekTotal > 40) {
-      flags.push({
-        text: `Weekly hours exceed 40 — under the FLSA, non-exempt workers are generally owed overtime pay above this threshold.`,
-        severity: 'info',
-      })
-    }
-    return flags
-  }, [assignment.jurisdiction, tasks, hours, weekTotal])
+  const jurisdictionFlags = useMemo(
+    () => getJurisdictionFlags({ jurisdiction: assignment.jurisdiction, tasks, hours, weekTotal }),
+    [assignment.jurisdiction, tasks, hours, weekTotal]
+  )
 
-  const deviationPct = assignment.expectedHours
-    ? Math.round(Math.abs((weekTotal - assignment.expectedHours) / assignment.expectedHours) * 100)
-    : 0
+  const deviationPct = getDeviationPct(weekTotal, assignment.expectedHours)
   const isAnomaly = deviationPct >= ANOMALY_THRESHOLD_PCT && weekTotal > 0
   const anomalyDirection = weekTotal > assignment.expectedHours ? 'above' : 'below'
   const hasHighSeverityJurisdictionFlag = jurisdictionFlags.some((f) => f.severity === 'high')
 
-  const readinessLevel: 'ready' | 'needs-attention' | 'blocked' = useMemo(() => {
-    if (qaIssues.length > 0) return 'blocked'
-    if (hasHighSeverityJurisdictionFlag) return 'blocked'
-    if (isAnomaly && !anomalyReason.trim()) return 'needs-attention'
-    return 'ready'
-  }, [qaIssues, hasHighSeverityJurisdictionFlag, isAnomaly, anomalyReason])
+  const readinessLevel = useMemo(
+    () => getReadinessLevel({ qaIssues, jurisdictionFlags, isAnomaly, anomalyReason }),
+    [qaIssues, jurisdictionFlags, isAnomaly, anomalyReason]
+  )
 
   const handleSubmitClick = () => {
     if (readinessLevel !== 'ready') {
@@ -333,8 +293,7 @@ function TimesheetPanel({
     setBriefLoading(true)
     setBriefError(null)
     setBrief(null)
-    const historicalAvg =
-      Math.round((MOCK_HISTORY_HOURS.reduce((a, b) => a + b, 0) / MOCK_HISTORY_HOURS.length) * 10) / 10
+    const historicalAvg = getHistoricalAverage(MOCK_HISTORY_HOURS)
     const historicalWeeksOverExpected = MOCK_HISTORY_HOURS.filter((h) => h > assignment.expectedHours).length
     try {
       const res = await fetch('/api/timesheet-brief', {
@@ -371,10 +330,7 @@ function TimesheetPanel({
     }
   }
 
-  const briefLines = brief ? brief.split('\n').filter((l) => l.trim()) : []
-  const recommendationLine = briefLines.find((l) => l.toLowerCase().startsWith('recommendation'))
-  const bulletLines = briefLines.filter((l) => l.trim().startsWith('-'))
-  const recommendationText = recommendationLine?.split(':')[1]?.trim() ?? ''
+  const { bulletLines, recommendationText } = parseApprovalBrief(brief)
   const recStyle = recommendationText.toLowerCase().includes('needs review')
     ? 'bg-red-50 text-red-700 border-red-200'
     : recommendationText.toLowerCase().includes('note')

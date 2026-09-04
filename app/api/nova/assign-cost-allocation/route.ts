@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getOpenAIClient } from '@/lib/intelligence/gpt/client'
 
 const MODEL = 'gpt-4o-mini'
 
@@ -32,14 +33,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY is not set in .env.local' },
-        { status: 500 }
-      )
-    }
-
     const allocationList = costAllocations
       .map((a) => `- ${a.costCenter} (${a.taskCode}): ${a.label}`)
       .join('\n')
@@ -56,27 +49,13 @@ ${taskList}
 Respond with ONLY a JSON array, no other text, no markdown fences, in this exact shape:
 [{"taskId": "...", "costCenter": "...", "taskCode": "...", "rationale": "one short sentence, under 12 words"}]`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-        max_tokens: 500,
-      }),
+    const response = await getOpenAIClient().chat.completions.create({
+      model: MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+      max_tokens: 500,
     })
-
-    if (!response.ok) {
-      const errText = await response.text()
-      return NextResponse.json({ error: `OpenAI error: ${errText}` }, { status: 500 })
-    }
-
-    const data = await response.json()
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? '[]'
+    const raw = response.choices?.[0]?.message?.content?.trim() ?? '[]'
     const cleaned = raw.replace(/```json|```/g, '').trim()
 
     let assignments

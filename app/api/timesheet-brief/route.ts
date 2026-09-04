@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getOpenAIClient } from '@/lib/intelligence/gpt/client'
 
 const MODEL = 'gpt-4o-mini'
 
@@ -22,14 +23,6 @@ export async function POST(req: NextRequest) {
       historicalWeeksCount,
       jurisdictionFlags, // [{ text, severity: 'high' | 'info' }]
     } = body
-
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY is not set in .env.local' },
-        { status: 500 }
-      )
-    }
 
     const hasHighSeverityJurisdictionFlag = (jurisdictionFlags ?? []).some(
       (f: { severity: string }) => f.severity === 'high'
@@ -91,27 +84,13 @@ Recommendation: ${recommendation}
 
 Each bullet must be a single sentence, under 22 words, directly tied to a fact listed above. If a jurisdiction flag exists, it must appear in a bullet — this is the most important thing a manager needs to know before approving.`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        max_tokens: 260,
-      }),
+    const response = await getOpenAIClient().chat.completions.create({
+      model: MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      max_tokens: 260,
     })
-
-    if (!response.ok) {
-      const errText = await response.text()
-      return NextResponse.json({ error: `OpenAI error: ${errText}` }, { status: 500 })
-    }
-
-    const data = await response.json()
-    const brief = data.choices?.[0]?.message?.content?.trim() ?? 'Unable to generate brief.'
+    const brief = response.choices?.[0]?.message?.content?.trim() ?? 'Unable to generate brief.'
 
     return NextResponse.json({ brief, recommendation })
   } catch (err: any) {

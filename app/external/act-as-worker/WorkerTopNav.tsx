@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Building2, CheckCircle2, ChevronDown, Clock } from 'lucide-react'
-import { useWorkerClient } from './layout'
+import { useWorkerClient } from './workerClient'
 
 export function WorkerTopNav() {
   const { clients, activeClientId, activeClient, engagementStatuses, switchClient } = useWorkerClient()
