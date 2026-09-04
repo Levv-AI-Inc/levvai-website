@@ -6,8 +6,11 @@ import RequestDemoModal from "@/components/RequestDemoModal"
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const [developerMode, setDeveloperMode] = useState(false)
 
   useEffect(() => {
+    setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+
     const openModal = () => setOpen(true)
     window.addEventListener("open-demo-modal", openModal)
     return () => window.removeEventListener("open-demo-modal", openModal)
@@ -23,15 +26,16 @@ export default function Navbar() {
               Levv AI
             </div>
 
-            {/* CTA */}
-            <button
-              onClick={() =>
-                window.dispatchEvent(new Event("open-demo-modal"))
-              }
-              className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-[1px] hover:bg-neutral-800"
-            >
-              Request demo
-            </button>
+            {developerMode ? (
+              <button
+                onClick={() =>
+                  window.dispatchEvent(new Event("open-demo-modal"))
+                }
+                className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-[1px] hover:bg-neutral-800"
+              >
+                Request demo
+              </button>
+            ) : null}
           </div>
         </Container>
       </header>

@@ -87,11 +87,15 @@ export default function TenantLoginPage() {
   const [lastName, setLastName] = useState('')
   const [loading, setLoading] = useState(false)
   const [sessionChecking, setSessionChecking] = useState(true)
+  const [developerModeChecked, setDeveloperModeChecked] = useState(false)
+  const [developerMode, setDeveloperMode] = useState(false)
   const [feedback, setFeedback] = useState<Feedback>({ status: 'idle' })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin)
+      setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+      setDeveloperModeChecked(true)
 
       const host = normalizeHost(window.location.hostname)
       const baseDomain = normalizeHost(
@@ -109,6 +113,11 @@ export default function TenantLoginPage() {
   }, [])
 
   useEffect(() => {
+    if (!developerModeChecked || developerMode) return
+    router.replace('/')
+  }, [developerMode, developerModeChecked, router])
+
+  useEffect(() => {
     if (modeParam === 'register') {
       setMode('register')
     }
@@ -121,7 +130,7 @@ export default function TenantLoginPage() {
 
 
   useEffect(() => {
-    if (!origin) return
+    if (!developerModeChecked || !developerMode || !origin) return
 
     const controller = new AbortController()
     const nextPath = cleanNextPath(searchParams.get('next'), '/home')
@@ -150,7 +159,7 @@ export default function TenantLoginPage() {
     void checkSession()
 
     return () => controller.abort()
-  }, [origin, router, searchParams])
+  }, [developerMode, developerModeChecked, origin, router, searchParams])
 
   useEffect(() => {
     const ssoError = searchParams.get('sso_error')
@@ -297,6 +306,10 @@ export default function TenantLoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!developerModeChecked || !developerMode) {
+    return null
   }
 
   if (sessionChecking) {

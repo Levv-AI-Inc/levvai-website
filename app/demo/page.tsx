@@ -2,35 +2,43 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 export default function DemoPage() {
   const [demoOpen, setDemoOpen] = useState(false)
+  const [developerMode, setDeveloperMode] = useState(false)
   const [firstName, setFirstName] = useState("")
   const [company, setCompany] = useState("")
   const [workEmail, setWorkEmail] = useState("")
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState("")
+
+  useEffect(() => {
+    setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+  }, [])
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="text-lg font-semibold text-slate-900">Levv AI</div>
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <Link
-              href="#" onClick={(e) => { e.preventDefault(); setDemoOpen(true); }}
-              className="rounded-full border border-slate-200 px-4 py-2 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Request demo
-            </Link>
-            <Link
-              href="/auth/login"
-              className="rounded-full bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-800"
-            >
-              Log in
-            </Link>
-          </div>
+          {developerMode ? (
+            <div className="flex items-center gap-3 text-sm font-medium">
+              <Link
+                href="#" onClick={(e) => { e.preventDefault(); setDemoOpen(true); }}
+                className="rounded-full border border-slate-200 px-4 py-2 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                Request demo
+              </Link>
+              <Link
+                href="/auth/login"
+                className="rounded-full bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-800"
+              >
+                Log in
+              </Link>
+            </div>
+          ) : null}
         </div>
       </header>
 
