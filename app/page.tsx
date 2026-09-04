@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   ArrowRight,
   CheckCircle2,
@@ -454,28 +455,46 @@ export default function DemoPage() {
                   }
                 }}
               >
-                <input
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
-                  placeholder="First name"
-                  required
-                />
-                <input
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
-                  placeholder="Company"
-                  required
-                />
-                <input
-                  type="email"
-                  value={workEmail}
-                  onChange={(e) => setWorkEmail(e.target.value)}
-                  className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
-                  placeholder="Work email"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#4d5451]">
+                    First name
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
+                    placeholder="First name"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#4d5451]">
+                    Company
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
+                    placeholder="Company"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#4d5451]">
+                    Work email
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    type="email"
+                    value={workEmail}
+                    onChange={(e) => setWorkEmail(e.target.value)}
+                    className="w-full rounded-md border border-[#cfc7b8] bg-white px-3 py-3 text-sm text-[#1e2528] shadow-sm outline-none transition placeholder:text-[#8b918e] focus:border-[#1f3d38]"
+                    placeholder="Work email"
+                    required
+                  />
+                </div>
 
                 <div className="mt-2 flex items-center gap-3">
                   <button

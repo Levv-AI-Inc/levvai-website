@@ -45,6 +45,7 @@ import {
   formatTimestamp,
   getRateComponentKey,
 } from './shared'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 type RateCardEditorPageProps = {
   cardId?: string
@@ -770,6 +771,7 @@ export default function RateCardEditorPage({
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Name
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.name}
@@ -787,6 +789,7 @@ export default function RateCardEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Role
+                  <RequiredIndicator />
                 </label>
                 <select
                   value={form.role_definition}
@@ -810,6 +813,7 @@ export default function RateCardEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Rate structure
+                  <RequiredIndicator />
                 </label>
                 <select
                   value={form.rate_structure}
@@ -833,6 +837,7 @@ export default function RateCardEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Currency
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.currency}
@@ -872,6 +877,7 @@ export default function RateCardEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Effective date
+                  <RequiredIndicator />
                 </label>
                 <input
                   type="date"
@@ -982,15 +988,25 @@ export default function RateCardEditorPage({
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium">Seq</th>
-                    <th className="px-4 py-3 text-left font-medium">Supplier</th>
-                    <th className="px-4 py-3 text-left font-medium">Location</th>
+                    <th className="px-4 py-3 text-left font-medium">
+                      Seq
+                      <RequiredIndicator />
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">
+                      Supplier
+                      <RequiredIndicator />
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">
+                      Location
+                      <RequiredIndicator />
+                    </th>
                     {selectedStructureComponents.map((component) => (
                       <th
                         key={getRateComponentKey(component)}
                         className="px-4 py-3 text-left font-medium"
                       >
                         {getComponentLabelWithModifier(component, form.currency)}
+                        {component.is_required && <RequiredIndicator />}
                       </th>
                     ))}
                     <th className="px-4 py-3 text-left font-medium">Bill rate</th>
@@ -1033,6 +1049,7 @@ export default function RateCardEditorPage({
                             }))
                           }
                           className="w-20 rounded-md border px-2 py-1.5 text-sm"
+                          required
                         />
                       </td>
                       <td className="px-4 py-3 align-top">
@@ -1058,6 +1075,7 @@ export default function RateCardEditorPage({
                             }))
                           }
                           className="w-56 rounded-md border px-3 py-1.5 text-sm"
+                          required
                         >
                           <option value="">Select supplier</option>
                           {suppliers
@@ -1099,6 +1117,7 @@ export default function RateCardEditorPage({
                           }
                           className="w-40 rounded-md border px-3 py-1.5 text-sm"
                           placeholder="Toronto"
+                          required
                         />
                       </td>
                       {selectedStructureComponents.map((component) => {
@@ -1132,6 +1151,7 @@ export default function RateCardEditorPage({
                                   ? '20'
                                   : '70'
                               }
+                              required={component.is_required}
                             />
                           </td>
                         )

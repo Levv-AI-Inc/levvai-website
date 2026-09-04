@@ -23,6 +23,7 @@ import {
   getCostCenters,
   type CostCenterRecord,
 } from '@/lib/api/costCenters'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 type BackendUser = {
   membership_id?: number | string | null
@@ -948,7 +949,10 @@ export default function AdminUsersPage() {
 
             <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-bold text-slate-800">Name</label>
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Name
+                  <RequiredIndicator />
+                </label>
                 <input
                   value={addUserForm.name}
                   onChange={(event) =>
@@ -963,7 +967,10 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-bold text-slate-800">Email</label>
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Email
+                  <RequiredIndicator />
+                </label>
                 <input
                   type="email"
                   value={addUserForm.email}
@@ -1155,6 +1162,7 @@ export default function AdminUsersPage() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-800">
                   Code
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={addBusinessUnitForm.code}
@@ -1172,6 +1180,7 @@ export default function AdminUsersPage() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-800">
                   Name
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={addBusinessUnitForm.name}

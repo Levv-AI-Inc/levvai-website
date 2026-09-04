@@ -7,6 +7,7 @@ import {
   AlertCircle, CheckCircle2, Sliders, Target, User, ChevronDown, Check,
   FileText, PenLine, Upload, CheckSquare,
 } from 'lucide-react'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   getRequirements,
   setRequirements as setStore,
@@ -154,7 +155,10 @@ export default function RequirementsPage() {
           <div className="rp-add-title"><Plus size={11} /> New requirement</div>
           <div className="rp-add-row">
             <div className="rp-field-wrap">
-              <label className="rp-add-lbl">Requirement</label>
+              <label className="rp-add-lbl">
+                Requirement
+                <RequiredIndicator />
+              </label>
               <input
                 value={newReq.name}
                 onChange={e => onNameChange(e.target.value)}

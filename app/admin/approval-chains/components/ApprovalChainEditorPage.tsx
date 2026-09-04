@@ -50,6 +50,7 @@ import {
   getSuppliers,
   type SupplierRecord,
 } from '@/lib/api/suppliers'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import { COUNTRY_OPTIONS } from '@/lib/constants/countries'
 
 type LookupOption = {
@@ -1225,6 +1226,7 @@ export default function ApprovalChainEditorPage({
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-800">
                   Name
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.name}
@@ -1268,6 +1270,7 @@ export default function ApprovalChainEditorPage({
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-800">
                   Priority
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.priority}
@@ -1479,6 +1482,7 @@ export default function ApprovalChainEditorPage({
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-800">
                           Field
+                          <RequiredIndicator />
                         </label>
                         <select
                           value={condition.selected_field_key}
@@ -1521,6 +1525,7 @@ export default function ApprovalChainEditorPage({
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-800">
                           Operator
+                          <RequiredIndicator />
                         </label>
                         <select
                           value={condition.operator}
@@ -1548,6 +1553,7 @@ export default function ApprovalChainEditorPage({
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-800">
                           Value
+                          {requiresValue && <RequiredIndicator />}
                         </label>
 
                         {!requiresValue && (
