@@ -464,7 +464,12 @@ export default function LandingPage() {
   const [accessOpen, setAccessOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [activeStage, setActiveStage] = useState(0)
+  const [developerMode, setDeveloperMode] = useState(false)
   const stage = lifecycleStages[activeStage]
+
+  useEffect(() => {
+    setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+  }, [])
 
   return (
     <div className="min-h-screen overflow-hidden bg-white text-slate-950 [&_h1]:tracking-normal [&_h2]:tracking-normal [&_h3]:tracking-normal">
@@ -490,17 +495,19 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Link
-              href="/auth/login"
-              className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-            >
-              Sign in
-            </Link>
-            <PrimaryButton onClick={() => setAccessOpen(true)}>
-              Request access
-            </PrimaryButton>
-          </div>
+          {developerMode ? (
+            <div className="hidden items-center gap-3 md:flex">
+              <Link
+                href="/auth/login"
+                className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
+                Sign in
+              </Link>
+              <PrimaryButton onClick={() => setAccessOpen(true)}>
+                Request access
+              </PrimaryButton>
+            </div>
+          ) : null}
 
           <button
             type="button"
@@ -532,17 +539,19 @@ export default function LandingPage() {
                 </a>
               ))}
             </nav>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <Link
-                href="/auth/login"
-                className="inline-flex h-11 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-700"
-              >
-                Sign in
-              </Link>
-              <PrimaryButton onClick={() => setAccessOpen(true)} className="px-3">
-                Request access
-              </PrimaryButton>
-            </div>
+            {developerMode ? (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <Link
+                  href="/auth/login"
+                  className="inline-flex h-11 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-700"
+                >
+                  Sign in
+                </Link>
+                <PrimaryButton onClick={() => setAccessOpen(true)} className="px-3">
+                  Request access
+                </PrimaryButton>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </header>
@@ -564,10 +573,12 @@ export default function LandingPage() {
                 approval, and keeps the worker record current from onboarding to exit.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <PrimaryButton onClick={() => setAccessOpen(true)}>
-                  Request early access
-                  <ArrowRight className="h-4 w-4" />
-                </PrimaryButton>
+                {developerMode ? (
+                  <PrimaryButton onClick={() => setAccessOpen(true)}>
+                    Request early access
+                    <ArrowRight className="h-4 w-4" />
+                  </PrimaryButton>
+                ) : null}
                 <a
                   href="#lifecycle"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -877,15 +888,17 @@ export default function LandingPage() {
                 system, one audit trail, and one current worker record.
               </p>
             </div>
-            <div className="lg:text-right">
-              <PrimaryButton onClick={() => setAccessOpen(true)}>
-                Request early access
-                <ArrowRight className="h-4 w-4" />
-              </PrimaryButton>
-              <p className="mt-3 text-xs text-slate-400">
-                Guided onboarding. No rip-and-replace.
-              </p>
-            </div>
+            {developerMode ? (
+              <div className="lg:text-right">
+                <PrimaryButton onClick={() => setAccessOpen(true)}>
+                  Request early access
+                  <ArrowRight className="h-4 w-4" />
+                </PrimaryButton>
+                <p className="mt-3 text-xs text-slate-400">
+                  Guided onboarding. No rip-and-replace.
+                </p>
+              </div>
+            ) : null}
           </div>
         </section>
       </main>
