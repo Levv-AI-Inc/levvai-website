@@ -4,7 +4,7 @@ export default function ExternalLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-slate-50 to-white">
+    <div className="levv-worker-portal min-h-screen bg-gradient-to-b from-indigo-50 via-slate-50 to-white">
       {children}
     </div>
   )

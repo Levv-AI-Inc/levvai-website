@@ -314,15 +314,15 @@ export default function TenantLoginPage() {
 
   if (sessionChecking) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
+      <div className="levv-standalone-app relative flex min-h-screen items-center justify-center px-4 py-10">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
           className="relative w-full max-w-xl"
         >
-          <div className="absolute -inset-0.5 rounded-[26px] bg-gradient-to-br from-cyan-400/50 via-blue-500/40 to-emerald-400/40 opacity-60 blur" />
-          <div className="relative rounded-[22px] border border-white/10 bg-white px-6 py-14 text-slate-900 shadow-2xl">
+          <div className="levv-standalone-glow absolute -inset-0.5 rounded-[26px] bg-gradient-to-br from-cyan-400/50 via-blue-500/40 to-emerald-400/40 opacity-60 blur" />
+          <div className="levv-standalone-card relative rounded-[22px] border border-white/10 bg-white px-6 py-14 text-slate-900 shadow-2xl">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
               <p className="text-sm font-medium text-slate-700">Checking your session...</p>
@@ -334,15 +334,15 @@ export default function TenantLoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-10 text-slate-50">
+    <div className="levv-standalone-app relative flex min-h-screen items-center justify-center px-4 py-10">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
         className="relative w-full max-w-xl"
       >
-        <div className="absolute -inset-0.5 rounded-[26px] bg-gradient-to-br from-cyan-400/50 via-blue-500/40 to-emerald-400/40 opacity-60 blur" />
-        <div className="relative rounded-[22px] border border-white/10 bg-white text-slate-900 shadow-2xl">
+        <div className="levv-standalone-glow absolute -inset-0.5 rounded-[26px] bg-gradient-to-br from-cyan-400/50 via-blue-500/40 to-emerald-400/40 opacity-60 blur" />
+        <div className="levv-standalone-card relative rounded-[22px] border border-white/10 bg-white text-slate-900 shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <div className="space-y-2">
               <p className="text-lg font-semibold tracking-tight text-slate-900">
@@ -350,7 +350,7 @@ export default function TenantLoginPage() {
               </p>
               <p className="text-sm font-medium text-slate-600">{helperCopy}</p>
             </div>
-            <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            <div className="flex items-center gap-2 rounded-md bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               <Lock className="h-4 w-4" />
               Secure
             </div>

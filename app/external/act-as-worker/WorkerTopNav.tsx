@@ -17,7 +17,7 @@ export function WorkerTopNav() {
               L
             </div>
             <span className="text-sm font-bold tracking-[0.2em] text-white">LEVV</span>
-            <span className="text-[10px] font-medium text-slate-500 border border-slate-700 rounded px-1.5 py-0.5 ml-1">
+            <span className="text-[10px] font-medium text-[#d9ddd8] border border-[#52605c] rounded px-1.5 py-0.5 ml-1">
               Worker Profile
             </span>
           </div>
@@ -25,7 +25,7 @@ export function WorkerTopNav() {
           <div className="relative">
             <button
               onClick={() => setClientMenuOpen((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 border border-slate-700"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-[#d9ddd8] hover:text-white hover:bg-white/10 border border-[#52605c]"
             >
               <Building2 className="w-3.5 h-3.5" />
               {activeClient.name}
@@ -35,7 +35,7 @@ export function WorkerTopNav() {
             {clientMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setClientMenuOpen(false)} />
-                <div className="absolute left-0 top-full mt-1 w-64 rounded-lg border border-slate-700 bg-[#0f172a] shadow-xl z-50 overflow-hidden">
+                <div className="absolute left-0 top-full mt-1 w-64 rounded-lg border border-[#52605c] bg-[#0f172a] shadow-xl z-50 overflow-hidden">
                   {clients.map((c) => {
                     const status = engagementStatuses[c.id]
                     return (
@@ -49,7 +49,7 @@ export function WorkerTopNav() {
                           c.id === activeClientId ? 'bg-white/5' : ''
                         }`}
                       >
-                        <span className="text-slate-200 font-medium">{c.name}</span>
+                        <span className="text-[#eef1ec] font-medium">{c.name}</span>
                         {status?.status === 'active' && (
                           <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400">
                             <CheckCircle2 className="w-3 h-3" />
@@ -65,7 +65,7 @@ export function WorkerTopNav() {
                       </button>
                     )
                   })}
-                  <div className="px-3 py-2 text-[10px] text-slate-500 border-t border-slate-800">
+                  <div className="px-3 py-2 text-[10px] text-[#aeb8b2] border-t border-[#33413d]">
                     Only one engagement can be active at a time.
                   </div>
                 </div>

@@ -51,19 +51,6 @@ function getSelectableWeeks(count = 8) {
   return weeks
 }
 
-// Fonts scoped to this page only — doesn't touch the shared root layout, so
-// nothing else in the app is affected. Worth moving to next/font at the
-// layout level later if this treatment gets rolled out further.
-function PageFonts() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-      .font-display { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; }
-      .font-data { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
-    `}</style>
-  )
-}
-
 export default function WorkerTimesheetPage() {
   const searchParams = useSearchParams()
   const requestedWeek = searchParams.get('week')
@@ -78,8 +65,7 @@ export default function WorkerTimesheetPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F4F6F9] to-[#EEF1F6]">
-      <PageFonts />
+    <div className="levv-worker-portal min-h-screen bg-gradient-to-b from-[#F4F6F9] to-[#EEF1F6]">
       <WorkerTopNav />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
