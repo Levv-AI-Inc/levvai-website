@@ -24,6 +24,7 @@ import {
   formatTimestamp,
   getRateComponentKey,
 } from './shared'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 type RateStructureEditorPageProps = {
   structureId?: string
@@ -566,6 +567,7 @@ export default function RateStructureEditorPage({
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Name
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.name}

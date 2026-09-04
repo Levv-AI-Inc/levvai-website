@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Globe2, KeyRound, Loader2, Lock, Mail } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import { Button } from '@/components/ui/button'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
 import { cn } from '@/lib/utils'
@@ -390,7 +391,10 @@ export default function TenantLoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">Email</label>
+              <label className="text-sm font-medium text-slate-800">
+                Email
+                <RequiredIndicator />
+              </label>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
                 <Mail className="h-4 w-4 text-slate-400" />
                 <input
@@ -415,7 +419,10 @@ export default function TenantLoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">Password</label>
+              <label className="text-sm font-medium text-slate-800">
+                Password
+                <RequiredIndicator />
+              </label>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
                 <KeyRound className="h-4 w-4 text-slate-400" />
                 <input
@@ -434,6 +441,7 @@ export default function TenantLoginPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-800">
                   Confirm password
+                  <RequiredIndicator />
                 </label>
                 <div
                   className={cn(
@@ -466,23 +474,31 @@ export default function TenantLoginPage() {
             {mode === 'register' && !isInviteRegistration && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-800">First name</label>
+                  <label className="text-sm font-medium text-slate-800">
+                    First name
+                    <RequiredIndicator />
+                  </label>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(event) => setFirstName(event.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     placeholder="Ada"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-800">Last name</label>
+                  <label className="text-sm font-medium text-slate-800">
+                    Last name
+                    <RequiredIndicator />
+                  </label>
                   <input
                     type="text"
                     value={lastName}
                     onChange={(event) => setLastName(event.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     placeholder="Lovelace"
+                    required
                   />
                 </div>
               </div>

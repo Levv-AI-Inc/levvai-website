@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 export default function RequestDemoModal({
   open,
@@ -49,29 +50,47 @@ export default function RequestDemoModal({
                 }}
                 >
 
-              <input
-                name="name"
-                required
-                placeholder="First name"
-                className="w-full rounded-md border border-neutral-300 p-3 text-sm"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-neutral-600">
+                  First name
+                  <RequiredIndicator />
+                </label>
+                <input
+                  name="name"
+                  required
+                  placeholder="First name"
+                  className="w-full rounded-md border border-neutral-300 p-3 text-sm"
+                  />
+              </div>
 
 
-              <input
-                name="company"
-                required
-                placeholder="Company"
-                className="w-full rounded-md border border-neutral-300 p-3 text-sm"
-                />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-neutral-600">
+                  Company
+                  <RequiredIndicator />
+                </label>
+                <input
+                  name="company"
+                  required
+                  placeholder="Company"
+                  className="w-full rounded-md border border-neutral-300 p-3 text-sm"
+                  />
+              </div>
 
 
-              <input
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-neutral-600">
+                  Work email
+                  <RequiredIndicator />
+                </label>
+                <input
                     name="email"
                     type="email"
                     required
                     placeholder="Work email"
                     className="w-full rounded-md border border-neutral-300 p-3 text-sm"
                     />
+              </div>
 
 
               <div className="mt-6 flex gap-3">

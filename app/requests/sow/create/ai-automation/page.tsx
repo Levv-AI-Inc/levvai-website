@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   AlertTriangle,
   Bot,
@@ -524,7 +525,7 @@ function AutomationForm({
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <FormField label="Name">
+        <FormField label="Name" required>
           <input
             value={form.name}
             onChange={(event) => updateForm('name', event.target.value)}
@@ -554,14 +555,14 @@ function AutomationForm({
             options={DATA_CLASSES}
           />
         </FormField>
-        <FormField label="Business owner">
+        <FormField label="Business owner" required>
           <input
             value={form.businessOwner}
             onChange={(event) => updateForm('businessOwner', event.target.value)}
             className={inputClass}
           />
         </FormField>
-        <FormField label="Technical owner">
+        <FormField label="Technical owner" required>
           <input
             value={form.technicalOwner}
             onChange={(event) => updateForm('technicalOwner', event.target.value)}
@@ -594,7 +595,7 @@ function AutomationForm({
       </FormField>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <FormField label="Access scope">
+        <FormField label="Access scope" required>
           <input
             value={form.accessScopeText}
             onChange={(event) => updateForm('accessScopeText', event.target.value)}
@@ -675,7 +676,7 @@ function AutomationForm({
             Variable spend governance
           </div>
           <div className="grid gap-5 md:grid-cols-2">
-            <FormField label="Monthly spend cap">
+            <FormField label="Monthly spend cap" required>
               <input
                 type="number"
                 value={form.spendCap}
@@ -683,7 +684,7 @@ function AutomationForm({
                 className={inputClass}
               />
             </FormField>
-            <FormField label="Spend approver">
+            <FormField label="Spend approver" required>
               <input
                 value={form.spendApprover}
                 onChange={(event) => updateForm('spendApprover', event.target.value)}
@@ -853,14 +854,17 @@ const inputClass =
 function FormField({
   label,
   children,
+  required = false,
 }: {
   label: string
   children: React.ReactNode
+  required?: boolean
 }) {
   return (
     <div className="mt-5">
       <label className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
+        {required && <RequiredIndicator />}
       </label>
       {children}
     </div>

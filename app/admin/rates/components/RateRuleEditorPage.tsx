@@ -26,6 +26,7 @@ import {
   getRoles,
   type RoleRecord,
 } from '@/lib/api/roles'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import { createClientId, formatTimestamp, lookupLabel } from './shared'
 
 type RateRuleEditorPageProps = {
@@ -642,6 +643,7 @@ export default function RateRuleEditorPage({
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Name
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.name}
@@ -677,6 +679,7 @@ export default function RateRuleEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Priority
+                  <RequiredIndicator />
                 </label>
                 <input
                   type="number"
@@ -762,6 +765,7 @@ export default function RateRuleEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Effective date
+                  <RequiredIndicator />
                 </label>
                 <input
                   type="date"
@@ -819,6 +823,7 @@ export default function RateRuleEditorPage({
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Action value
+                  <RequiredIndicator />
                 </label>
                 <input
                   value={form.action_value}

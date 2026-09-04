@@ -12,6 +12,7 @@ import {
   type RoleCreatePayload,
   type RoleRecord,
 } from '@/lib/api/roles'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import { COUNTRY_OPTIONS } from '@/lib/constants/countries'
 
 type RoleEditorPageProps = {
@@ -284,6 +285,7 @@ export default function RoleEditorPage({
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-800">
                 Name
+                <RequiredIndicator />
               </label>
               <input
                 value={form.name}
@@ -319,6 +321,7 @@ export default function RoleEditorPage({
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-800">
                 Country
+                <RequiredIndicator />
               </label>
               <input
                 list="role-country-options"
@@ -379,6 +382,7 @@ export default function RoleEditorPage({
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-800">
                 Default currency
+                <RequiredIndicator />
               </label>
               <input
                 list="role-currency-options"

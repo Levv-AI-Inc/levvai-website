@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCWRequest } from '../../context/CWRequestContext'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   IntakeApiError,
   createIntakeDraft,
@@ -373,7 +374,10 @@ export default function CWDefinePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Role</label>
+          <label className="block text-sm font-medium">
+            Role
+            <RequiredIndicator />
+          </label>
           <select
             className="mt-1 w-full border border-gray-300 rounded-md bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
             value={roleSelectValue}

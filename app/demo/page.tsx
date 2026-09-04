@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import RequiredIndicator from '@/components/ui/RequiredIndicator'
 
 export default function DemoPage() {
   const [demoOpen, setDemoOpen] = useState(false)
@@ -262,28 +263,46 @@ export default function DemoPage() {
                   }
                 }}
               >
-                <input
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                  placeholder="First name"
-                  required
-                />
-                <input
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                  placeholder="Company"
-                  required
-                />
-                <input
-                  type="email"
-                  value={workEmail}
-                  onChange={(e) => setWorkEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                  placeholder="Work email"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    First name
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                    placeholder="First name"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Company
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                    placeholder="Company"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Work email
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    type="email"
+                    value={workEmail}
+                    onChange={(e) => setWorkEmail(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                    placeholder="Work email"
+                    required
+                  />
+                </div>
 
                 <div className="mt-2 flex items-center gap-3">
                   <button
