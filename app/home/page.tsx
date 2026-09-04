@@ -12,12 +12,29 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
+  X,
 } from 'lucide-react'
 
 interface ChatMessage {
   role: 'user' | 'nova'
   content: string
   actions?: { label: string; prompt: string }[]
+  rail?: RailData | null
+}
+
+interface RailTileData {
+  variant: string
+  eyebrow: string
+  title: string
+  subtitle: string
+  action: string
+  destination: string
+  badge: string
+}
+
+interface RailData {
+  header: string
+  tiles: RailTileData[]
 }
 
 type IntakeListResponse = {
@@ -72,20 +89,106 @@ const queue = [
   ['Deloitte change order', 'SOW amendment', '$182k', 'Budget variance'],
 ]
 
-function parseNovaResponse(raw: string) {
-  const match = raw.match(/\[NOVA_ACTIONS:\s*([^\]]+)\]\s*$/)
-  if (!match) return { text: raw.trim(), actions: [] }
+const railVariants: Record<string, { card: string; eyebrow: string; badge: string; sub: string; action: string }> = {
+  best: {
+    card: 'border-[#89d3bd] bg-[#eefaf5]',
+    eyebrow: 'text-[#1f3d38]',
+    badge: 'bg-[#d9f3e9] text-[#1f3d38]',
+    sub: 'text-[#52605c]',
+    action: 'text-[#1f3d38]',
+  },
+  warn: {
+    card: 'border-[#e5b766] bg-[#fff7e6]',
+    eyebrow: 'text-[#9a651e]',
+    badge: 'bg-[#f8e4b6] text-[#9a651e]',
+    sub: 'text-[#665742]',
+    action: 'text-[#9a651e]',
+  },
+  risk: {
+    card: 'border-[#e8b5ad] bg-[#fff4f1]',
+    eyebrow: 'text-[#a44135]',
+    badge: 'bg-[#f5d8d3] text-[#a44135]',
+    sub: 'text-[#66504b]',
+    action: 'text-[#a44135]',
+  },
+  default: {
+    card: 'border-[#d8d1c4] bg-white',
+    eyebrow: 'text-[#1f3d38]',
+    badge: 'bg-[#ebe5d8] text-[#52605c]',
+    sub: 'text-[#6b746f]',
+    action: 'text-[#1f3d38]',
+  },
+}
 
-  const actions = match[1]
-    .split(';')
-    .map((item) => {
-      const [label = '', prompt = ''] = item.split('|').map((s) => s.trim())
-      return { label, prompt }
-    })
-    .filter((action) => action.label && action.prompt)
-    .slice(0, 3)
+function parseNovaResponse(raw: string): {
+  text: string
+  actions: { label: string; prompt: string }[]
+  rail: RailData | null
+} {
+  let text = raw
+  let rail: RailData | null = null
 
-  return { text: raw.replace(match[0], '').trim(), actions }
+  const railMatch = text.match(/\[NOVA_RAIL:\s*([^\]]+)\]/)
+  if (railMatch) {
+    const body = railMatch[1].trim()
+    text = text.replace(railMatch[0], '')
+
+    const [headerPart = '', tilesPart = body] = body.split('::')
+    const tilesRaw = body.includes('::') ? tilesPart : body
+    const tiles = tilesRaw
+      .split(';')
+      .map((tile) => {
+        const parts = tile.split('|').map((part) => part.trim())
+        return {
+          variant: (parts[0] || 'default').toLowerCase(),
+          eyebrow: parts[1] || '',
+          title: parts[2] || '',
+          subtitle: parts[3] || '',
+          action: parts[4] || '',
+          destination: parts[5] || '',
+          badge: parts[6] || '',
+        }
+      })
+      .filter((tile) => tile.title && tile.action && tile.destination)
+      .slice(0, 3)
+
+    if (tiles.length > 0) {
+      rail = { header: body.includes('::') ? headerPart.trim() : 'For this', tiles }
+    }
+  }
+
+  let actions: { label: string; prompt: string }[] = []
+  const actionMatch = text.match(/\[NOVA_ACTIONS:\s*([^\]]+)\]/)
+  if (actionMatch) {
+    actions = actionMatch[1]
+      .split(';')
+      .map((item) => {
+        const [label = '', prompt = ''] = item.split('|').map((part) => part.trim())
+        return { label, prompt }
+      })
+      .filter((action) => action.label && action.prompt)
+      .slice(0, 3)
+    text = text.replace(actionMatch[0], '')
+  }
+
+  return { text: text.trim(), actions, rail }
+}
+
+const workerRoutes: Record<string, string> = {
+  'Sarah Cheng': '/cw/work-orders/WO-2024-0089',
+  'Marcus Holloway': '/cw/work-orders/WO-2024-0067',
+  'Priya Kapoor': '/cw/work-orders/WO-2024-0078',
+  'Jin Park': '/cw/work-orders/WO-2024-0079',
+  'David Nakamura': '/cw/work-orders/WO-2024-0091',
+}
+
+const recordPattern = /(Sarah Cheng|Marcus Holloway|Priya Kapoor|Jin Park|David Nakamura|SOW-\d{4}-\d{4}|WO-\d{4}-\d{4})/g
+
+function recordRoute(token: string): string | null {
+  if (workerRoutes[token]) return workerRoutes[token]
+  if (token.startsWith('SOW-')) return `/services/sow/${token.replace('SOW-', '')}`
+  if (token.startsWith('WO-')) return `/cw/work-orders/${token}`
+  return null
 }
 
 export default function Home() {
@@ -94,6 +197,8 @@ export default function Home() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [dismissedRailIndex, setDismissedRailIndex] = useState<number | null>(null)
+  const [policyActive, setPolicyActive] = useState(false)
   const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [loadingPendingRequests, setLoadingPendingRequests] = useState(true)
   const [pendingRequestsError, setPendingRequestsError] = useState('')
@@ -103,6 +208,17 @@ export default function Home() {
 
   const hasChat = chatMessages.length > 0
   const pendingRequestLabel = loadingPendingRequests ? '...' : String(pendingRequestCount)
+  const activeRailInfo = (() => {
+    for (let index = chatMessages.length - 1; index >= 0; index -= 1) {
+      const message = chatMessages[index]
+      if (message.role === 'nova' && message.rail?.tiles.length) {
+        return { rail: message.rail, index }
+      }
+    }
+    return null
+  })()
+  const hasRail = !!activeRailInfo && activeRailInfo.index !== dismissedRailIndex
+  const activeRail = hasRail ? activeRailInfo!.rail : null
 
   useEffect(() => {
     const tick = () =>
@@ -176,19 +292,58 @@ export default function Home() {
       const res = await fetch('/api/nova/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversationRef.current }),
+        body: JSON.stringify({ messages: conversationRef.current, policyActive }),
       })
       const data = await res.json()
       const raw: string = data.reply ?? 'I encountered an issue. Please try again.'
-      const { text: reply, actions } = parseNovaResponse(raw)
+      const { text: reply, actions, rail } = parseNovaResponse(raw)
       conversationRef.current = [...conversationRef.current, { role: 'assistant', content: raw }]
-      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions }])
+      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions, rail }])
     } catch {
       setChatMessages((prev) => [...prev, { role: 'nova', content: 'Nova is temporarily unavailable. Please try again.' }])
     } finally {
       setIsLoading(false)
     }
-  }, [input, isLoading])
+  }, [input, isLoading, policyActive])
+
+  const navigateToRoute = useCallback((destination: string) => {
+    router.push(destination)
+  }, [router])
+
+  const handleAction = useCallback((action: { label: string; prompt: string }) => {
+    if (action.prompt.startsWith('/')) {
+      navigateToRoute(action.prompt)
+      return
+    }
+    void sendMessage(action.prompt)
+  }, [navigateToRoute, sendMessage])
+
+  const linkifyRecords = useCallback((content: string) =>
+    content.split(recordPattern).map((part, index) => {
+      const route = recordRoute(part)
+      if (!route) return <span key={index}>{part}</span>
+      return (
+        <button
+          key={index}
+          type="button"
+          onClick={() => navigateToRoute(route)}
+          className="inline align-baseline font-semibold text-[#1f3d38] underline decoration-[#89d3bd] underline-offset-2 hover:text-[#255345]"
+        >
+          {part}
+        </button>
+      )
+    }), [navigateToRoute])
+
+  const endConversation = useCallback(() => {
+    setChatMessages([])
+    conversationRef.current = []
+    setInput('')
+    setDismissedRailIndex(null)
+  }, [])
+
+  const dismissRail = useCallback(() => {
+    setDismissedRailIndex(activeRailInfo?.index ?? null)
+  }, [activeRailInfo])
 
   const inputBox = (
     <div className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_18px_45px_-36px_rgba(31,61,56,0.75)] focus-within:border-[#1f3d38]">
@@ -210,10 +365,19 @@ export default function Home() {
       />
       <div className="flex items-center justify-between px-4 pb-3">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-[#e8c5bf] bg-[#fff4f1] px-2.5 py-1 text-[10px] font-bold uppercase text-[#a44135]">
+          <button
+            type="button"
+            onClick={() => setPolicyActive((current) => !current)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase ${
+              policyActive
+                ? 'border-[#b9dfcf] bg-[#eefaf5] text-[#1f3d38]'
+                : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
+            }`}
+            title={policyActive ? 'Policy loaded. Nova can enforce hard stops.' : 'No policy loaded. Nova advises without blocking.'}
+          >
             <ShieldAlert className="h-3.5 w-3.5" />
-            Policy inactive
-          </span>
+            {policyActive ? 'Policy active' : 'Policy inactive'}
+          </button>
           <button className="flex h-8 w-8 items-center justify-center rounded-md text-[#6b746f] hover:bg-[#f4f1ea]" title="Attach a document">
             <Paperclip className="h-4 w-4" />
           </button>
@@ -239,20 +403,76 @@ export default function Home() {
               <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
               Nova desk / {clockTime || '--:--'}
             </div>
-            <button onClick={() => setChatMessages([])} className="rounded-md px-3 py-1.5 text-xs font-semibold text-[#6b746f] hover:bg-[#fcfbf7]">
+            <button onClick={endConversation} className="rounded-md px-3 py-1.5 text-xs font-semibold text-[#6b746f] hover:bg-[#fcfbf7]">
               End conversation
             </button>
           </div>
 
-          {chatMessages.map((message, index) => (
-            <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-              <div className={message.role === 'user' ? 'max-w-[78%] rounded-lg bg-[#e4ddcf] px-5 py-3 text-sm text-[#1e2528]' : 'max-w-[88%] text-sm leading-7 text-[#3d4945]'}>
-                {message.content}
-              </div>
+          <div className={hasRail ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]' : ''}>
+            <div className="space-y-5">
+              {chatMessages.map((message, index) => (
+                <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                  <div className={message.role === 'user' ? 'max-w-[78%] rounded-lg bg-[#e4ddcf] px-5 py-3 text-sm text-[#1e2528]' : 'max-w-[88%] text-sm leading-7 text-[#3d4945]'}>
+                    {message.role === 'nova' ? linkifyRecords(message.content) : message.content}
+                    {message.role === 'nova' && message.actions && message.actions.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {message.actions.map((action) => {
+                          const isRoute = action.prompt.startsWith('/')
+                          return (
+                            <button
+                              key={action.label}
+                              type="button"
+                              onClick={() => handleAction(action)}
+                              className={
+                                isRoute
+                                  ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
+                                  : 'inline-flex items-center gap-1.5 rounded-md border border-[#cfc7b8] bg-[#fcfbf7] px-3 py-2 text-xs font-semibold text-[#1f3d38] hover:bg-[#f4f1ea]'
+                              }
+                            >
+                              {action.label}
+                              {isRoute && <ArrowRight className="h-3 w-3" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {isLoading && <div className="text-sm text-[#6b746f]">Nova is reviewing the record...</div>}
+              <div ref={chatEndRef} />
             </div>
-          ))}
-          {isLoading && <div className="text-sm text-[#6b746f]">Nova is reviewing the record...</div>}
-          <div ref={chatEndRef} />
+
+            {activeRail && (
+              <aside className="hidden lg:block">
+                <div className="sticky top-24 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{activeRail.header}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={dismissRail}
+                      className="rounded-md p-1 text-[#8b918e] hover:bg-[#f4f1ea] hover:text-[#52605c]"
+                      aria-label="Hide Nova rail"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-2.5">
+                    {activeRail.tiles.map((tile, index) => (
+                      <RailTile
+                        key={`${tile.title}-${index}`}
+                        tile={tile}
+                        onClick={() => handleAction({ label: tile.action, prompt: tile.destination })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </aside>
+            )}
+          </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea] to-transparent pb-4 pt-12 lg:left-64">
           <div className="mx-auto max-w-[1120px] px-6">{inputBox}</div>
@@ -366,5 +586,44 @@ export default function Home() {
         </section>
       </div>
     </div>
+  )
+}
+
+function RailTile({
+  tile,
+  onClick,
+}: {
+  tile: RailTileData
+  onClick: () => void
+}) {
+  const variant = railVariants[tile.variant] || railVariants.default
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`block w-full rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${variant.card}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className={`text-[10px] font-bold uppercase ${variant.eyebrow}`}>
+          {tile.eyebrow}
+        </div>
+        {tile.badge && (
+          <div className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase ${variant.badge}`}>
+            {tile.badge}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 text-sm font-semibold text-[#1e2528]">
+        {tile.title}
+      </div>
+      <div className={`mt-1 text-xs leading-5 ${variant.sub}`}>
+        {tile.subtitle}
+      </div>
+      <div className={`mt-3 inline-flex items-center gap-1.5 text-xs font-semibold ${variant.action}`}>
+        {tile.action}
+        <ArrowRight className="h-3 w-3" />
+      </div>
+    </button>
   )
 }
