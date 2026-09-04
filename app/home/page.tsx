@@ -191,6 +191,19 @@ function recordRoute(token: string): string | null {
   return null
 }
 
+function getCookie(name: string) {
+  if (typeof document === 'undefined') return ''
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length !== 2) return ''
+  return parts.pop()?.split(';').shift() ?? ''
+}
+
+function csrfHeaders() {
+  const csrfToken = getCookie('csrftoken')
+  return csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+}
+
 export default function Home() {
   const router = useRouter()
   const [clockTime, setClockTime] = useState('')
@@ -291,7 +304,8 @@ export default function Home() {
     try {
       const res = await fetch('/api/nova/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
         body: JSON.stringify({ messages: conversationRef.current, policyActive }),
       })
       const data = await res.json()
