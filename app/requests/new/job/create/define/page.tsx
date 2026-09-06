@@ -102,6 +102,59 @@ function readSiteDerivedFields(siteOption: ReferenceOption | null) {
   }
 }
 
+type DefineField =
+  | 'role'
+  | 'description'
+  | 'startDate'
+  | 'endDate'
+  | 'positions'
+  | 'costCenter'
+  | 'site'
+  | 'legalEntity'
+
+type DefineErrors = Partial<Record<DefineField, string>>
+
+const DEFINE_FIELD_IDS: Record<DefineField, string> = {
+  role: 'job-role',
+  description: 'job-description',
+  startDate: 'job-start-date',
+  endDate: 'job-end-date',
+  positions: 'job-positions',
+  costCenter: 'job-cost-center',
+  site: 'job-site',
+  legalEntity: 'job-legal-entity',
+}
+
+function fieldControlClass(hasError = false) {
+  return [
+    'mt-2 w-full rounded-lg border bg-white px-3.5 py-2.5 text-[15px] text-[#26312f] shadow-sm outline-none transition',
+    'placeholder:text-[#9aa09d] hover:border-[#aaa191] focus:ring-4',
+    hasError
+      ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100'
+      : 'border-[#cfc7b8] focus:border-[#255345] focus:ring-[#d9efe5]',
+  ].join(' ')
+}
+
+function FieldError({
+  field,
+  message,
+}: {
+  field: DefineField
+  message?: string
+}) {
+  if (!message) return null
+
+  return (
+    <p
+      id={`${DEFINE_FIELD_IDS[field]}-error`}
+      role="alert"
+      className="mt-2 text-xs font-medium text-rose-600"
+    >
+      {message}
+    </p>
+  )
+}
+
 export default function CWDefinePage() {
   const router = useRouter()
   const { request, update } = useCWRequest()
@@ -118,6 +171,7 @@ export default function CWDefinePage() {
   const [referenceError, setReferenceError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [savingStep, setSavingStep] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<DefineErrors>({})
 
   const selectedRole =
     request.roleId !== undefined
@@ -133,6 +187,53 @@ export default function CWDefinePage() {
         ? '__legacy__'
         : ''
   const legalEntitySelectValue = request.legalEntityId || ''
+
+  const clearFieldError = (field: DefineField) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+    setSaveError('')
+  }
+
+  const validateDefineStep = () => {
+    const errors: DefineErrors = {}
+
+    if (request.roleId === undefined) {
+      errors.role = 'Select a role from the master data list.'
+    }
+    if (!request.description?.trim()) {
+      errors.description = 'Add a description of the work to be performed.'
+    }
+    if (!request.startDate) {
+      errors.startDate = 'Select a start date.'
+    }
+    if (!request.endDate) {
+      errors.endDate = 'Select an end date.'
+    } else if (request.startDate && request.endDate < request.startDate) {
+      errors.endDate = 'End date must be on or after the start date.'
+    }
+    if (
+      request.positions === undefined ||
+      !Number.isInteger(request.positions) ||
+      request.positions <= 0
+    ) {
+      errors.positions = 'Enter at least one position using a whole number.'
+    }
+    if (request.costCenterId === undefined) {
+      errors.costCenter = 'Select a cost center.'
+    }
+    if (request.siteId === undefined) {
+      errors.site = 'Select a site.'
+    }
+    if (!request.legalEntityId) {
+      errors.legalEntity = 'Select a legal entity.'
+    }
+
+    return errors
+  }
 
   const handleRoleChange = (value: string) => {
     if (!value) {
@@ -162,14 +263,25 @@ export default function CWDefinePage() {
   }
 
   const handleContinue = async () => {
-    const role = request.role?.trim() || ''
-    if (!role) {
-      setSaveError('Role is required before continuing.')
+    const errors = validateDefineStep()
+    const firstInvalidField = Object.keys(errors)[0] as
+      | DefineField
+      | undefined
+
+    if (firstInvalidField) {
+      setFieldErrors(errors)
+      setSaveError('Complete the highlighted required fields to continue.')
+      window.requestAnimationFrame(() => {
+        document.getElementById(DEFINE_FIELD_IDS[firstInvalidField])?.focus()
+      })
       return
     }
 
+    const role = request.role?.trim() || ''
+
     setSavingStep(true)
     setSaveError('')
+    setFieldErrors({})
 
     const customFields = request.customFields || {}
 
@@ -353,38 +465,74 @@ export default function CWDefinePage() {
   }, [router])
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-10 space-y-10">
-      <div>
-        <h1 className="text-2xl font-semibold">Job setup</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Define the role and engagement details.
-        </p>
-      </div>
-
-      <div className="border rounded-xl p-6 space-y-4 bg-white shadow-sm">
-        <div>
-          <div className="text-sm font-semibold text-gray-900">
-            Role
+    <form
+      className="mx-auto max-w-6xl space-y-6 pb-10"
+      onSubmit={(event) => {
+        event.preventDefault()
+        void handleContinue()
+      }}
+      noValidate
+    >
+      <header className="relative overflow-hidden rounded-lg border border-[#33413d] bg-[#1e2528] px-6 py-7 text-white shadow-[0_24px_60px_-42px_rgba(31,61,56,0.8)] sm:px-8">
+        <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#89d3bd]/10" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#89d3bd]">
+              <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
+              New job request
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight !text-white">
+              Job setup
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c8d0cc]">
+              Define the role, timing, ownership, and work location for this
+              engagement.
+            </p>
           </div>
-          <p className="mt-1 text-sm text-gray-600">
-            Job templates are deprecated. Select a role to
-            prefill the description, location, currency, and
-            rate unit defaults for this request.
+          <p className="text-xs text-[#aeb8b2]">
+            Required fields are marked <span className="text-[#ff8d7e]">*</span>
           </p>
         </div>
+      </header>
 
-        <div>
-          <label className="block text-sm font-medium">
+      <section className="overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_20px_50px_-42px_rgba(31,61,56,0.7)]">
+        <div className="flex items-start gap-4 border-b border-[#e5ded2] px-6 py-5 sm:px-7">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9f5ef] text-xs font-bold text-[#1f3d38]">
+            01
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-[#26312f]">
+              Role and defaults
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-[#6b746f]">
+              Select a governed role to prefill its description, location,
+              currency, and rate-unit defaults.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 sm:px-7">
+          <label
+            htmlFor={DEFINE_FIELD_IDS.role}
+            className="block text-sm font-semibold text-[#3d4945]"
+          >
             Role
             <RequiredIndicator />
           </label>
           <select
-            className="mt-1 w-full border border-gray-300 rounded-md bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+            id={DEFINE_FIELD_IDS.role}
+            className={`${fieldControlClass(Boolean(fieldErrors.role))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
             value={roleSelectValue}
-            onChange={(event) => handleRoleChange(event.target.value)}
+            onChange={(event) => {
+              clearFieldError('role')
+              handleRoleChange(event.target.value)
+            }}
             disabled={referenceLoading}
+            required
+            aria-invalid={Boolean(fieldErrors.role)}
+            aria-describedby={fieldErrors.role ? `${DEFINE_FIELD_IDS.role}-error` : undefined}
           >
-            <option value="">Select role</option>
+            <option value="">Select a role</option>
             {request.role && request.roleId === undefined && (
               <option value="__legacy__">
                 {request.role} (legacy selection)
@@ -399,259 +547,390 @@ export default function CWDefinePage() {
               </option>
             ))}
           </select>
+          <FieldError field="role" message={fieldErrors.role} />
 
           {selectedRole && (
-            <p className="mt-2 text-sm text-gray-600">
-              Code: {selectedRole.code} · Location:{' '}
-              {selectedRoleLocation || 'N/A'} · Defaults:{' '}
-              {selectedRole.default_currency}/
-              {selectedRole.default_unit}
-            </p>
+            <dl className="mt-4 flex flex-wrap gap-2 text-xs text-[#52605c]">
+              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+                <dt className="inline text-[#8b918e]">Code </dt>
+                <dd className="inline font-semibold text-[#3d4945]">
+                  {selectedRole.code}
+                </dd>
+              </div>
+              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+                <dt className="inline text-[#8b918e]">Location </dt>
+                <dd className="inline font-semibold text-[#3d4945]">
+                  {selectedRoleLocation || 'N/A'}
+                </dd>
+              </div>
+              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+                <dt className="inline text-[#8b918e]">Default </dt>
+                <dd className="inline font-semibold text-[#3d4945]">
+                  {selectedRole.default_currency}/{selectedRole.default_unit}
+                </dd>
+              </div>
+            </dl>
           )}
 
           {!selectedRole && request.role && request.roleId === undefined && (
-            <p className="mt-2 text-sm text-amber-700">
-              This request still references a deprecated freeform
-              role. Select a masterdata role to refresh the
-              defaults.
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+              This draft references a deprecated freeform role. Select a role
+              from the master data list to continue.
             </p>
           )}
         </div>
-      </div>
+      </section>
 
-      <div className="border rounded-xl p-6 bg-white space-y-6 shadow-sm">
-        <div>
-          <label className="block text-sm font-medium">
-            Description
-            <RequiredIndicator />
-          </label>
-          <textarea
-            className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-            rows={4}
-            value={request.description || ''}
-            onChange={(event) =>
-              update({ description: event.target.value })
-            }
-            placeholder="Describe the work to be performed"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <section className="overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_20px_50px_-42px_rgba(31,61,56,0.7)]">
+        <div className="flex items-start gap-4 border-b border-[#e5ded2] px-6 py-5 sm:px-7">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9f5ef] text-xs font-bold text-[#1f3d38]">
+            02
+          </span>
           <div>
-            <label className="block text-sm font-medium">
-              Start date
-              <RequiredIndicator />
-            </label>
-            <input
-              type="date"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.startDate || ''}
-              onChange={(event) =>
-                update({ startDate: event.target.value })
-              }
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              End date
-              <RequiredIndicator />
-            </label>
-            <input
-              type="date"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.endDate || ''}
-              onChange={(event) =>
-                update({ endDate: event.target.value })
-              }
-            />
+            <h2 className="text-base font-semibold text-[#26312f]">
+              Engagement details
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-[#6b746f]">
+              Add the scope, dates, organization ownership, and primary work
+              location.
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="space-y-7 px-6 py-6 sm:px-7">
           <div>
-            <label className="block text-sm font-medium">
-              Positions
-              <RequiredIndicator />
-            </label>
-            <input
-              type="number"
-              min={1}
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.positions || ''}
-              onChange={(event) =>
-                update({
-                  positions: event.target.value
-                    ? Number(event.target.value)
-                    : undefined,
-                })
-              }
-              placeholder="1"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              Cost center
-              <RequiredIndicator />
-            </label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.costCenterId ?? ''}
-              onChange={(event) =>
-                update({
-                  costCenterId: event.target.value
-                    ? Number(event.target.value)
-                    : undefined,
-                  costCenter: event.target.value
-                    ? costCenters.find(
-                        (option) =>
-                          option.id === Number(event.target.value),
-                      )?.label
-                    : undefined,
-                })
-              }
-              disabled={referenceLoading}
+            <label
+              htmlFor={DEFINE_FIELD_IDS.description}
+              className="block text-sm font-semibold text-[#3d4945]"
             >
-              <option value="">Select cost center</option>
-              {costCenters.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              Site
+              Description
               <RequiredIndicator />
             </label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={request.siteId ?? ''}
+            <p className="mt-1 text-xs text-[#8b918e]">
+              Summarize the outcome, responsibilities, and work to be performed.
+            </p>
+            <textarea
+              id={DEFINE_FIELD_IDS.description}
+              className={`${fieldControlClass(Boolean(fieldErrors.description))} min-h-[140px] resize-y`}
+              rows={5}
+              value={request.description || ''}
               onChange={(event) => {
-                if (!event.target.value) {
-                  update({
-                    siteId: undefined,
-                    city: undefined,
-                    stateProvince: undefined,
-                    region: undefined,
-                  })
-                  return
-                }
-
-                const nextSiteId = Number(event.target.value)
-                const selectedSite =
-                  sites.find((option) => option.id === nextSiteId) ||
-                  null
-                const derived = readSiteDerivedFields(selectedSite)
-
-                update({
-                  siteId: nextSiteId,
-                  city: derived.city ?? undefined,
-                  stateProvince: derived.stateProvince ?? undefined,
-                  region: derived.stateProvince ?? undefined,
-                  country: derived.country ?? request.country,
-                  legalEntityId:
-                    derived.legalEntityId ?? request.legalEntityId,
-                })
+                clearFieldError('description')
+                update({ description: event.target.value })
               }}
-              disabled={referenceLoading}
-            >
-              <option value="">Select site</option>
-              {sites.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              placeholder="Describe the work to be performed"
+              required
+              aria-invalid={Boolean(fieldErrors.description)}
+              aria-describedby={fieldErrors.description ? `${DEFINE_FIELD_IDS.description}-error` : undefined}
+            />
+            <FieldError field="description" message={fieldErrors.description} />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium">
-              Legal entity
-              <RequiredIndicator />
-            </label>
-            <select
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              value={legalEntitySelectValue}
-              onChange={(event) =>
-                update({
-                  legalEntityId: event.target.value || undefined,
-                })
-              }
-              disabled={referenceLoading}
-            >
-              <option value="">Select legal entity</option>
-              {legalEntities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name}
-                  {entity.country
-                    ? ` · ${entity.country}`
-                    : ''}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.startDate}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                Start date
+                <RequiredIndicator />
+              </label>
+              <input
+                id={DEFINE_FIELD_IDS.startDate}
+                type="date"
+                className={`${fieldControlClass(Boolean(fieldErrors.startDate))} h-12`}
+                value={request.startDate || ''}
+                onChange={(event) => {
+                  clearFieldError('startDate')
+                  clearFieldError('endDate')
+                  update({ startDate: event.target.value })
+                }}
+                required
+                aria-invalid={Boolean(fieldErrors.startDate)}
+                aria-describedby={fieldErrors.startDate ? `${DEFINE_FIELD_IDS.startDate}-error` : undefined}
+              />
+              <FieldError field="startDate" message={fieldErrors.startDate} />
+            </div>
+
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.endDate}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                End date
+                <RequiredIndicator />
+              </label>
+              <input
+                id={DEFINE_FIELD_IDS.endDate}
+                type="date"
+                min={request.startDate || undefined}
+                className={`${fieldControlClass(Boolean(fieldErrors.endDate))} h-12`}
+                value={request.endDate || ''}
+                onChange={(event) => {
+                  clearFieldError('endDate')
+                  update({ endDate: event.target.value })
+                }}
+                required
+                aria-invalid={Boolean(fieldErrors.endDate)}
+                aria-describedby={fieldErrors.endDate ? `${DEFINE_FIELD_IDS.endDate}-error` : undefined}
+              />
+              <FieldError field="endDate" message={fieldErrors.endDate} />
+            </div>
           </div>
+
+          <div className="h-px bg-[#ebe5d8]" />
+
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.positions}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                Positions
+                <RequiredIndicator />
+              </label>
+              <input
+                id={DEFINE_FIELD_IDS.positions}
+                type="number"
+                min={1}
+                step={1}
+                className={`${fieldControlClass(Boolean(fieldErrors.positions))} h-12`}
+                value={request.positions ?? ''}
+                onChange={(event) => {
+                  clearFieldError('positions')
+                  update({
+                    positions: event.target.value
+                      ? Number(event.target.value)
+                      : undefined,
+                  })
+                }}
+                placeholder="1"
+                required
+                aria-invalid={Boolean(fieldErrors.positions)}
+                aria-describedby={fieldErrors.positions ? `${DEFINE_FIELD_IDS.positions}-error` : undefined}
+              />
+              <FieldError field="positions" message={fieldErrors.positions} />
+            </div>
+
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.costCenter}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                Cost center
+                <RequiredIndicator />
+              </label>
+              <select
+                id={DEFINE_FIELD_IDS.costCenter}
+                className={`${fieldControlClass(Boolean(fieldErrors.costCenter))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                value={request.costCenterId ?? ''}
+                onChange={(event) => {
+                  clearFieldError('costCenter')
+                  update({
+                    costCenterId: event.target.value
+                      ? Number(event.target.value)
+                      : undefined,
+                    costCenter: event.target.value
+                      ? costCenters.find(
+                          (option) =>
+                            option.id === Number(event.target.value),
+                        )?.label
+                      : undefined,
+                  })
+                }}
+                disabled={referenceLoading}
+                required
+                aria-invalid={Boolean(fieldErrors.costCenter)}
+                aria-describedby={fieldErrors.costCenter ? `${DEFINE_FIELD_IDS.costCenter}-error` : undefined}
+              >
+                <option value="">Select a cost center</option>
+                {costCenters.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError field="costCenter" message={fieldErrors.costCenter} />
+            </div>
+
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.site}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                Site
+                <RequiredIndicator />
+              </label>
+              <select
+                id={DEFINE_FIELD_IDS.site}
+                className={`${fieldControlClass(Boolean(fieldErrors.site))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                value={request.siteId ?? ''}
+                onChange={(event) => {
+                  clearFieldError('site')
+                  if (!event.target.value) {
+                    update({
+                      siteId: undefined,
+                      city: undefined,
+                      stateProvince: undefined,
+                      region: undefined,
+                    })
+                    return
+                  }
+
+                  const nextSiteId = Number(event.target.value)
+                  const selectedSite =
+                    sites.find((option) => option.id === nextSiteId) ||
+                    null
+                  const derived = readSiteDerivedFields(selectedSite)
+
+                  if (derived.legalEntityId) {
+                    clearFieldError('legalEntity')
+                  }
+                  update({
+                    siteId: nextSiteId,
+                    city: derived.city ?? undefined,
+                    stateProvince: derived.stateProvince ?? undefined,
+                    region: derived.stateProvince ?? undefined,
+                    country: derived.country ?? request.country,
+                    legalEntityId:
+                      derived.legalEntityId ?? request.legalEntityId,
+                  })
+                }}
+                disabled={referenceLoading}
+                required
+                aria-invalid={Boolean(fieldErrors.site)}
+                aria-describedby={fieldErrors.site ? `${DEFINE_FIELD_IDS.site}-error` : undefined}
+              >
+                <option value="">Select a site</option>
+                {sites.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError field="site" message={fieldErrors.site} />
+            </div>
+
+            <div>
+              <label
+                htmlFor={DEFINE_FIELD_IDS.legalEntity}
+                className="block text-sm font-semibold text-[#3d4945]"
+              >
+                Legal entity
+                <RequiredIndicator />
+              </label>
+              <select
+                id={DEFINE_FIELD_IDS.legalEntity}
+                className={`${fieldControlClass(Boolean(fieldErrors.legalEntity))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                value={legalEntitySelectValue}
+                onChange={(event) => {
+                  clearFieldError('legalEntity')
+                  update({
+                    legalEntityId: event.target.value || undefined,
+                  })
+                }}
+                disabled={referenceLoading}
+                required
+                aria-invalid={Boolean(fieldErrors.legalEntity)}
+                aria-describedby={fieldErrors.legalEntity ? `${DEFINE_FIELD_IDS.legalEntity}-error` : undefined}
+              >
+                <option value="">Select a legal entity</option>
+                {legalEntities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name}
+                    {entity.country ? ` · ${entity.country}` : ''}
+                  </option>
+                ))}
+              </select>
+              <FieldError field="legalEntity" message={fieldErrors.legalEntity} />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#d8d1c4] bg-[#f4f1ea]/70 p-4 sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-[#3d4945]">
+                  Derived location
+                </h3>
+                <p className="mt-1 text-xs text-[#8b918e]">
+                  These values are filled automatically from the selected site.
+                </p>
+              </div>
+              <span className="rounded-full border border-[#cfc7b8] bg-[#fcfbf7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#6b746f]">
+                Read only
+              </span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label htmlFor="job-country" className="block text-xs font-semibold text-[#6b746f]">
+                  Country
+                </label>
+                <input
+                  id="job-country"
+                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  value={request.country || ''}
+                  placeholder="Derived from site"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label htmlFor="job-region" className="block text-xs font-semibold text-[#6b746f]">
+                  State / Province
+                </label>
+                <input
+                  id="job-region"
+                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  value={request.stateProvince || request.region || ''}
+                  placeholder="Derived from site"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label htmlFor="job-city" className="block text-xs font-semibold text-[#6b746f]">
+                  City
+                </label>
+                <input
+                  id="job-city"
+                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  value={request.city || ''}
+                  placeholder="Derived from site"
+                  readOnly
+                />
+              </div>
+            </div>
+          </div>
+
+          {referenceError && (
+            <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {referenceError}
+            </div>
+          )}
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium">Country</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.country || ''}
-              placeholder="Derived from site"
-              readOnly
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">
-              State / Province
-            </label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.stateProvince || request.region || ''}
-              placeholder="Derived from site"
-              readOnly
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">City</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md bg-gray-50 p-2 text-sm text-gray-700"
-              value={request.city || ''}
-              placeholder="Derived from site"
-              readOnly
-            />
-          </div>
+      <div className="sticky bottom-4 z-20 flex flex-col gap-4 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7]/95 px-5 py-4 shadow-[0_18px_48px_-28px_rgba(31,61,56,0.55)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div aria-live="polite">
+          {saveError ? (
+            <p className="text-sm font-semibold text-rose-700">{saveError}</p>
+          ) : (
+            <p className="text-sm font-medium text-[#52605c]">
+              Complete this step to continue to qualifications.
+            </p>
+          )}
+          <p className="mt-1 text-xs text-[#8b918e]">
+            Your progress is saved as a draft when you continue.
+          </p>
         </div>
-
-        {referenceError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {referenceError}
-          </div>
-        )}
-
-        {saveError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {saveError}
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end">
         <button
-          onClick={() => void handleContinue()}
+          type="submit"
           disabled={savingStep}
-          className="px-6 py-2.5 rounded-full bg-black text-white text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="inline-flex h-11 min-w-[132px] items-center justify-center rounded-lg bg-[#1f3d38] px-6 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#255345] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#d9efe5] disabled:cursor-wait disabled:opacity-60"
         >
-          {savingStep ? 'Saving...' : 'Continue'}
+          {savingStep ? 'Saving…' : 'Continue'}
         </button>
       </div>
-    </div>
+    </form>
   )
 }
