@@ -423,6 +423,7 @@ export default function CWDefinePage() {
         <div>
           <label className="block text-sm font-medium">
             Description
+            <RequiredIndicator />
           </label>
           <textarea
             className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
@@ -439,6 +440,7 @@ export default function CWDefinePage() {
           <div>
             <label className="block text-sm font-medium">
               Start date
+              <RequiredIndicator />
             </label>
             <input
               type="date"
@@ -453,6 +455,7 @@ export default function CWDefinePage() {
           <div>
             <label className="block text-sm font-medium">
               End date
+              <RequiredIndicator />
             </label>
             <input
               type="date"
@@ -469,6 +472,7 @@ export default function CWDefinePage() {
           <div>
             <label className="block text-sm font-medium">
               Positions
+              <RequiredIndicator />
             </label>
             <input
               type="number"
@@ -489,6 +493,7 @@ export default function CWDefinePage() {
           <div>
             <label className="block text-sm font-medium">
               Cost center
+              <RequiredIndicator />
             </label>
             <select
               className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
@@ -518,7 +523,10 @@ export default function CWDefinePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Site</label>
+            <label className="block text-sm font-medium">
+              Site
+              <RequiredIndicator />
+            </label>
             <select
               className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
               value={request.siteId ?? ''}
@@ -563,6 +571,7 @@ export default function CWDefinePage() {
           <div>
             <label className="block text-sm font-medium">
               Legal entity
+              <RequiredIndicator />
             </label>
             <select
               className="mt-1 w-full border border-gray-300 rounded-md p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200"
