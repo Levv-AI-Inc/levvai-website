@@ -89,6 +89,7 @@ export default function TenantLoginPage() {
   const [sessionChecking, setSessionChecking] = useState(true)
   const [developerModeChecked, setDeveloperModeChecked] = useState(false)
   const [developerMode, setDeveloperMode] = useState(false)
+  const [tenantHost, setTenantHost] = useState(false)
   const [feedback, setFeedback] = useState<Feedback>({ status: 'idle' })
 
   useEffect(() => {
@@ -101,8 +102,10 @@ export default function TenantLoginPage() {
       const baseDomain = normalizeHost(
         process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'levvai.com'
       )
+      const isTenant = isTenantHost(host, baseDomain)
+      setTenantHost(isTenant)
 
-      if (isTenantHost(host, baseDomain) && host.endsWith(`.${baseDomain}`)) {
+      if (isTenant && host.endsWith(`.${baseDomain}`)) {
         const subdomain = host.slice(0, -(`.${baseDomain}`.length))
         const tenant = subdomain.split('.')[0] || null
         setTenantName(tenant)
@@ -113,9 +116,9 @@ export default function TenantLoginPage() {
   }, [])
 
   useEffect(() => {
-    if (!developerModeChecked || developerMode) return
+    if (!developerModeChecked || developerMode || tenantHost) return
     router.replace('/')
-  }, [developerMode, developerModeChecked, router])
+  }, [developerMode, developerModeChecked, router, tenantHost])
 
   useEffect(() => {
     if (modeParam === 'register') {
@@ -130,7 +133,7 @@ export default function TenantLoginPage() {
 
 
   useEffect(() => {
-    if (!developerModeChecked || !developerMode || !origin) return
+    if (!developerModeChecked || (!developerMode && !tenantHost) || !origin) return
 
     const controller = new AbortController()
     const nextPath = cleanNextPath(searchParams.get('next'), '/home')
@@ -159,7 +162,7 @@ export default function TenantLoginPage() {
     void checkSession()
 
     return () => controller.abort()
-  }, [developerMode, developerModeChecked, origin, router, searchParams])
+  }, [developerMode, developerModeChecked, origin, router, searchParams, tenantHost])
 
   useEffect(() => {
     const ssoError = searchParams.get('sso_error')
@@ -308,7 +311,7 @@ export default function TenantLoginPage() {
     }
   }
 
-  if (!developerModeChecked || !developerMode) {
+  if (!developerModeChecked || (!developerMode && !tenantHost)) {
     return null
   }
 

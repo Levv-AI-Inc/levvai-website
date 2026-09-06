@@ -210,11 +210,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         if (!response.ok) {
           setSessionUser(null)
+          if (response.status === 401 || response.status === 403) {
+            window.location.replace(
+              `/auth/login?next=${encodeURIComponent(pathname)}`,
+            )
+          }
           return
         }
 
         const payload = await response.json().catch(() => ({}))
-        setSessionUser(parseSessionUser(payload))
+        const user = parseSessionUser(payload)
+        setSessionUser(user)
+        if (!user) {
+          window.location.replace(
+            `/auth/login?next=${encodeURIComponent(pathname)}`,
+          )
+        }
       } catch (error) {
         if ((error as { name?: string })?.name === 'AbortError') return
         setSessionUser(null)
