@@ -1199,12 +1199,12 @@ export default function CompanyPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-8">
-      <CompanyHeader />
-      <AIRulesPanel
-        onBusinessUnitUpload={handleBusinessUnitUpload}
-        uploadingBusinessUnits={uploadingBusinessUnits}
-        businessUnitUploadError={businessUnitUploadError}
-      />
+        <CompanyHeader />
+        <AIRulesPanel
+          onBusinessUnitUpload={handleBusinessUnitUpload}
+          uploadingBusinessUnits={uploadingBusinessUnits}
+          businessUnitUploadError={businessUnitUploadError}
+        />
 
       <CompanyTabs
         tabs={TABS}

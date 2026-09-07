@@ -8,11 +8,11 @@ import {
   Briefcase,
   CheckCircle2,
   FileText,
-  Search,
   ShieldAlert,
   Sparkles,
   X,
 } from 'lucide-react'
+import { usePolicyStatus, type StoredPolicyStatus } from '../../lib/policyStatus'
 
 interface ChatMessage {
   role: 'user' | 'nova'
@@ -41,27 +41,90 @@ type IntakeListResponse = {
   results?: unknown[]
 }
 
+type UploadedPolicyAnalysis = {
+  policyName?: string
+  summary?: string
+  rules?: Array<{
+    title?: string
+    statement?: string
+    citation?: string
+    enforcementStatus?: string
+  }>
+  gaps?: Array<{
+    severity?: string
+    title?: string
+    description?: string
+  }>
+  intakeImpacts?: string[]
+  configChanges?: string[]
+}
+
+function isUploadedPolicyAnalysis(value: unknown): value is UploadedPolicyAnalysis {
+  return Boolean(value) && typeof value === 'object'
+}
+
+function compactList(items: string[], limit: number) {
+  return items
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, limit)
+}
+
+function buildPolicyContext(policyStatus: StoredPolicyStatus) {
+  if (!policyStatus.fileName && !policyStatus.policyName && !policyStatus.analysis) {
+    return ''
+  }
+
+  const analysis = isUploadedPolicyAnalysis(policyStatus.analysis)
+    ? policyStatus.analysis
+    : null
+  const lines: string[] = []
+
+  const name = analysis?.policyName || policyStatus.policyName || policyStatus.fileName
+  if (name) lines.push(`Policy: ${name}`)
+
+  const summary = analysis?.summary || policyStatus.summary
+  if (summary) lines.push(`Summary: ${summary}`)
+
+  const rules = (analysis?.rules ?? [])
+    .map((rule) =>
+      [
+        rule.title,
+        rule.statement,
+        rule.citation ? `(${rule.citation})` : '',
+        rule.enforcementStatus ? `[${rule.enforcementStatus}]` : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    )
+    .filter(Boolean)
+    .slice(0, 8)
+  if (rules.length) lines.push(`Key rules:\n- ${rules.join('\n- ')}`)
+
+  const intakeImpacts = compactList(analysis?.intakeImpacts ?? [], 5)
+  if (intakeImpacts.length) {
+    lines.push(`Intake impacts:\n- ${intakeImpacts.join('\n- ')}`)
+  }
+
+  const configChanges = compactList(analysis?.configChanges ?? [], 5)
+  if (configChanges.length) {
+    lines.push(`Configuration changes:\n- ${configChanges.join('\n- ')}`)
+  }
+
+  const gaps = (analysis?.gaps ?? [])
+    .map((gap) =>
+      [gap.severity ? `${gap.severity}:` : '', gap.title, gap.description]
+        .filter(Boolean)
+        .join(' '),
+    )
+    .filter(Boolean)
+    .slice(0, 5)
+  if (gaps.length) lines.push(`Open configuration gaps:\n- ${gaps.join('\n- ')}`)
+
+  return lines.join('\n\n').slice(0, 3500)
+}
+
 const observations = [
-  {
-    id: 1,
-    tag: 'Expiry risk',
-    severity: 'Critical',
-    time: 'Flagged 12 min ago',
-    body: "Accenture SOW-2024-0041 expires in 14 days and no renewal is in flight. Given the strategic nature of this work, I'd suggest contacting procurement by Friday.",
-    primary: 'Draft renewal',
-    prompt: 'Draft a renewal for Accenture SOW-2024-0041 expiring in 14 days',
-    href: '/services/sow/2024-0041',
-  },
-  {
-    id: 2,
-    tag: 'Spend velocity',
-    severity: 'Elevated',
-    time: 'Flagged 47 min ago',
-    body: "The Deloitte engagement is tracking 12% above its approved cap, which projects a $182k overage by quarter-end. You'll want to either expand scope or trim.",
-    primary: 'Adjust budget',
-    prompt: 'Review the Deloitte budget overrun and suggest remediation options',
-    href: '/payments/invoices',
-  },
   {
     id: 3,
     tag: 'Tenure limit',
@@ -72,20 +135,6 @@ const observations = [
     prompt: 'Show me the workers approaching the 18-month tenure limit and start recertification',
     href: '/workers/workers',
   },
-]
-
-const workstreams = [
-  ['Submitted requests', '18', '5 need owner review'],
-  ['Active SOWs', '42', '7 renew in 30 days'],
-  ['Worker starts', '11', '3 blocked by access'],
-  ['Invoice holds', '$96k', 'missing approvals'],
-]
-
-const queue = [
-  ['Salesforce CPQ support', 'SOW request', '$186k', 'Scope review'],
-  ['Plant maintenance technicians', 'Job posting', '$420k', 'Supplier match'],
-  ['Data privacy contractor', 'Worker request', '$74k', 'Legal routed'],
-  ['Deloitte change order', 'SOW amendment', '$182k', 'Budget variance'],
 ]
 
 const railVariants: Record<string, { card: string; eyebrow: string; badge: string; sub: string; action: string }> = {
@@ -210,7 +259,18 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [dismissedRailIndex, setDismissedRailIndex] = useState<number | null>(null)
-  const [policyActive, setPolicyActive] = useState(false)
+  const policyStatus = usePolicyStatus()
+  const policyUploaded = Boolean(policyStatus.fileName || policyStatus.policyName || policyStatus.analysis)
+  const policyActive = policyStatus.active
+  const policyContext = buildPolicyContext(policyStatus)
+  const policyStatusTitle = policyUploaded
+    ? [
+        policyStatus.policyName || policyStatus.fileName || 'Policy uploaded',
+        policyStatus.summary,
+      ]
+        .filter(Boolean)
+        .join(': ')
+    : 'No policy loaded. Nova advises without blocking.'
   const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [loadingPendingRequests, setLoadingPendingRequests] = useState(true)
   const [pendingRequestsError, setPendingRequestsError] = useState('')
@@ -323,7 +383,7 @@ export default function Home() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ messages: conversationRef.current, policyActive }),
+        body: JSON.stringify({ messages: conversationRef.current, policyActive, policyUploaded, policyContext }),
       })
       const data = await res.json()
       const raw: string = data.reply ?? 'I encountered an issue. Please try again.'
@@ -335,7 +395,7 @@ export default function Home() {
     } finally {
       setIsLoading(false)
     }
-  }, [input, isLoading, policyActive])
+  }, [input, isLoading, policyActive, policyUploaded, policyContext])
 
   const navigateToRoute = useCallback((destination: string) => {
     router.push(destination)
@@ -396,19 +456,29 @@ export default function Home() {
       />
       <div className="flex items-center justify-between px-4 pb-3">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPolicyActive((current) => !current)}
+          <span
+            role="status"
+            aria-live="polite"
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase ${
               policyActive
                 ? 'border-[#b9dfcf] bg-[#eefaf5] text-[#1f3d38]'
-                : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
+                : policyUploaded
+                  ? 'border-[#d8d1c4] bg-[#f4f1ea] text-[#6b746f]'
+                  : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
             }`}
-            title={policyActive ? 'Policy loaded. Nova can enforce hard stops.' : 'No policy loaded. Nova advises without blocking.'}
+            title={policyStatusTitle}
           >
-            <ShieldAlert className="h-3.5 w-3.5" />
-            {policyActive ? 'Policy active' : 'Policy inactive'}
-          </button>
+            {policyActive ? (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+              <ShieldAlert className="h-3.5 w-3.5" />
+            )}
+            {policyActive
+              ? 'Policy active'
+              : policyUploaded
+                ? 'Policy deactivated'
+                : 'Policy inactive'}
+          </span>
           {hasChat && (
             <button
               type="button"
@@ -519,7 +589,7 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-[1180px]">
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="mb-6">
         <section className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-6 shadow-[0_18px_45px_-36px_rgba(31,61,56,0.8)]">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
@@ -546,55 +616,9 @@ export default function Home() {
           </div>
           <div className="mt-6">{inputBox}</div>
         </section>
-
-        <section className="rounded-lg border border-[#cfc7b8] bg-[#1e2528] p-5 text-white">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#aeb8b2]">
-            <Search className="h-3.5 w-3.5" />
-            Operating picture
-          </div>
-          <div className="mt-5 space-y-4">
-            {workstreams.map(([label, value, note]) => (
-              <div key={label} className="border-t border-white/12 pt-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm text-[#d9ddd8]">{label}</span>
-                  <span className="text-xl font-semibold text-[#89d3bd]">{value}</span>
-                </div>
-                <div className="mt-1 text-xs text-[#aeb8b2]">{note}</div>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <section className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7]">
-          <div className="flex items-center justify-between border-b border-[#d8d1c4] px-5 py-4">
-            <div>
-              <h2 className="text-base font-semibold text-[#1e2528]">Work package queue</h2>
-              <p className="mt-1 text-xs text-[#6b746f]">Requests that need a decision, owner, or evidence check.</p>
-            </div>
-            <button onClick={() => router.push('/my-items/jobs')} className="rounded-md border border-[#cfc7b8] bg-white px-3 py-2 text-xs font-semibold text-[#26312f]">
-              View all
-            </button>
-          </div>
-          <div className="divide-y divide-[#ebe5d8]">
-            {queue.map(([title, type, value, state]) => (
-              <div key={title} className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_130px_100px_120px] sm:items-center">
-                <div>
-                  <div className="font-semibold text-[#26312f]">{title}</div>
-                  <div className="mt-1 text-xs text-[#6b746f]">{type}</div>
-                </div>
-                <div className="text-sm font-medium text-[#52605c]">{value}</div>
-                <div className="text-sm font-medium text-[#52605c]">{state}</div>
-                <button className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white">
-                  Open
-                  <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
+      <div>
         <section className="space-y-3">
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
             <Sparkles className="h-3.5 w-3.5" />

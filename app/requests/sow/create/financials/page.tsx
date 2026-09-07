@@ -1,8 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useSOW } from '../context'
+import { useEffect, useState } from 'react'
+import { addCompletedStep, type SOWProgressStep, useSOW } from '../context'
 import {
   DollarSign,
   Plus,
@@ -10,10 +10,10 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
-  Circle,
   Percent,
   Calculator
 } from 'lucide-react'
+import { SOWProgress } from '../components/SOWProgress'
 
 const COST_CENTERS = [
   { id: 'CC-1001', name: 'Technology' },
@@ -42,7 +42,7 @@ export default function FinancialsPage() {
     const cc = COST_CENTERS.find(c => c.id === ccId)
     if (!cc || allocations.some(a => a.costCenterId === ccId)) return
 
-    setAllocations([
+    const nextAllocations: Allocation[] = [
       ...allocations,
       {
         costCenterId: cc.id,
@@ -50,30 +50,57 @@ export default function FinancialsPage() {
         mode: 'percentage',
         value: 0,
       },
-    ])
+    ]
+    setAllocations(nextAllocations)
+    setSOW({ financials: { totalValue: totalValue || undefined, currency: 'USD', allocations: nextAllocations } })
     setShowModal(false)
     setSearch('')
   }
 
   const removeAllocation = (ccId: string) => {
-    setAllocations(allocations.filter(a => a.costCenterId !== ccId))
+    const nextAllocations = allocations.filter(a => a.costCenterId !== ccId)
+    setAllocations(nextAllocations)
+    setSOW({ financials: { totalValue: totalValue || undefined, currency: 'USD', allocations: nextAllocations } })
   }
 
   const updateAllocation = (ccId: string, updates: Partial<Allocation>) => {
-    setAllocations(allocations.map(a => a.costCenterId === ccId ? { ...a, ...updates } : a))
+    const nextAllocations = allocations.map(a => a.costCenterId === ccId ? { ...a, ...updates } : a)
+    setAllocations(nextAllocations)
+    setSOW({ financials: { totalValue: totalValue || undefined, currency: 'USD', allocations: nextAllocations } })
   }
 
   const splitEvenly = () => {
     if (allocations.length === 0) return
     const even = Math.floor(100 / allocations.length)
-    setAllocations(allocations.map(a => ({ ...a, mode: 'percentage', value: even })))
+    const nextAllocations: Allocation[] = allocations.map(a => ({ ...a, mode: 'percentage', value: even }))
+    setAllocations(nextAllocations)
+    setSOW({ financials: { totalValue: totalValue || undefined, currency: 'USD', allocations: nextAllocations } })
   }
 
   const totalPercentage = allocations.reduce((sum, a) => (a.mode === 'percentage' ? sum + a.value : sum), 0)
   const filteredCostCenters = COST_CENTERS.filter(cc => `${cc.id} ${cc.name}`.toLowerCase().includes(search.toLowerCase()))
+  const canContinue = typeof totalValue === 'number' && totalValue > 0
+  const defineHref = sow.workType
+    ? `/requests/sow/create/define?workType=${encodeURIComponent(sow.workType)}`
+    : '/requests/sow/create/define'
+
+  const saveDraft = (completedStep?: SOWProgressStep) => {
+    setSOW({
+      financials: { totalValue: totalValue || undefined, currency: 'USD', allocations },
+      completedSteps: completedStep
+        ? addCompletedStep(sow.completedSteps, completedStep)
+        : sow.completedSteps,
+    })
+  }
+
+  useEffect(() => {
+    saveDraft('financials')
+  }, [totalValue, allocations])
 
   const handleContinue = () => {
-    setSOW({ financials: { totalValue: totalValue || undefined, currency: 'USD', allocations } })
+    if (!canContinue) return
+
+    saveDraft()
     router.push('/requests/sow/create/commercials')
   }
 
@@ -104,7 +131,17 @@ export default function FinancialsPage() {
                 <input
                   type="number"
                   value={totalValue}
-                  onChange={e => setTotalValue(e.target.value ? Number(e.target.value) : '')}
+                  onChange={e => {
+                    const nextTotalValue = e.target.value ? Number(e.target.value) : ''
+                    setTotalValue(nextTotalValue)
+                    setSOW({
+                      financials: {
+                        totalValue: nextTotalValue || undefined,
+                        currency: 'USD',
+                        allocations,
+                      },
+                    })
+                  }}
                   className="w-full rounded-md border border-gray-300 pl-8 pr-12 py-3 text-lg font-bold focus:ring-2 focus:ring-cyan-100 focus:border-cyan-500 outline-none transition-all"
                   placeholder="0.00"
                 />
@@ -189,10 +226,22 @@ export default function FinancialsPage() {
             )}
           </section>
 
-          <footer className="flex justify-end pt-10 border-t border-gray-200 mt-10">
+          <footer className="flex items-center justify-between pt-10 border-t border-gray-200 mt-10">
+            <button
+              type="button"
+              onClick={() => {
+                saveDraft()
+                router.push(defineHref)
+              }}
+              className="group flex items-center justify-center gap-2 px-8 py-3.5 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all min-w-[160px]"
+            >
+              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Back
+            </button>
             <button
               onClick={handleContinue}
-              className="group flex items-center justify-center gap-2 px-12 py-3.5 rounded-full bg-black text-white text-sm font-bold hover:bg-gray-800 transition-all shadow-lg min-w-[200px]"
+              disabled={!canContinue}
+              className="group flex items-center justify-center gap-2 px-12 py-3.5 rounded-full bg-black text-white text-sm font-bold hover:bg-gray-800 transition-all shadow-lg min-w-[200px] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
             >
               Continue
               <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -202,15 +251,12 @@ export default function FinancialsPage() {
 
         {/* RIGHT: PROGRESS TRACKER */}
         <aside className="sticky top-12 h-fit space-y-4 font-sans">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">SOW Progress</h3>
-            <nav className="space-y-6">
-              <StatusItem label="Scope Definition" status="complete" />
-              <StatusItem label="Financials" status="active" />
-              <StatusItem label="Commercials" status="pending" />
-              <StatusItem label="Final Review" status="pending" />
-            </nav>
-          </div>
+          <SOWProgress
+            currentStep="financials"
+            workType={sow.workType}
+            beforeNavigate={saveDraft}
+            completedSteps={sow.completedSteps}
+          />
         </aside>
       </div>
 
@@ -245,25 +291,6 @@ export default function FinancialsPage() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function StatusItem({ label, status }: { label: string; status: 'complete' | 'active' | 'pending' }) {
-  return (
-    <div className="flex items-center gap-3">
-      {status === 'complete' ? (
-        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-      ) : status === 'active' ? (
-        <div className="w-5 h-5 rounded-full border-2 border-cyan-500 flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-cyan-500" />
-        </div>
-      ) : (
-        <Circle className="w-5 h-5 text-gray-200" />
-      )}
-      <span className={`text-sm font-bold tracking-tight ${status === 'active' ? 'text-gray-900' : 'text-gray-400'}`}>
-        {label}
-      </span>
     </div>
   )
 }

@@ -1,12 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   AlertTriangle,
   Bot,
-  Briefcase,
   CheckCircle2,
   ChevronRight,
   Cpu,
@@ -21,12 +20,15 @@ import {
   XCircle,
 } from 'lucide-react'
 import type {
+  AIAutomationDraft,
   AIAutomationItem,
   CostModel,
   OveragePolicy,
   ReviewCadence,
+  SOWProgressStep,
 } from '../context'
-import { useSOW } from '../context'
+import { addCompletedStep, useSOW } from '../context'
+import { SOWProgress } from '../components/SOWProgress'
 
 type DeploymentModel = NonNullable<AIAutomationItem['deploymentModel']>
 type OversightLevel = NonNullable<AIAutomationItem['oversightLevel']>
@@ -103,44 +105,44 @@ const DEPLOYMENT_OPTIONS: {
   label: string
   description: string
 }[] = [
-  {
-    value: 'your_tenant',
-    label: 'Your tenant',
-    description: 'Runs in your cloud or workspace environment.',
-  },
-  {
-    value: 'vendor_hosted',
-    label: 'Vendor hosted',
-    description: 'Runs in the supplier or platform environment.',
-  },
-  {
-    value: 'hybrid',
-    label: 'Hybrid',
-    description: 'Shared responsibility across your tenant and the vendor.',
-  },
-]
+    {
+      value: 'your_tenant',
+      label: 'Your tenant',
+      description: 'Runs in your cloud or workspace environment.',
+    },
+    {
+      value: 'vendor_hosted',
+      label: 'Vendor hosted',
+      description: 'Runs in the supplier or platform environment.',
+    },
+    {
+      value: 'hybrid',
+      label: 'Hybrid',
+      description: 'Shared responsibility across your tenant and the vendor.',
+    },
+  ]
 
 const OVERSIGHT_OPTIONS: {
   value: OversightLevel
   label: string
   description: string
 }[] = [
-  {
-    value: 'human_in_loop',
-    label: 'Human-in-the-loop',
-    description: 'A person approves before the agent takes action.',
-  },
-  {
-    value: 'human_on_loop',
-    label: 'Human-on-the-loop',
-    description: 'The agent acts, with scheduled human review.',
-  },
-  {
-    value: 'autonomous',
-    label: 'Autonomous',
-    description: 'The agent acts without routine human approval.',
-  },
-]
+    {
+      value: 'human_in_loop',
+      label: 'Human-in-the-loop',
+      description: 'A person approves before the agent takes action.',
+    },
+    {
+      value: 'human_on_loop',
+      label: 'Human-on-the-loop',
+      description: 'The agent acts, with scheduled human review.',
+    },
+    {
+      value: 'autonomous',
+      label: 'Autonomous',
+      description: 'The agent acts without routine human approval.',
+    },
+  ]
 
 const EXIT_OPTIONS: { value: ExitPlan; label: string }[] = [
   { value: 'decommission', label: 'Decommission at contract end' },
@@ -297,14 +299,14 @@ function buildItem(form: FormState): AIAutomationItem {
       form.vendorRetainsData === 'yes'
         ? true
         : form.vendorRetainsData === 'no'
-        ? false
-        : undefined,
+          ? false
+          : undefined,
     vendorTrainsOnData:
       form.vendorTrainsOnData === 'yes'
         ? true
         : form.vendorTrainsOnData === 'no'
-        ? false
-        : undefined,
+          ? false
+          : undefined,
     complianceScope: splitList(form.complianceScopeText),
     exitPlan: form.exitPlan || undefined,
   }
@@ -314,12 +316,18 @@ export default function AIAutomationPage() {
   const router = useRouter()
   const { sow, setSOW } = useSOW()
   const items = sow.aiAutomation || []
+  const savedDraft = sow.aiAutomationDraft
 
   const [gateAnswer, setGateAnswer] = useState<'yes' | 'no' | null>(
     sow.aiGateAnswer ?? null
   )
-  const [form, setForm] = useState<FormState>(INITIAL_FORM)
-  const [showForm, setShowForm] = useState(items.length === 0)
+  const [form, setForm] = useState<FormState>({
+    ...INITIAL_FORM,
+    ...savedDraft,
+  })
+  const [showForm, setShowForm] = useState(
+    sow.aiAutomationFormOpen ?? items.length === 0
+  )
 
   const allGaps = useMemo(() => items.flatMap(getItemGaps), [items])
   const blockingCount = allGaps.filter((gap) => gap.severity === 'blocking').length
@@ -329,16 +337,30 @@ export default function AIAutomationPage() {
 
   const workTypeLabel =
     WORK_TYPE_LABELS[sow.workType || ''] || sow.workType || 'SOW request'
+  const canAddAutomation =
+    form.name.trim().length > 0 &&
+    form.businessOwner.trim().length > 0 &&
+    form.technicalOwner.trim().length > 0 &&
+    splitList(form.accessScopeText).length > 0 &&
+    (!isUsageBased(form.costModel) ||
+      (Number(form.spendCap) > 0 && form.spendApprover.trim().length > 0))
+  const canContinue =
+    gateAnswer === 'no' ||
+    (gateAnswer === 'yes' && items.length > 0)
 
   const updateForm = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
   }
 
   const handleAdd = () => {
+    if (!canAddAutomation) return
+
     const nextItem = buildItem(form)
     setSOW({
       aiGateAnswer: 'yes',
       aiAutomation: [...items, nextItem],
+      aiAutomationDraft: INITIAL_FORM,
+      aiAutomationFormOpen: false,
     })
     setGateAnswer('yes')
     setForm(INITIAL_FORM)
@@ -351,47 +373,59 @@ export default function AIAutomationPage() {
     })
   }
 
-  const handleContinue = () => {
+  const saveDraft = (completedStep?: SOWProgressStep) => {
     setSOW({
       aiGateAnswer: gateAnswer,
       aiAutomation: gateAnswer === 'yes' ? items : [],
+      aiAutomationDraft: form as AIAutomationDraft,
+      aiAutomationFormOpen: showForm,
+      completedSteps: completedStep
+        ? addCompletedStep(sow.completedSteps, completedStep)
+        : sow.completedSteps,
     })
+  }
+
+  useEffect(() => {
+    saveDraft('ai-automation')
+  }, [gateAnswer, form, showForm, items])
+
+  const handleContinue = () => {
+    if (!canContinue) return
+
+    saveDraft()
     router.push('/requests/sow/create/review')
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-900">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
-            <Bot className="h-4 w-4" />
-            AI & Automation
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            AI & Automation
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-            Register any AI agent, automation platform, or bot that will operate
-            in your environment after this SOW closes. Levv creates a governed
-            digital worker record on SOW approval.
-          </p>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
-            <Briefcase className="h-3.5 w-3.5" />
-            {workTypeLabel}
-          </div>
-        </section>
+    <main className="min-h-screen bg-gray-50/50 pb-20 font-sans text-slate-900">
+      <div className="mx-auto grid max-w-7xl grid-cols-[1fr_300px] gap-12 px-10 py-12">
+        <div className="space-y-10">
+          <header className="space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-600">
+              <span className="rounded bg-cyan-100 px-2 py-1">SOW Setup</span>
+              <span className="text-gray-400">/</span>
+              <span className="font-medium tracking-normal text-gray-500">AI & Automation</span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              AI & Automation
+            </h1>
+            <p className="max-w-2xl font-medium text-gray-600">
+              Register AI agents or automation tools that will operate in your environment after this SOW closes.
+            </p>
+            <p className="text-sm text-slate-500">
+              SOW type: <span className="font-medium text-slate-700">{workTypeLabel}</span>
+            </p>
+          </header>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">
-                    Does this SOW include AI or automation?
+                    Will this SOW result in an AI agent or automation tool operating in your environment?
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    This can be skipped for now, but captured items will be
-                    visible in review.
+                    This means AI systems that remain active after the SOW closes — not tools the supplier uses internally to deliver the work.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -400,7 +434,11 @@ export default function AIAutomationPage() {
                     label="Yes"
                     onClick={() => {
                       setGateAnswer('yes')
-                      setSOW({ aiGateAnswer: 'yes' })
+                      setSOW({
+                        aiGateAnswer: 'yes',
+                        aiAutomationDraft: form as AIAutomationDraft,
+                        aiAutomationFormOpen: true,
+                      })
                       setShowForm(true)
                     }}
                   />
@@ -409,7 +447,12 @@ export default function AIAutomationPage() {
                     label="No"
                     onClick={() => {
                       setGateAnswer('no')
-                      setSOW({ aiGateAnswer: 'no', aiAutomation: [] })
+                      setSOW({
+                        aiGateAnswer: 'no',
+                        aiAutomation: [],
+                        aiAutomationDraft: INITIAL_FORM,
+                        aiAutomationFormOpen: false,
+                      })
                       setShowForm(false)
                     }}
                   />
@@ -448,55 +491,68 @@ export default function AIAutomationPage() {
                     updateForm={updateForm}
                     onAdd={handleAdd}
                     onCancel={() => setShowForm(false)}
+                    canAdd={canAddAutomation}
                   />
                 )}
               </>
             )}
 
-            <footer className="flex items-center justify-between border-t border-slate-200 pt-6">
+            <footer className="mt-10 flex items-center justify-between border-t border-gray-200 pt-10">
               <button
                 type="button"
-                onClick={() => router.push('/requests/sow/create/commercials')}
-                className="rounded-full border border-slate-200 bg-white px-8 py-3 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+                onClick={() => {
+                  saveDraft()
+                  router.push('/requests/sow/create/commercials')
+                }}
+                className="group flex min-w-[160px] items-center justify-center rounded-full border border-gray-200 bg-white px-8 py-3.5 text-sm font-bold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleContinue}
-                className="group inline-flex items-center gap-2 rounded-full bg-slate-900 px-10 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                disabled={!canContinue}
+                className="group inline-flex min-w-[200px] items-center justify-center gap-2 rounded-full bg-black px-12 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
               >
                 Continue
-                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
             </footer>
           </div>
 
-          <aside className="space-y-4">
-            <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-indigo-600" />
-                <h3 className="text-sm font-semibold text-indigo-900">
-                  Nova AI Governance
-                </h3>
-              </div>
-              {items.length === 0 ? (
-                <p className="text-sm leading-6 text-indigo-700">
-                  Add an AI item and Nova will evaluate ownership, access,
-                  deployment, data handling, compliance, and spend controls.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <SidebarFact label="AI items" value={items.length.toString()} />
-                  <SidebarFact label="High risk" value={highRiskCount.toString()} warn={highRiskCount > 0} />
-                  <SidebarFact label="Variable cost" value={usageBasedItems.length.toString()} warn={usageBasedItems.length > 0} />
-                  <SidebarFact label="Blocking gaps" value={blockingCount.toString()} warn={blockingCount > 0} />
-                  <SidebarFact label="Warnings" value={warningCount.toString()} warn={warningCount > 0} />
-                </div>
-              )}
+        </div>
+
+        <aside className="sticky top-12 h-fit space-y-4">
+          <SOWProgress
+            currentStep="ai-automation"
+            workType={sow.workType}
+            beforeNavigate={saveDraft}
+            completedSteps={sow.completedSteps}
+          />
+
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+              <h3 className="text-sm font-semibold text-indigo-900">
+                Nova AI Governance
+              </h3>
             </div>
-          </aside>
-        </section>
+            {items.length === 0 ? (
+              <p className="text-sm leading-6 text-indigo-700">
+                Add an AI item and Nova will evaluate ownership, access,
+                deployment, data handling, compliance, and spend controls.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <SidebarFact label="AI items" value={items.length.toString()} />
+                <SidebarFact label="High risk" value={highRiskCount.toString()} warn={highRiskCount > 0} />
+                <SidebarFact label="Variable cost" value={usageBasedItems.length.toString()} warn={usageBasedItems.length > 0} />
+                <SidebarFact label="Blocking gaps" value={blockingCount.toString()} warn={blockingCount > 0} />
+                <SidebarFact label="Warnings" value={warningCount.toString()} warn={warningCount > 0} />
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
     </main>
   )
@@ -507,16 +563,18 @@ function AutomationForm({
   updateForm,
   onAdd,
   onCancel,
+  canAdd,
 }: {
   form: FormState
   updateForm: <K extends keyof FormState>(key: K, value: FormState[K]) => void
   onAdd: () => void
   onCancel: () => void
+  canAdd: boolean
 }) {
   const usageBased = isUsageBased(form.costModel)
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
         <h2 className="text-lg font-semibold">Automation profile</h2>
         <p className="mt-1 text-sm text-slate-500">
@@ -670,7 +728,7 @@ function AutomationForm({
       </div>
 
       {usageBased && (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-900">
             <DollarSign className="h-4 w-4" />
             Variable spend governance
@@ -733,7 +791,8 @@ function AutomationForm({
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+          disabled={!canAdd}
+          className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
           <Plus className="h-4 w-4" />
           Add item
@@ -755,10 +814,10 @@ function ItemCard({
   const usageBased = isUsageBased(item.costModel)
 
   return (
-    <div className={`rounded-3xl border bg-white p-6 shadow-sm ${blocking ? 'border-rose-200' : gaps.length ? 'border-amber-200' : 'border-emerald-200'}`}>
+    <div className={`rounded-xl border bg-white p-6 shadow-sm ${blocking ? 'border-rose-200' : gaps.length ? 'border-amber-200' : 'border-emerald-200'}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${blocking ? 'bg-rose-50 text-rose-600' : gaps.length ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${blocking ? 'bg-rose-50 text-rose-600' : gaps.length ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
             <Bot className="h-5 w-5" />
           </div>
           <div>
@@ -810,7 +869,7 @@ function ItemCard({
       </div>
 
       {gaps.length > 0 && (
-        <div className={`mt-4 rounded-2xl border p-3 ${blocking ? 'border-rose-100 bg-rose-50' : 'border-amber-100 bg-amber-50'}`}>
+        <div className={`mt-4 rounded-xl border p-3 ${blocking ? 'border-rose-100 bg-rose-50' : 'border-amber-100 bg-amber-50'}`}>
           <p className={`mb-1.5 text-xs font-semibold ${blocking ? 'text-rose-700' : 'text-amber-700'}`}>
             Nova: {blocking} blocking, {gaps.length - blocking} warning
           </p>
@@ -849,7 +908,7 @@ function GateButton({
 }
 
 const inputClass =
-  'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
+  'w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100'
 
 function FormField({
   label,
@@ -912,7 +971,7 @@ function RadioCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+      className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition ${selected ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
     >
       <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-white' : 'border-slate-300'}`}>
         {selected && <span className="h-2 w-2 rounded-full bg-white" />}
@@ -937,7 +996,7 @@ function SidebarFact({
   warn?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-white/70 bg-white px-3 py-2">
+    <div className="flex items-center justify-between rounded-md border border-white/70 bg-white px-3 py-2">
       <span className="text-xs text-slate-500">{label}</span>
       <span className={`text-sm font-semibold ${warn ? 'text-rose-600' : 'text-slate-900'}`}>
         {value}

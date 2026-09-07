@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSOW } from '../context'
 import type { AIAutomationItem, CostModel } from '../context'
 import { assignSeverity } from '@/lib/intelligence/nova/severity'
@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
+import { SOWProgress } from '../components/SOWProgress'
 
 type NovaSignal = {
   id: string
@@ -18,6 +19,11 @@ type NovaSignal = {
   title: string
   message: string
   section?: string
+}
+
+type NovaScanState = {
+  status: 'idle' | 'scanning' | 'complete' | 'unavailable'
+  signals: NovaSignal[]
 }
 
 type GovernanceGap = {
@@ -159,8 +165,11 @@ export default function ReviewPage() {
      Nova – GPT Triangulation Scan (Moment 2)
      ----------------------------------------- */
 
-  const [novaSignals, setNovaSignals] = useState<NovaSignal[]>([])
-  const [isScanning, setIsScanning] = useState(false)
+  const [novaScan, setNovaScan] = useState<NovaScanState>({
+    status: 'idle',
+    signals: [],
+  })
+  const scanRequestIdRef = useRef(0)
   const [packageContent, setPackageContent] = useState('')
   const [isGeneratingPackage, setIsGeneratingPackage] = useState(false)
   const [packageError, setPackageError] = useState('')
@@ -182,16 +191,23 @@ export default function ReviewPage() {
   const aiUsageBased = aiAutomation.filter((item) => isUsageBased(item.costModel))
 
   useEffect(() => {
+    const requestId = scanRequestIdRef.current + 1
+    scanRequestIdRef.current = requestId
+    const controller = new AbortController()
+
     async function runNovaScan() {
-      if (!rawScope) return
+      if (!rawScope) {
+        setNovaScan({ status: 'idle', signals: [] })
+        return
+      }
 
       try {
-        setIsScanning(true)
-console.log('REVIEW PAGE: calling /api/nova/scan')
+        setNovaScan({ status: 'scanning', signals: [] })
 
         const res = await fetch('/api/nova/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
           workType: sow.workType,
           pricingModel: commercials.pricingModel || null,
@@ -204,10 +220,11 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
         })
 
         const data = await res.json()
-        console.log('NOVA RESPONSE', data)
+
+        if (scanRequestIdRef.current !== requestId) return
 
         if (!data?.ok || !Array.isArray(data.findings)) {
-          setNovaSignals([])
+          setNovaScan({ status: 'unavailable', signals: [] })
           return
         }
 
@@ -234,16 +251,19 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
           })
         )
 
-        setNovaSignals(mapped)
+        setNovaScan({ status: 'complete', signals: mapped })
       } catch (err) {
+        if (controller.signal.aborted || scanRequestIdRef.current !== requestId) return
         console.error('Nova scan failed', err)
-        setNovaSignals([])
-      } finally {
-        setIsScanning(false)
+        setNovaScan({ status: 'unavailable', signals: [] })
       }
     }
 
     runNovaScan()
+
+    return () => {
+      controller.abort()
+    }
   }, [
     rawScope,
     sow.workType,
@@ -691,7 +711,7 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
         </Section>
 
         {/* NOVA SCANNER */}
-        <NovaScanner signals={novaSignals} />
+        <NovaScanner scan={novaScan} />
 
         {/* ACTIONS */}
         <div className="flex justify-between pt-4">
@@ -721,13 +741,12 @@ console.log('REVIEW PAGE: calling /api/nova/scan')
       </div>
 
       {/* RIGHT STATUS */}
-      <div className="sticky top-10 h-fit border border-slate-200 rounded-xl p-5 bg-white space-y-4">
-        <div className="font-medium">SOW progress</div>
-        <StatusItem label="Description" status="complete" />
-        <StatusItem label="Financials" status="complete" />
-        <StatusItem label="Commercials" status="complete" />
-        <StatusItem label="AI Automation" status="complete" />
-        <StatusItem label="Review" status="active" />
+      <div className="sticky top-10 h-fit space-y-4">
+        <SOWProgress
+          currentStep="review"
+          workType={sow.workType}
+          completedSteps={sow.completedSteps}
+        />
 
         {aiAutomation.length > 0 && (
           <div
@@ -821,7 +840,51 @@ function getReviewArtifacts(items: any[]) {
 
 /* ---------- Nova Scanner UI ---------- */
 
-function NovaScanner({ signals }: { signals: NovaSignal[] }) {
+function NovaScanner({ scan }: { scan: NovaScanState }) {
+  const { status, signals } = scan
+
+  if (status === 'idle') {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6">
+        <div className="font-semibold text-slate-800">
+          Nova review
+        </div>
+        <p className="mt-1 text-sm text-slate-600">
+          Add scope details for Nova to complete the final review.
+        </p>
+      </div>
+    )
+  }
+
+  if (status === 'scanning') {
+    return (
+      <div className="rounded-xl border border-purple-200 bg-purple-50 p-6">
+        <div className="flex items-center gap-3">
+          <Bot className="h-5 w-5 text-purple-700" />
+          <div className="font-semibold text-slate-900">
+            Nova Analysis
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          Reviewing scope, commercial terms, and structural completeness.
+        </p>
+      </div>
+    )
+  }
+
+  if (status === 'unavailable') {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+        <div className="font-semibold text-amber-800">
+          Nova review unavailable
+        </div>
+        <p className="mt-1 text-sm text-amber-700">
+          Nova could not complete the automated scan. Review the SOW details before submitting.
+        </p>
+      </div>
+    )
+  }
+
   if (!signals.length) {
     return (
       <div className="border border-green-200 rounded-xl p-6 bg-green-50">
@@ -1015,30 +1078,6 @@ function SidebarFact({
       <span className={`text-xs font-semibold ${warn ? 'text-rose-700' : 'text-slate-800'}`}>
         {value}
       </span>
-    </div>
-  )
-}
-
-function StatusItem({
-  label,
-  status,
-}: {
-  label: string
-  status: 'complete' | 'active' | 'pending'
-}) {
-  const color =
-    status === 'complete'
-      ? 'bg-green-500'
-      : status === 'active'
-      ? 'bg-amber-400'
-      : 'bg-gray-300'
-
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span
-        className={`w-2.5 h-2.5 rounded-full ${color}`}
-      />
-      <span>{label}</span>
     </div>
   )
 }

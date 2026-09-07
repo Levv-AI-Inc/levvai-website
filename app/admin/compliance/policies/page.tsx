@@ -1,126 +1,295 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { CompliancePolicy } from './types'
+import { useEffect, useState } from 'react'
+import { FileText } from 'lucide-react'
+import {
+  usePolicyStatus,
+  type StoredPolicyHistoryItem,
+} from '../../../../lib/policyStatus'
+import { getBusinessUnits } from '@/lib/api/businessUnits'
+import { getCostCenters } from '@/lib/api/costCenters'
+import { getLegalEntities } from '@/lib/api/legalEntities'
+import { getLocations } from '@/lib/api/locations'
+import { getSites } from '@/lib/api/sites'
+import PolicyUploadPanel, {
+  type PolicyMasterData,
+} from './components/PolicyUploadPanel'
+import { TABS } from '../../company/types'
 
-const MOCK_POLICIES: CompliancePolicy[] = [
-  {
-    id: 'policy-us-it-v1',
-    name: 'US IT Contractors',
-    version: 'v1.0',
-    status: 'ACTIVE',
-    scope: {
-      regions: ['United States'],
-      workerTypes: ['Contingent'],
-      roles: ['IT Developer'],
-    },
-    blocks: [],
-    createdAt: '2025-01-10',
-    updatedAt: '2025-01-12',
-  },
-  {
-    id: 'policy-us-sow-v1',
-    name: 'US SOW – Professional Services',
-    version: 'v1.0',
-    status: 'DRAFT',
-    scope: {
-      regions: ['United States'],
-      workerTypes: ['SOW'],
-    },
-    blocks: [],
-    createdAt: '2025-01-15',
-    updatedAt: '2025-01-15',
-  },
-]
+type PolicyRule = {
+  id?: string
+}
+
+type PolicyGap = {
+  id?: string
+  severity?: 'low' | 'medium' | 'high'
+  title?: string
+  description?: string
+  recommendation?: string
+}
+
+type UploadedPolicyAnalysis = {
+  policyName?: string
+  summary?: string
+  activatedAt?: string
+  counts?: {
+    totalRules?: number
+    rateClassification?: number
+    tenureDuration?: number
+    supplierEligibility?: number
+    approvalException?: number
+  }
+  rules?: PolicyRule[]
+  gaps?: PolicyGap[]
+  intakeImpacts?: string[]
+  configChanges?: string[]
+}
+
+type PolicyTableRow = {
+  id: string
+  active: boolean
+  status: StoredPolicyHistoryItem['status']
+  fileName?: string
+  policyName?: string
+  updatedAt: string
+  analysis?: unknown
+}
+
+function isUploadedPolicyAnalysis(
+  value: unknown,
+): value is UploadedPolicyAnalysis {
+  return Boolean(value && typeof value === 'object')
+}
+
+function formatDate(value?: string) {
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+function emptyPolicyMasterData(): PolicyMasterData {
+  return TABS.reduce(
+    (data, tab) => ({ ...data, [tab]: [] }),
+    {} as PolicyMasterData,
+  )
+}
+
+function buildCurrentPolicyRow(
+  policyStatus: ReturnType<typeof usePolicyStatus>,
+): PolicyTableRow | null {
+  if (
+    !policyStatus.fileName &&
+    !policyStatus.policyName &&
+    !policyStatus.analysis
+  ) {
+    return null
+  }
+
+  return {
+    id: 'current-policy',
+    active: policyStatus.active,
+    status: policyStatus.active ? 'active' : 'deactivated',
+    fileName: policyStatus.fileName,
+    policyName: policyStatus.policyName,
+    updatedAt: policyStatus.updatedAt,
+    analysis: policyStatus.analysis,
+  }
+}
+
+function getPolicyName(row: PolicyTableRow) {
+  const rowAnalysis = isUploadedPolicyAnalysis(row.analysis)
+    ? row.analysis
+    : null
+
+  return (
+    rowAnalysis?.policyName ||
+    row.policyName ||
+    row.fileName ||
+    'Uploaded policy'
+  )
+}
+
+function getRuleCount(row: PolicyTableRow) {
+  const rowAnalysis = isUploadedPolicyAnalysis(row.analysis)
+    ? row.analysis
+    : null
+
+  return rowAnalysis?.counts?.totalRules ?? rowAnalysis?.rules?.length ?? 0
+}
+
+function getGapCount(row: PolicyTableRow) {
+  const rowAnalysis = isUploadedPolicyAnalysis(row.analysis)
+    ? row.analysis
+    : null
+
+  return rowAnalysis?.gaps?.length ?? 0
+}
+
+function getStatusMeta(row: PolicyTableRow) {
+  if (row.status === 'removed') {
+    return {
+      label: 'REMOVED',
+      className: 'bg-rose-50 text-rose-700',
+    }
+  }
+
+  if (row.active) {
+    return {
+      label: 'ACTIVE',
+      className: 'bg-emerald-100 text-emerald-700',
+    }
+  }
+
+  return {
+    label: 'DEACTIVATED',
+    className: 'bg-slate-100 text-slate-600',
+  }
+}
+
+async function loadPolicyMasterData(): Promise<PolicyMasterData> {
+  const [
+    businessUnitsResult,
+    costCentersResult,
+    locationsResult,
+    sitesResult,
+    legalEntitiesResult,
+  ] = await Promise.allSettled([
+    getBusinessUnits(),
+    getCostCenters(),
+    getLocations(),
+    getSites(),
+    getLegalEntities(),
+  ])
+
+  return {
+    'Business Units':
+      businessUnitsResult.status === 'fulfilled' ? businessUnitsResult.value : [],
+    'Cost Centers':
+      costCentersResult.status === 'fulfilled' ? costCentersResult.value : [],
+    Locations:
+      locationsResult.status === 'fulfilled' ? locationsResult.value : [],
+    Worksites: sitesResult.status === 'fulfilled' ? sitesResult.value : [],
+    'Legal Entities':
+      legalEntitiesResult.status === 'fulfilled' ? legalEntitiesResult.value : [],
+    Subsidiaries: [],
+  }
+}
 
 export default function CompliancePoliciesPage() {
-  const router = useRouter()
+  const policyStatus = usePolicyStatus()
+  const [policyMasterData, setPolicyMasterData] = useState<PolicyMasterData>(
+    () => emptyPolicyMasterData(),
+  )
+  const currentPolicyRow = buildCurrentPolicyRow(policyStatus)
+  const policyRows = [
+    ...(currentPolicyRow ? [currentPolicyRow] : []),
+    ...(policyStatus.history ?? []),
+  ]
+
+  useEffect(() => {
+    let cancelled = false
+
+    loadPolicyMasterData()
+      .then((masterData) => {
+        if (!cancelled) setPolicyMasterData(masterData)
+      })
+      .catch(() => {
+        if (!cancelled) setPolicyMasterData(emptyPolicyMasterData())
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div>
         <div>
           <h1 className="text-xl font-semibold text-slate-900">
             Compliance Policies
           </h1>
           <p className="text-sm text-slate-500">
-            Blueprints that define onboarding and offboarding requirements
+            Upload and manage external workforce policy enforcement.
           </p>
         </div>
-
-        <button
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          onClick={() => router.push('/admin/compliance/policies/new')}
-        >
-          Create Policy
-        </button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50">
-            <tr className="text-left text-slate-600">
-              <th className="px-4 py-3">Policy Name</th>
-              <th className="px-4 py-3">Version</th>
-              <th className="px-4 py-3">Scope</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Last Updated</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
+      <PolicyUploadPanel masterData={policyMasterData} />
 
-          <tbody>
-            {MOCK_POLICIES.map((policy) => (
-              <tr
-                key={policy.id}
-                className="border-b border-slate-100 last:border-b-0"
-              >
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {policy.name}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {policy.version}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {[
-                    ...(policy.scope.regions || []),
-                    ...(policy.scope.roles || []),
-                    ...(policy.scope.workerTypes || []),
-                  ].join(' · ') || '—'}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      policy.status === 'ACTIVE'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {policy.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {policy.updatedAt}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    className="text-sm font-medium text-slate-900 hover:underline"
-                    onClick={() =>
-                      router.push(
-                        `/admin/compliance/policies/${policy.id}`
-                      )
-                    }
-                  >
-                    Open
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {policyRows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#1f3d38] text-[#89d3bd]">
+            <FileText className="h-5 w-5" />
+          </div>
+          <h2 className="text-sm font-semibold text-slate-900">
+            No policy uploaded
+          </h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+            Use the uploader above to add a policy for compliance enforcement.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-lg border border-slate-200 bg-white">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50">
+                <tr className="text-left text-slate-600">
+                  <th className="px-4 py-3">Policy Name</th>
+                  <th className="px-4 py-3">Source File</th>
+                  <th className="px-4 py-3">Rules</th>
+                  <th className="px-4 py-3">Gaps</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Last Updated</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {policyRows.map((row) => {
+                  const statusMeta = getStatusMeta(row)
+
+                  return (
+                    <tr
+                      key={row.id}
+                      className="border-b border-slate-100 last:border-b-0"
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {getPolicyName(row)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {row.fileName || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {getRuleCount(row)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {getGapCount(row)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusMeta.className}`}
+                        >
+                          {statusMeta.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDate(row.updatedAt)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   )
 }

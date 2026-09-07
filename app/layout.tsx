@@ -390,7 +390,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto p-6 lg:p-8">
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-6 lg:p-8">
             <CWRequestProvider>{children}</CWRequestProvider>
           </main>
         </div>

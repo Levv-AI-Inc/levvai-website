@@ -562,7 +562,21 @@ RESPONSE STYLE
   - The test: would a smart human assistant ask this question, or would they recognize the user already answered it? If the latter, don't ask.
 `
 
-function buildSystemPrompt(policyActive: boolean) {
+function sanitizePolicyContext(policyContext: unknown) {
+  if (typeof policyContext !== 'string') return ''
+
+  return policyContext.trim().slice(0, 3500)
+}
+
+function buildSystemPrompt({
+  policyActive,
+  policyUploaded,
+  policyContext = '',
+}: {
+  policyActive: boolean
+  policyUploaded: boolean
+  policyContext?: string
+}) {
   const today = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
@@ -571,9 +585,15 @@ function buildSystemPrompt(policyActive: boolean) {
     timeZone: 'America/Toronto',
   }).format(new Date())
 
+  const uploadedPolicySummary = policyContext
+    ? `\n\nUPLOADED POLICY SUMMARY\nUse this uploaded-policy context as the source of truth when answering policy questions. If it conflicts with the static demo policy above, prefer this uploaded-policy context.\n${policyContext}`
+    : ''
+
   const policyState = policyActive
-    ? `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: ACTIVE\n═══════════════════════════════════════════════════════════════\nA policy is loaded and enforcing. Apply enforcement as written: you may block actions, cite § sections as hard stops, use BLOCKED verdicts, and use the "risk" rail variant. Lead policy violations with the block.`
-    : `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: INACTIVE\n═══════════════════════════════════════════════════════════════\nNo policy is loaded, so NOTHING is being enforced. Do NOT say an action is blocked, "not allowed," or "outside policy," and do NOT cite a § as a hard stop. You may give ONE brief advisory heads-up framed as the user's own decision — e.g. "No active policy is enforcing this, but teams usually cap tenure around 24 months. Want to proceed, or load that as a policy?" In rail tiles use the "warn" or "default" variant — never "risk", never a BLOCKED badge. The user is free to proceed with whatever they asked.`
+    ? `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: ACTIVE\n═══════════════════════════════════════════════════════════════\nA policy is loaded and enforcing. Apply enforcement as written: you may block actions, cite § sections as hard stops, use BLOCKED verdicts, and use the "risk" rail variant. Lead policy violations with the block.${uploadedPolicySummary}`
+    : policyUploaded
+      ? `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: DEACTIVATED\n═══════════════════════════════════════════════════════════════\nA policy has been uploaded, but enforcement is deactivated. You may summarize and answer questions about the uploaded policy, but NOTHING is being enforced. Do NOT say an action is blocked, "not allowed," or "outside policy," and do NOT cite a § as a hard stop. If a user asks about an action that would violate the uploaded policy, frame it as reference-only guidance because enforcement is deactivated. In rail tiles use the "warn" or "default" variant — never "risk", never a BLOCKED badge. The user is free to proceed.${uploadedPolicySummary}`
+      : `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: INACTIVE\n═══════════════════════════════════════════════════════════════\nNo policy is loaded, so NOTHING is being enforced. Do NOT say an action is blocked, "not allowed," or "outside policy," and do NOT cite a § as a hard stop. You may give ONE brief advisory heads-up framed as the user's own decision — e.g. "No active policy is enforcing this, but teams usually cap tenure around 24 months. Want to proceed, or load that as a policy?" In rail tiles use the "warn" or "default" variant — never "risk", never a BLOCKED badge. The user is free to proceed with whatever they asked.`
 
   return SYSTEM.replace('{TODAY}', today) + policyState
 }
@@ -597,13 +617,17 @@ export async function POST(req: Request) {
     const body = await req.json()
     const messages = body?.messages
     const policyActive = body?.policyActive === true
+    const policyUploaded = body?.policyUploaded === true || policyActive
+    const policyContext = policyUploaded
+      ? sanitizePolicyContext(body?.policyContext)
+      : ''
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ reply: 'No message received. Please try again.' }, { status: 400 })
     }
 
     const fullMessages = [
-      { role: 'system' as const, content: buildSystemPrompt(policyActive) },
+      { role: 'system' as const, content: buildSystemPrompt({ policyActive, policyUploaded, policyContext }) },
       ...normalizeMessages(messages),
     ]
 

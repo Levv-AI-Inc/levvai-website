@@ -830,26 +830,26 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
+    <div className="w-full min-w-0 text-slate-900">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Users</h1>
-          <p className="mt-1 text-sm font-medium text-slate-500">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Users</h1>
+          <p className="mt-1 text-sm text-slate-500">
             Manage users, roles, and access across the tenant.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="hidden items-center gap-2 rounded-2xl border border-cyan-100 bg-white p-2 pr-4 text-sm font-semibold text-slate-500 shadow-sm md:flex">
-            <span className="rounded-xl bg-slate-950 p-2 text-cyan-400">
+          <div className="hidden items-center gap-2 rounded-md border border-slate-200 bg-white p-2 pr-4 text-sm font-medium text-slate-500 shadow-sm md:flex">
+            <span className="rounded-md bg-[#1f3d38] p-2 text-[#89d3bd]">
               <Sparkles className="h-4 w-4" />
             </span>
             Tenant access control
           </div>
           <button
             onClick={openAddUserModal}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-md bg-[#1f3d38] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#244a43]"
           >
             <Plus className="h-4 w-4" />
             Add User
@@ -857,17 +857,17 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
-            <span className="rounded-xl bg-slate-950 p-2 text-cyan-400">
+            <span className="rounded-md bg-[#1f3d38] p-2 text-[#89d3bd]">
               <Sparkles className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="text-sm font-black text-slate-900">
+              <h2 className="text-sm font-semibold text-slate-950">
                 AI Assistant
               </h2>
-              <p className="text-xs font-medium text-slate-500">
+              <p className="text-xs text-slate-500">
                 Describe a user update and Nova will stage it in the table.
               </p>
             </div>
@@ -875,7 +875,7 @@ export default function AdminUsersPage() {
           <textarea
             value={assistantPrompt}
             onChange={(event) => setAssistantPrompt(event.target.value)}
-            className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
             rows={3}
             placeholder="Make Amy Schneider inactive and move her to Procurement"
           />
@@ -888,20 +888,20 @@ export default function AdminUsersPage() {
             type="button"
             onClick={() => void handleAssistantGenerate()}
             disabled={assistantLoading || !assistantPrompt.trim()}
-            className="mt-3 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 rounded-md bg-[#1f3d38] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#244a43] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assistantLoading ? 'Generating...' : 'Update via AI'}
           </button>
         </div>
 
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center shadow-sm">
-          <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center shadow-sm">
+          <div className="mb-3 rounded-md bg-slate-50 p-3">
             <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
           </div>
-          <h2 className="text-sm font-black text-slate-900">
+          <h2 className="text-sm font-semibold text-slate-950">
             Mass User Upload
           </h2>
-          <p className="mt-1 max-w-sm text-xs font-medium text-slate-500">
+          <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
             Upload an .xlsx, .xls, or .csv file with columns like name, email,
             role, status, businessUnit, costCenter, and ssoEnabled.
           </p>
@@ -915,7 +915,7 @@ export default function AdminUsersPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <Upload className="h-4 w-4" />
             Select Excel File
@@ -1346,22 +1346,22 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.4fr)_repeat(4,minmax(150px,1fr))]">
           <div className="group relative">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search users"
-              className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              className="w-full rounded-md border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
           >
             <option value="">All statuses</option>
             {STATUS_OPTIONS.map((option) => (
@@ -1374,7 +1374,7 @@ export default function AdminUsersPage() {
           <select
             value={roleFilter}
             onChange={(event) => setRoleFilter(event.target.value)}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
           >
             <option value="">All roles</option>
             {ROLE_OPTIONS.map((option) => (
@@ -1387,7 +1387,7 @@ export default function AdminUsersPage() {
           <select
             value={businessUnitFilter}
             onChange={(event) => setBusinessUnitFilter(event.target.value)}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
             disabled={businessUnitsLoading}
           >
             <option value="">All business units</option>
@@ -1402,14 +1402,14 @@ export default function AdminUsersPage() {
             value={costCenterFilter}
             onChange={(event) => setCostCenterFilter(event.target.value)}
             placeholder="Cost center ID"
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
           />
         </div>
 
         <div className="mt-3 flex justify-end">
           <button
             onClick={clearFilters}
-            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-cyan-200 hover:bg-cyan-50"
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-[#89d3bd] hover:bg-[#e7f3ee]"
           >
             Clear filters
           </button>
@@ -1440,26 +1440,26 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+        <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/80">
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Name</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Email</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Role</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Business Unit</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Cost Center</th>
-              <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">SSO Enabled</th>
-              <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Action</th>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Name</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Email</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Status</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Role</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Business Unit</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Cost Center</th>
+              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">SSO</th>
+              <th className="px-5 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Action</th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-slate-100">
             {loading && (
               <tr>
-                <td colSpan={8} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
+                <td colSpan={8} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
                   Loading users...
                 </td>
               </tr>
@@ -1467,7 +1467,7 @@ export default function AdminUsersPage() {
 
             {!loading && !forbidden && usersForTable.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-8 py-16 text-center text-sm font-medium text-slate-500">
+                <td colSpan={8} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
                   No users found.
                 </td>
               </tr>
@@ -1478,27 +1478,27 @@ export default function AdminUsersPage() {
               usersForTable.map((user) => (
                 <tr
                   key={`${user.membershipId || user.userId || user.email}-${user.name}`}
-                  className="group transition-all hover:bg-cyan-50/40"
+                  className="group transition-colors hover:bg-[#e7f3ee]/50"
                 >
-                  <td className="px-8 py-6 font-bold text-slate-900">{user.name}</td>
-                  <td className="px-8 py-6 text-slate-700">{user.email || '—'}</td>
-                  <td className="px-8 py-6">
+                  <td className="px-5 py-4 font-semibold text-slate-950">{user.name}</td>
+                  <td className="px-5 py-4 text-slate-700">{user.email || '—'}</td>
+                  <td className="px-5 py-4">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(user.status)}`}
                     >
                       {toTitleCase(user.status)}
                     </span>
                   </td>
-                  <td className="px-8 py-6">
+                  <td className="px-5 py-4">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
                       {toTitleCase(user.role)}
                     </span>
                   </td>
-                  <td className="px-8 py-6 text-slate-700">
+                  <td className="px-5 py-4 text-slate-700">
                     {user.businessUnit || user.businessUnitId || '—'}
                   </td>
-                  <td className="px-8 py-6 text-slate-700">{toCostCenterDisplay(user)}</td>
-                  <td className="px-8 py-6">
+                  <td className="px-5 py-4 text-slate-700">{toCostCenterDisplay(user)}</td>
+                  <td className="px-5 py-4">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
                         user.ssoEnabled
@@ -1509,10 +1509,10 @@ export default function AdminUsersPage() {
                       {user.ssoEnabled ? 'Yes' : 'No'}
                     </span>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-5 py-4 text-right">
                     <button
                       disabled
-                      className="cursor-not-allowed rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-400"
+                      className="cursor-not-allowed rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400"
                     >
                       Details pending
                     </button>

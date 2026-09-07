@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 export type StructuredScope = {
   summary: string
@@ -56,6 +56,30 @@ export type AIAutomationItem = {
   exitPlan?: 'decommission' | 'transition_internal' | 'continue_renewal'
 }
 
+export type AIAutomationDraft = {
+  name: string
+  category: AIAutomationItem['category']
+  aiPlatform: string
+  businessOwner: string
+  technicalOwner: string
+  purpose: string
+  dataClassification: NonNullable<AIAutomationItem['dataClassification']>
+  accessScopeText: string
+  riskLevel: NonNullable<AIAutomationItem['riskLevel']>
+  costModel: CostModel
+  spendCap: string
+  alertThreshold: number
+  overpagePolicy: OveragePolicy
+  spendApprover: string
+  reviewCadence: ReviewCadence
+  deploymentModel: NonNullable<AIAutomationItem['deploymentModel']>
+  oversightLevel: NonNullable<AIAutomationItem['oversightLevel']>
+  vendorRetainsData: 'yes' | 'no' | ''
+  vendorTrainsOnData: 'yes' | 'no' | ''
+  complianceScopeText: string
+  exitPlan: NonNullable<AIAutomationItem['exitPlan']> | ''
+}
+
 export type FinancialAllocation = {
   costCenterId: string
   costCenterName: string
@@ -87,11 +111,24 @@ export type CommercialTMRole = {
 export type Commercials = {
   pricingModel?: string
   paymentTrigger?: string
+  fixedAmount?: number | string
   milestones?: CommercialMilestone[]
   recurringAmount?: number | string
   billingFrequency?: string
+  recurringStart?: string
+  recurringEnd?: string
   tmRoles?: CommercialTMRole[]
+  costBase?: number | string
+  markupPct?: number | string
 }
+
+export type SOWProgressStep =
+  | 'engagement'
+  | 'scope'
+  | 'financials'
+  | 'commercials'
+  | 'ai-automation'
+  | 'review'
 
 export type SOWAttachment = {
   name?: string
@@ -100,6 +137,7 @@ export type SOWAttachment = {
 
 export type SOWData = {
   workType?: string
+  otherWorkDescription?: string
   name?: string
   vendor?: string
   startDate?: string
@@ -112,6 +150,9 @@ export type SOWData = {
   commercials?: Commercials
   aiGateAnswer?: 'yes' | 'no' | null
   aiAutomation?: AIAutomationItem[]
+  aiAutomationDraft?: AIAutomationDraft
+  aiAutomationFormOpen?: boolean
+  completedSteps?: SOWProgressStep[]
   attachments?: SOWAttachment[]
 }
 
@@ -120,15 +161,31 @@ type SOWContextValue = {
   setSOW: (data: Partial<SOWData>) => void
 }
 
+const SOW_DRAFT_STORAGE_KEY = 'levvai:sow-create:draft'
+
 const SOWContext = createContext<SOWContextValue>({
   sow: {},
   setSOW: () => {},
 })
 
-export function SOWProvider({ children }: { children: React.ReactNode }) {
-  const [sow, setSOWState] = useState<Partial<SOWData>>({})
+function readStoredDraft(): Partial<SOWData> {
+  if (typeof window === 'undefined') {
+    return {}
+  }
 
-  const setSOW = (data: Partial<SOWData>) => {
+  try {
+    const stored = window.sessionStorage.getItem(SOW_DRAFT_STORAGE_KEY)
+    return stored ? JSON.parse(stored) : {}
+  } catch (error) {
+    console.warn('Unable to read SOW draft from session storage', error)
+    return {}
+  }
+}
+
+export function SOWProvider({ children }: { children: React.ReactNode }) {
+  const [sow, setSOWState] = useState<Partial<SOWData>>(readStoredDraft)
+
+  const setSOW = useCallback((data: Partial<SOWData>) => {
     setSOWState(prev => ({
       ...prev,
       ...data,
@@ -152,7 +209,15 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
         : prev.commercials,
       aiAutomation: data.aiAutomation ?? prev.aiAutomation,
     }))
-  }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(SOW_DRAFT_STORAGE_KEY, JSON.stringify(sow))
+    } catch (error) {
+      console.warn('Unable to save SOW draft to session storage', error)
+    }
+  }, [sow])
 
   return (
     <SOWContext.Provider value={{ sow, setSOW }}>
@@ -163,4 +228,11 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
 
 export function useSOW() {
   return useContext(SOWContext)
+}
+
+export function addCompletedStep(
+  completedSteps: SOWProgressStep[] | undefined,
+  step: SOWProgressStep
+) {
+  return Array.from(new Set([...(completedSteps || []), step]))
 }

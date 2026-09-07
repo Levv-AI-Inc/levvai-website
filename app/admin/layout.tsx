@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
 const ROLE_ADMIN = 'admin'
@@ -54,12 +54,13 @@ export default function AdminLayout({
   const pathname = usePathname()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [checkingAccess, setCheckingAccess] = useState(true)
+  const hasAuthorizedRef = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
 
     const verifyAccess = async () => {
-      setCheckingAccess(true)
+      setCheckingAccess(!hasAuthorizedRef.current)
 
       try {
         const response = await fetch('/api/session', {
@@ -87,6 +88,7 @@ export default function AdminLayout({
           return
         }
 
+        hasAuthorizedRef.current = true
         setIsAuthorized(true)
       } catch (error) {
         if ((error as { name?: string })?.name === 'AbortError') return
@@ -102,36 +104,21 @@ export default function AdminLayout({
     return () => controller.abort()
   }, [pathname, router])
 
-  if (checkingAccess || !isAuthorized) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-gray-100 px-6">
-        <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                Checking access...
-              </p>
-              <p className="text-xs text-gray-500">
-                Verifying your admin session.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const shouldShowAccessCheck = checkingAccess && !isAuthorized
 
   return (
-    <div className="flex flex-1 bg-gray-100">
+    <div className="flex min-h-full min-w-0 overflow-hidden rounded-lg border border-[#d8d1c4] bg-[#fcfbf7] shadow-[0_1px_2px_rgba(30,37,40,0.04)]">
       {/* =========================
           Admin Tabs (Column 2)
          ========================= */}
-      <aside className="w-64 bg-white border-r border-gray-200 px-4 py-6">
+      <aside className="w-60 shrink-0 border-r border-[#ded7ca] bg-white px-3 py-4">
         <div className="mb-6">
-          <h2 className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase">
-            admin settings
+          <h2 className="px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8376]">
+            Settings
           </h2>
+          <p className="mt-1 px-3 text-xs leading-5 text-[#6b746f]">
+            Tenant controls and access.
+          </p>
         </div>
 
         <nav className="space-y-1">
@@ -145,10 +132,10 @@ export default function AdminLayout({
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  'block rounded-md px-3 py-2 text-sm transition',
+                  'block rounded-md px-3 py-2 text-sm font-medium transition',
                   isActive
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-[#e7f3ee] text-[#1f3d38]'
+                    : 'text-[#5d665f] hover:bg-[#f4f1ea] hover:text-[#1e2528]'
                 )}
               >
                 {item.label}
@@ -161,8 +148,26 @@ export default function AdminLayout({
       {/* =========================
           Admin Content (Column 3)
          ========================= */}
-      <main className="flex-1 p-6">
-        {children}
+      <main className="min-w-0 flex-1 overflow-x-hidden bg-[#f7f5ef] p-5 lg:p-6">
+        {shouldShowAccessCheck ? (
+          <div className="flex min-h-[360px] items-center justify-center">
+            <div className="w-full max-w-sm rounded-lg border border-[#ded7ca] bg-white px-5 py-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-[#6b746f]" />
+                <div>
+                  <p className="text-sm font-semibold text-[#1e2528]">
+                    Checking access...
+                  </p>
+                  <p className="text-xs text-[#6b746f]">
+                    Verifying your admin session.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   )

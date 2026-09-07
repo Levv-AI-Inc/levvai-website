@@ -92,7 +92,7 @@ const workers = [
 
 export default function WorkersIndexPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("All");
+  const [selectedStatus, setSelectedStatus] = useState("Active");
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [aiInput, setAiInput] = useState("");
 
@@ -185,7 +185,7 @@ export default function WorkersIndexPage() {
             </div>
 
             <button
-              onClick={() => {setSearchTerm(""); setSelectedStatus("All");}}
+              onClick={() => {setSearchTerm(""); setSelectedStatus("Active");}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
               <X size={14} /> Reset
