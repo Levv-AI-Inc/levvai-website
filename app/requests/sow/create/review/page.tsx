@@ -32,22 +32,54 @@ type GovernanceGap = {
 }
 
 const deploymentLabels = {
-  your_tenant: 'Your tenant',
-  vendor_hosted: 'Vendor hosted',
+  your_tenant: 'Your Tenant',
+  vendor_hosted: 'Vendor Hosted',
   hybrid: 'Hybrid',
 } satisfies Record<NonNullable<AIAutomationItem['deploymentModel']>, string>
 
 const oversightLabels = {
-  human_in_loop: 'Human in loop',
-  human_on_loop: 'Human on loop',
+  human_in_loop: 'Human In Loop',
+  human_on_loop: 'Human On Loop',
   autonomous: 'Autonomous',
 } satisfies Record<NonNullable<AIAutomationItem['oversightLevel']>, string>
 
 const exitPlanLabels = {
   decommission: 'Decommission',
-  transition_internal: 'Transition internal',
-  continue_renewal: 'Continue / renew',
+  transition_internal: 'Transition Internal',
+  continue_renewal: 'Continue / Renew',
 } satisfies Record<NonNullable<AIAutomationItem['exitPlan']>, string>
+
+const pricingModelLabels: Record<string, string> = {
+  fixed: 'Fixed Fee',
+  tm: 'Time & Materials',
+  recurring: 'Recurring',
+  'Fixed fee': 'Fixed Fee',
+  'Time & materials': 'Time & Materials',
+  'Milestone-based': 'Milestone-Based',
+  Hybrid: 'Hybrid',
+  'Cost-plus': 'Cost-Plus',
+}
+
+const billingFrequencyLabels: Record<string, string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annually: 'Annually',
+}
+
+function formatToken(value?: string) {
+  if (!value) return '—'
+
+  return value
+    .split(/[_\s-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function formatMappedValue(value: unknown, labels: Record<string, string>) {
+  if (typeof value !== 'string' || !value.trim()) return '—'
+
+  return labels[value] || formatToken(value)
+}
 
 function isUsageBased(costModel?: CostModel) {
   return costModel === 'API Usage' || costModel === 'Usage Based'
@@ -404,7 +436,7 @@ export default function ReviewPage() {
         <Section title="Commercials">
           <Item
             label="Pricing model"
-            value={commercials.pricingModel || '—'}
+            value={formatMappedValue(commercials.pricingModel, pricingModelLabels)}
           />
 
           {Array.isArray(commercials.milestones) &&
@@ -457,7 +489,10 @@ export default function ReviewPage() {
           {commercials.recurringAmount && (
             <Item
               label="Recurring"
-              value={`$${commercials.recurringAmount} · ${commercials.billingFrequency}`}
+              value={`$${commercials.recurringAmount} · ${formatMappedValue(
+                commercials.billingFrequency,
+                billingFrequencyLabels,
+              )}`}
             />
           )}
         </Section>
@@ -555,7 +590,7 @@ export default function ReviewPage() {
                         <MiniFact label="Business owner" value={item.businessOwner || '—'} warn={!item.businessOwner} />
                         <MiniFact label="Technical owner" value={item.technicalOwner || '—'} warn={!item.technicalOwner} />
                         <MiniFact label="Data" value={item.dataClassification || '—'} warn={isSensitiveData(item.dataClassification)} />
-                        <MiniFact label="Risk" value={item.riskLevel || '—'} warn={item.riskLevel === 'High'} />
+                        <MiniFact label="Risk" value={formatToken(item.riskLevel)} warn={item.riskLevel === 'High'} />
                         <MiniFact
                           label="Deployment"
                           value={item.deploymentModel ? deploymentLabels[item.deploymentModel] : '—'}

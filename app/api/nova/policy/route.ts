@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { getOpenAIClient } from '@/lib/intelligence/gpt/client'
 
 export const runtime = 'nodejs'
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 type MasterData = Record<string, Array<Record<string, unknown>>>
 
@@ -148,7 +144,8 @@ export async function POST(req: NextRequest) {
       '"both" = both apply.',
     ].join('\n')
 
-    const response = await client.responses.create({
+    const openai = getOpenAIClient()
+    const response = await openai.responses.create({
       model: 'gpt-4o',
       temperature: 0,
       store: false,

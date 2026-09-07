@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  AlertTriangle,
   ChevronDown,
   CheckCircle2,
   FileText,
@@ -107,6 +108,16 @@ const CATEGORY_META: Record<
     label: 'Location & jurisdiction',
     color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   },
+}
+
+const SEVERITY_BADGE: Record<PolicyGap['severity'], string> = {
+  high: 'bg-rose-50 text-rose-700 border-rose-200',
+  medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  low: 'bg-slate-100 text-slate-600 border-slate-200',
+}
+
+function formatSeverity(severity: PolicyGap['severity']) {
+  return severity.charAt(0).toUpperCase() + severity.slice(1)
 }
 
 const PROCESSING_STEPS = [
@@ -342,8 +353,10 @@ function PolicyProcessingSteps({
 
 export default function PolicyUploadPanel({
   masterData = EMPTY_MASTER_DATA,
+  onSelectTab,
 }: {
   masterData?: PolicyMasterData
+  onSelectTab?: (tab: Tab) => void
 }) {
   const policyInputRef = useRef<HTMLInputElement>(null)
   const [policyState, setPolicyState] = useState<
@@ -486,6 +499,7 @@ export default function PolicyUploadPanel({
               setPolicyStatusActive(active)
               setPolicyActive(active)
             }}
+            onSelectTab={onSelectTab}
             onReset={() => {
               setPolicyState('upload')
               setAnalysis(null)
@@ -552,20 +566,23 @@ function PolicyResults({
   active,
   onActiveChange,
   onReset,
+  onSelectTab,
 }: {
   analysis: PolicyAnalysisSummary
   active: boolean
   onActiveChange: (active: boolean) => void
   onReset: () => void
+  onSelectTab?: (tab: Tab) => void
 }) {
   const [openSections, setOpenSections] = useState<Set<string>>(
-    () => new Set(['intake']),
+    () => new Set(['gaps']),
   )
   const gaps = analysis.gaps ?? []
   const rules = analysis.rules ?? []
   const intakeImpacts = analysis.intakeImpacts ?? []
   const configChanges = analysis.configChanges ?? []
   const totalRules = analysis.counts?.totalRules ?? rules.length
+  const highGaps = gaps.filter((gap) => gap.severity === 'high').length
   const activeRules = rules.filter(
     (rule) => rule.enforcementStatus === 'active',
   ).length
@@ -639,6 +656,86 @@ function PolicyResults({
           </div>
         ))}
       </div>
+
+      <PolicyAccordion
+        id="gaps"
+        openSections={openSections}
+        toggleSection={toggleSection}
+        label="Configuration gaps"
+        count={gaps.length}
+        badges={
+          highGaps > 0
+            ? [
+                {
+                  text: `${highGaps} High`,
+                  className: 'bg-rose-50 text-rose-700 border-rose-200',
+                },
+              ]
+            : []
+        }
+      >
+        {gaps.length === 0 ? (
+          <div className="flex gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <p className="text-xs font-medium text-emerald-800">
+              No configuration gaps found.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {gaps.map((gap, index) => {
+              const suggestedTab = TABS.includes(gap.suggestedTab as Tab)
+                ? (gap.suggestedTab as Tab)
+                : null
+
+              return (
+                <div
+                  key={gap.id || `${gap.title}-${index}`}
+                  className="rounded-xl border border-amber-100 bg-amber-50 p-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="text-xs font-black text-amber-950">
+                          {gap.title}
+                        </p>
+                        <span
+                          className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${SEVERITY_BADGE[gap.severity]}`}
+                        >
+                          {formatSeverity(gap.severity)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-amber-900">
+                        {gap.description}
+                      </p>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-amber-800">
+                        {gap.recommendation}
+                      </p>
+                      {suggestedTab && gap.suggestedRowValue ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-amber-200 bg-white/80 px-2 py-1 text-[10px] font-bold text-amber-700">
+                            {suggestedTab}: {gap.suggestedRowValue}
+                          </span>
+                          {onSelectTab ? (
+                            <button
+                              type="button"
+                              onClick={() => onSelectTab(suggestedTab)}
+                              className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+                            >
+                              Review table
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </PolicyAccordion>
 
       <PolicyAccordion
         id="intake"
