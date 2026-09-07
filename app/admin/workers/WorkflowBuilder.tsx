@@ -18,6 +18,7 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
+  ClipboardList,
   Cog,
   Info,
   Link2,
@@ -30,11 +31,17 @@ import {
   X,
   XCircle,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import {
+  getRequirements,
+  HUMAN_APPROVERS,
   resolvePeople,
   roleLabel,
   type ApproverGroup,
+  type OwnerRole as CatalogOwnerRole,
+  type Requirement as CatalogRequirement,
 } from './requirements/requirementsStore'
 import {
   createComplianceWorkflow,
@@ -144,12 +151,6 @@ type ScopeState = {
   isActive: boolean
 }
 
-const REQUIREMENTS: Requirement[] = [
-  { id: 'gov-id', name: 'Government ID Photo Check', owner: 'worker' },
-  { id: 'bg-check', name: 'Background Screening', owner: 'worker' },
-  { id: 'nda-sign', name: 'Non-Disclosure Agreement', owner: 'worker' },
-]
-
 const DEFAULT_LIBRARY_BLOCKS: LibraryBlock[] = [
   {
     id: 'identity-eligibility',
@@ -215,19 +216,16 @@ const GRAPH_POSITION_OFFSET = 100000
 const GRAPH_POSITION_ORDER_BUCKET = 100
 const GRAPH_POSITION_OUTGOING_BUCKET = 1000
 
-const WORKER_TYPE_DIMENSION_VALUES = [
-  'Contingent',
-  'SOW',
-  'Non-transactional',
-  'Independent contractor',
-  'Temp / Agency',
-  'Consultant',
-  'Intern',
-  'Freelancer',
+const FALLBACK_WORKER_TYPE_OPTIONS: Option[] = [
+  { value: 'contingent', label: 'Contingent' },
+  { value: 'sow', label: 'SOW' },
+  { value: 'non_transactional', label: 'Non-transactional' },
+  { value: 'independent_contractor', label: 'Independent contractor' },
+  { value: 'temp_agency', label: 'Temp / Agency' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'intern', label: 'Intern' },
+  { value: 'freelancer', label: 'Freelancer' },
 ]
-
-const FALLBACK_WORKER_TYPE_OPTIONS: Option[] =
-  WORKER_TYPE_DIMENSION_VALUES.map((value) => ({ value, label: value }))
 
 const FALLBACK_SCOPE_FIELD_OPTIONS: Option[] = [
   { value: 'location', label: 'Location' },
@@ -285,6 +283,33 @@ function isRequirementOwner(value: string): value is RequirementOwner {
   )
 }
 
+function mapCatalogOwner(owner: CatalogOwnerRole): RequirementOwner {
+  switch (owner) {
+    case 'Worker':
+      return 'worker'
+    case 'Supplier':
+      return 'supplier'
+    case 'Hiring Manager':
+      return 'hiring_manager'
+    case 'IT':
+      return 'it'
+    case 'System':
+      return 'system'
+  }
+}
+
+function mapCatalogRequirement(requirement: CatalogRequirement): Requirement {
+  return {
+    id: requirement.id,
+    name: requirement.name,
+    owner: mapCatalogOwner(requirement.owner),
+  }
+}
+
+function getCatalogRequirements(): Requirement[] {
+  return getRequirements().map(mapCatalogRequirement)
+}
+
 function isWorkerType(value: string): value is WorkerType {
   return value.trim().length > 0
 }
@@ -308,8 +333,6 @@ function ownerLabel(owner: RequirementOwner) {
 }
 
 function workerTypeLabel(workerType: WorkerType) {
-  if (workerType.toLowerCase() === 'contingent') return 'Contingent'
-
   return (
     FALLBACK_WORKER_TYPE_OPTIONS.find((option) => option.value === workerType)
       ?.label ?? workerType
@@ -430,6 +453,22 @@ const INTEGRATIONS: {
   },
 ]
 
+const LEVV_FIELDS = [
+  'Legal name',
+  'Work email',
+  'Start date',
+  'End date',
+  'Worker type',
+  'Job title',
+  'Manager',
+  'Cost center',
+  'Work location',
+  'SOW ID',
+  'Supplier',
+]
+
+const RETURN_FIELDS = ['Account ID', 'Status', 'External ID', 'Created date']
+
 function integrationMeta(key?: SystemIntegrationKey) {
   return INTEGRATIONS.find((integration) => integration.key === key)
 }
@@ -462,6 +501,33 @@ function completionLabel(
   if (rule === 'ANY') return 'ANY one'
   if (rule === 'N_OF') return `${n ?? 1} of ${requiredTotal}`
   return null
+}
+
+function suggestedAccountable(requirements: Requirement[]): ApproverGroup {
+  const counts: Partial<Record<ApproverGroup, number>> = {}
+  for (const requirement of requirements) {
+    switch (requirement.owner) {
+      case 'it':
+        counts.IT = (counts.IT ?? 0) + 1
+        break
+      case 'supplier':
+        counts.PROCUREMENT = (counts.PROCUREMENT ?? 0) + 1
+        break
+      case 'hiring_manager':
+        counts.HR = (counts.HR ?? 0) + 1
+        break
+      case 'worker':
+        counts.HR = (counts.HR ?? 0) + 1
+        break
+      case 'system':
+        counts.IT = (counts.IT ?? 0) + 1
+        break
+    }
+  }
+
+  const top = (Object.entries(counts) as [ApproverGroup, number][])
+    .sort((a, b) => b[1] - a[1])[0]
+  return top?.[0] ?? 'HR'
 }
 
 function roleInitials(name: string) {
@@ -498,6 +564,73 @@ function PeopleStack({ names, max = 2 }: { names: string[]; max?: number }) {
         <span className="bx-ava bx-ava-more">+{names.length - max}</span>
       )}
     </span>
+  )
+}
+
+function AccountableField({
+  value,
+  onChange,
+}: {
+  value: ApproverGroup
+  onChange: (group: ApproverGroup) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const people = resolvePeople(value)
+
+  return (
+    <div className="acctf">
+      <button
+        type="button"
+        className="acctf-trigger"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <PeopleStack names={people.map((person) => person.name)} max={3} />
+        <span className="acctf-role">{roleLabel(value)}</span>
+        <span className="acctf-names">
+          {people.map((person) => person.name).join(', ')}
+        </span>
+        <ChevronLeft
+          className={
+            open
+              ? 'ml-auto h-3 w-3 shrink-0 rotate-90 text-slate-400'
+              : 'ml-auto h-3 w-3 shrink-0 -rotate-90 text-slate-400'
+          }
+        />
+      </button>
+      {open && (
+        <div className="acctf-panel">
+          <div className="acctf-cap">Who is accountable?</div>
+          {HUMAN_APPROVERS.map((group) => {
+            const groupPeople = resolvePeople(group)
+            return (
+              <button
+                key={group}
+                type="button"
+                className={`acctf-opt ${group === value ? 'on' : ''}`}
+                onClick={() => {
+                  onChange(group)
+                  setOpen(false)
+                }}
+              >
+                <PeopleStack
+                  names={groupPeople.map((person) => person.name)}
+                  max={3}
+                />
+                <span className="acctf-opt-main">
+                  <span className="acctf-opt-role">{roleLabel(group)}</span>
+                  <span className="acctf-opt-people">
+                    {groupPeople.map((person) => person.name).join(', ')}
+                  </span>
+                </span>
+                {group === value && (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1371,6 +1504,62 @@ function offboardingSummary(blocks: PipelineBlock[]) {
   }
 }
 
+function buildOffboardingFlow(
+  blocks: PipelineBlock[],
+  dependencies: PipelineDependency[],
+) {
+  const maxLevel = blocks.length
+    ? Math.max(...blocks.map((block) => Math.max(1, block.graphLevel)))
+    : 1
+  const idSet = new Set(blocks.map((block) => block.pipelineId))
+  const reversedBlocks = [...blocks]
+    .map((block) => ({
+      ...block,
+      order: blocks.length - block.order + 1,
+      graphLevel: Math.max(1, maxLevel - Math.max(1, block.graphLevel) + 1),
+    }))
+    .sort((left, right) => left.order - right.order)
+
+  const reversedDependencies = dependencies
+    .map((dependency) => {
+      if (dependency.from === START_NODE_ID && idSet.has(dependency.to)) {
+        return {
+          ...dependency,
+          id: `offboarding-${dependency.id}`,
+          from: dependency.to,
+          to: END_NODE_ID,
+        }
+      }
+
+      if (idSet.has(dependency.from) && dependency.to === END_NODE_ID) {
+        return {
+          ...dependency,
+          id: `offboarding-${dependency.id}`,
+          from: START_NODE_ID,
+          to: dependency.from,
+        }
+      }
+
+      return {
+        ...dependency,
+        id: `offboarding-${dependency.id}`,
+        from: dependency.to,
+        to: dependency.from,
+      }
+    })
+    .filter(
+      (dependency) =>
+        (dependency.from === START_NODE_ID || idSet.has(dependency.from)) &&
+        (dependency.to === END_NODE_ID || idSet.has(dependency.to)) &&
+        dependency.from !== dependency.to,
+    )
+
+  return {
+    blocks: reversedBlocks,
+    dependencies: mergePipelineDependencies(reversedDependencies),
+  }
+}
+
 export default function WorkflowBuilder({
   workflowType,
   workflowId,
@@ -1387,8 +1576,8 @@ export default function WorkflowBuilder({
   const [view, setView] = useState<BuilderView>('build')
   const [scope, setScope] = useState<ScopeState>({
     name: '',
-    workerType: 'Contingent',
-    workerTypes: ['Contingent'],
+    workerType: 'contingent',
+    workerTypes: ['contingent'],
     isActive: true,
   })
   const [workflowStatus, setWorkflowStatus] =
@@ -1401,6 +1590,8 @@ export default function WorkflowBuilder({
   const [libraryBlocks, setLibraryBlocks] = useState<LibraryBlock[]>(
     DEFAULT_LIBRARY_BLOCKS,
   )
+  const [catalogRequirements, setCatalogRequirements] =
+    useState<Requirement[]>(getCatalogRequirements)
   const [pipelineBlocks, setPipelineBlocks] = useState<PipelineBlock[]>([])
   const [pipelineDependencies, setPipelineDependencies] = useState<
     PipelineDependency[]
@@ -1423,6 +1614,28 @@ export default function WorkflowBuilder({
   const [supplierRows, setSupplierRows] = useState<SupplierRecord[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [locationError, setLocationError] = useState('')
+  const [showBlockModal, setShowBlockModal] = useState<BlockType | null>(null)
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
+  const [modalName, setModalName] = useState('')
+  const [modalCompletionRule, setModalCompletionRule] =
+    useState<CompletionRule>('ALL')
+  const [modalCompletionN, setModalCompletionN] = useState(1)
+  const [modalAccountableOwner, setModalAccountableOwner] =
+    useState<ApproverGroup>('HR')
+  const [modalAccountableTouched, setModalAccountableTouched] = useState(false)
+  const [modalRequirements, setModalRequirements] = useState<Requirement[]>([])
+  const [modalIntegration, setModalIntegration] =
+    useState<SystemIntegrationKey>('WORKDAY')
+  const [modalPush, setModalPush] = useState(true)
+  const [modalPull, setModalPull] = useState(true)
+  const [modalReads, setModalReads] = useState<string[]>(defaultReads())
+  const [modalWrites, setModalWrites] = useState<string[]>(defaultWrites())
+  const [modalReconcile, setModalReconcile] = useState(true)
+  const [modalApiConfig, setModalApiConfig] = useState({
+    endpoint: '',
+    authType: 'OAuth',
+    environment: 'Production',
+  })
   const [serverHealth, setServerHealth] = useState<WorkflowHealth | null>(null)
   const [saveError, setSaveError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -1506,11 +1719,30 @@ export default function WorkflowBuilder({
     () => offboardingSummary(pipelineBlocks),
     [pipelineBlocks],
   )
+  const offboardingFlow = useMemo(
+    () => buildOffboardingFlow(pipelineBlocks, pipelineDependencies),
+    [pipelineBlocks, pipelineDependencies],
+  )
   const editable = mode === 'onboarding' && view === 'build'
 
   useEffect(() => {
     setMode(apiWorkflowType)
   }, [apiWorkflowType])
+
+  useEffect(() => {
+    const refreshCatalogRequirements = () => {
+      setCatalogRequirements(getCatalogRequirements())
+    }
+
+    refreshCatalogRequirements()
+    window.addEventListener('focus', refreshCatalogRequirements)
+    window.addEventListener('storage', refreshCatalogRequirements)
+
+    return () => {
+      window.removeEventListener('focus', refreshCatalogRequirements)
+      window.removeEventListener('storage', refreshCatalogRequirements)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -1590,7 +1822,7 @@ export default function WorkflowBuilder({
         const workflow = await getComplianceWorkflow(workflowId)
         if (cancelled) return
 
-        const workerType = workflow.policy_scope?.worker_type || 'Contingent'
+        const workerType = workflow.policy_scope?.worker_type || 'contingent'
         setScope({
           name: workflow.name,
           workerType,
@@ -1754,6 +1986,68 @@ export default function WorkflowBuilder({
     setShowAddFieldModal(false)
   }
 
+  function openBlockModal(type: BlockType, block?: LibraryBlock) {
+    setCatalogRequirements(getCatalogRequirements())
+    setShowBlockModal(type)
+    setEditingBlockId(block?.id ?? null)
+    setModalName(block?.name ?? '')
+    setModalRequirements(block?.requirements ?? [])
+    setModalCompletionRule(block?.completionRule ?? 'ALL')
+    setModalCompletionN(block?.completionN ?? 1)
+    setModalAccountableOwner(block?.accountableOwner ?? 'HR')
+    setModalAccountableTouched(Boolean(block?.accountableOwner))
+    setModalIntegration(block?.systemIntegration ?? 'WORKDAY')
+    setModalPush(block?.push ?? true)
+    setModalPull(block?.pull ?? true)
+    setModalReads(block?.reads ?? defaultReads())
+    setModalWrites(block?.writes ?? defaultWrites())
+    setModalReconcile(block?.reconcile ?? true)
+    setModalApiConfig(
+      block?.config && typeof block.config === 'object'
+        ? {
+            endpoint:
+              typeof block.config.endpoint === 'string'
+                ? block.config.endpoint
+                : '',
+            authType:
+              typeof block.config.authType === 'string'
+                ? block.config.authType
+                : 'OAuth',
+            environment:
+              typeof block.config.environment === 'string'
+                ? block.config.environment
+                : 'Production',
+          }
+        : {
+            endpoint: '',
+            authType: 'OAuth',
+            environment: 'Production',
+          },
+    )
+  }
+
+  function closeBlockModal() {
+    setShowBlockModal(null)
+    setEditingBlockId(null)
+    setModalName('')
+    setModalCompletionRule('ALL')
+    setModalCompletionN(1)
+    setModalAccountableOwner('HR')
+    setModalAccountableTouched(false)
+    setModalRequirements([])
+    setModalIntegration('WORKDAY')
+    setModalPush(true)
+    setModalPull(true)
+    setModalReads(defaultReads())
+    setModalWrites(defaultWrites())
+    setModalReconcile(true)
+    setModalApiConfig({
+      endpoint: '',
+      authType: 'OAuth',
+      environment: 'Production',
+    })
+  }
+
   function computeGraphDropLevel(clientX: number) {
     const bounds = canvasRef.current?.getBoundingClientRect()
     if (!bounds) return pipelineBlocks.length
@@ -1817,6 +2111,112 @@ export default function WorkflowBuilder({
     setSelectedBlockId(pipelineId)
     setServerHealth(null)
     setDependencyWarning('')
+  }
+
+  function addModalRequirement(requirement: Requirement) {
+    setModalRequirements((current) => {
+      if (current.some((candidate) => candidate.id === requirement.id)) {
+        return current
+      }
+
+      const next = [...current, requirement]
+      if (!modalAccountableTouched) {
+        setModalAccountableOwner(suggestedAccountable(next))
+      }
+      return next
+    })
+  }
+
+  function removeModalRequirement(requirementId: string) {
+    setModalRequirements((current) => {
+      const next = current.filter((candidate) => candidate.id !== requirementId)
+      if (next.length > 0 && !modalAccountableTouched) {
+        setModalAccountableOwner(suggestedAccountable(next))
+      }
+      return next
+    })
+  }
+
+  function pickIntegration(key: SystemIntegrationKey) {
+    setModalIntegration(key)
+    const meta = integrationMeta(key)
+    setModalPush(meta?.push ?? true)
+    setModalPull(meta?.pull ?? true)
+    setModalReads(defaultReads())
+    setModalWrites(defaultWrites())
+    setModalReconcile(Boolean(meta?.reverseAction))
+  }
+
+  function toggleRead(field: string) {
+    setModalReads((current) =>
+      current.includes(field)
+        ? current.filter((candidate) => candidate !== field)
+        : [...current, field],
+    )
+  }
+
+  function toggleWrite(field: string) {
+    setModalWrites((current) =>
+      current.includes(field)
+        ? current.filter((candidate) => candidate !== field)
+        : [...current, field],
+    )
+  }
+
+  function createOrUpdateBlock() {
+    if (!showBlockModal || !modalName.trim()) return
+    if (showBlockModal === 'requirement' && modalRequirements.length === 0) {
+      return
+    }
+    if (showBlockModal === 'system' && !modalIntegration) return
+
+    const completionN =
+      modalCompletionRule === 'N_OF'
+        ? Math.max(1, Math.min(modalCompletionN, modalRequirements.length || 1))
+        : undefined
+    const selectedMeta = integrationMeta(modalIntegration)
+
+    const nextBlock: LibraryBlock = {
+      id: editingBlockId ?? randomId('library-block'),
+      name: modalName.trim(),
+      type: showBlockModal,
+      gate: 'hard',
+      accountableOwner: modalAccountableOwner,
+      completionRule: modalCompletionRule,
+      completionN,
+      requirements:
+        showBlockModal === 'requirement' ? modalRequirements : [],
+      integrationType:
+        showBlockModal === 'system' ? 'api_call' : undefined,
+      systemIntegration:
+        showBlockModal === 'system' ? modalIntegration : undefined,
+      push: showBlockModal === 'system' ? modalPush : undefined,
+      pull: showBlockModal === 'system' ? modalPull : undefined,
+      reads: showBlockModal === 'system' && modalPush ? modalReads : undefined,
+      writes: showBlockModal === 'system' && modalPull ? modalWrites : undefined,
+      reconcile: showBlockModal === 'system' ? modalReconcile : undefined,
+      systemUnwind:
+        showBlockModal === 'system'
+          ? systemReversalFor(selectedMeta, modalPush)
+          : undefined,
+      config:
+        showBlockModal === 'system'
+          ? {
+              endpoint: modalApiConfig.endpoint.trim(),
+              authType: modalApiConfig.authType,
+              environment: modalApiConfig.environment,
+            }
+          : undefined,
+    }
+
+    setLibraryBlocks((current) => {
+      if (!editingBlockId) return [...current, nextBlock]
+      return current.map((block) =>
+        block.id === editingBlockId ? nextBlock : block,
+      )
+    })
+
+    closeBlockModal()
   }
 
   function handleLibraryDragStart(
@@ -2295,19 +2695,18 @@ export default function WorkflowBuilder({
                   onRemoveBlock={removePipelineBlock}
                 />
               ) : (
-                <WorkflowGraphEditor
-                  blocks={pipelineBlocks}
-                  dependencies={pipelineDependencies}
-                  mode={mode}
-                  editable={editable}
+                <OnboardingFlowEditor
+                  blocks={offboardingFlow.blocks}
+                  dependencies={offboardingFlow.dependencies}
+                  libraryBlocks={libraryBlocks}
+                  usedLibraryBlockIds={usedLibraryBlockIds}
+                  editable={false}
                   selectedBlockId={selectedBlockId}
-                  linkFromBlockId={linkFromBlockId}
-                  onBlockClick={handleGraphBlockClick}
+                  terminalLabels={{ start: 'Exit', end: 'Offboarded' }}
+                  onAddBlock={addLibraryBlockToPipeline}
+                  onSelectBlock={setSelectedBlockId}
                   onMoveBlock={moveGraphBlock}
-                  onStartLink={(pipelineId) => {
-                    setLinkFromBlockId(pipelineId)
-                    setDependencyWarning('')
-                  }}
+                  onAddDependency={addPipelineDependency}
                   onRemoveDependency={removePipelineDependency}
                   onRemoveBlock={removePipelineBlock}
                 />
@@ -2361,6 +2760,33 @@ export default function WorkflowBuilder({
               Block Library
             </h2>
 
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => openBlockModal('requirement')}
+                className="flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-cyan-400 hover:bg-cyan-50 hover:shadow-sm"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
+                  <ClipboardList className="h-4 w-4" />
+                </span>
+                Requirement
+                <br />
+                Block
+              </button>
+              <button
+                type="button"
+                onClick={() => openBlockModal('system')}
+                className="flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-cyan-400 hover:bg-cyan-50 hover:shadow-sm"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
+                  <Cog className="h-4 w-4" />
+                </span>
+                System
+                <br />
+                Block
+              </button>
+            </div>
+
             <div className="space-y-2">
               {libraryBlocks.map((block) => {
                 const isUsed =
@@ -2376,6 +2802,7 @@ export default function WorkflowBuilder({
                     onDragStart={handleLibraryDragStart}
                     onDragEnd={() => setDragBlockId(null)}
                     onAdd={() => addLibraryBlockToPipeline(block)}
+                    onEdit={() => openBlockModal(block.type, block)}
                     onRemove={() =>
                       setLibraryBlocks((current) =>
                         current.filter(
@@ -2523,6 +2950,478 @@ export default function WorkflowBuilder({
         </Modal>
       )}
 
+      {showBlockModal && (
+        <Modal
+          title={
+            editingBlockId
+              ? 'Edit Block'
+              : showBlockModal === 'requirement'
+                ? 'New Requirement Block'
+                : 'New System Block'
+          }
+          onClose={closeBlockModal}
+          footer={
+            <div className="flex w-full items-center justify-between">
+              <button
+                type="button"
+                onClick={closeBlockModal}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={createOrUpdateBlock}
+                disabled={
+                  !modalName.trim() ||
+                  (showBlockModal === 'requirement' &&
+                    modalRequirements.length === 0) ||
+                  (showBlockModal === 'system' && !modalIntegration)
+                }
+                className="rounded-lg bg-slate-950 px-5 py-2 text-xs font-semibold text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-400"
+              >
+                {editingBlockId ? 'Save Changes' : 'Create Block'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="form-grp">
+              <label className="form-lbl">Block Name</label>
+              <input
+                autoFocus
+                value={modalName}
+                onChange={(event) => setModalName(event.target.value)}
+                placeholder={
+                  showBlockModal === 'requirement'
+                    ? 'e.g. Identity Verification'
+                    : 'e.g. Workday Provisioning'
+                }
+                className="form-inp"
+              />
+            </div>
+
+            {showBlockModal === 'requirement' && (
+              <>
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Completion rule <span className="lbl-hint">· what makes this block satisfied</span>
+                  </label>
+                  <div className="comp-seg">
+                    {(['ALL', 'ANY', 'N_OF'] as CompletionRule[]).map((rule) => (
+                      <button
+                        key={rule}
+                        type="button"
+                        className={modalCompletionRule === rule ? 'on' : ''}
+                        onClick={() => setModalCompletionRule(rule)}
+                      >
+                        {rule === 'ALL'
+                          ? 'All'
+                          : rule === 'ANY'
+                            ? 'Any one'
+                            : 'N of M'}
+                      </button>
+                    ))}
+                  </div>
+                  {modalCompletionRule === 'N_OF' && (
+                    <div className="comp-n">
+                      Needs
+                      <input
+                        type="number"
+                        min={1}
+                        max={Math.max(1, modalRequirements.length)}
+                        value={modalCompletionN}
+                        onChange={(event) =>
+                          setModalCompletionN(
+                            Math.max(
+                              1,
+                              Math.min(
+                                Number(event.target.value) || 1,
+                                Math.max(1, modalRequirements.length),
+                              ),
+                            ),
+                          )
+                        }
+                      />
+                      of {modalRequirements.length}
+                    </div>
+                  )}
+                  <div className="comp-readout">
+                    <Info className="h-3 w-3" />
+                    {modalCompletionRule === 'ALL'
+                      ? `Clears when all ${modalRequirements.length || 0} requirement${
+                          modalRequirements.length === 1 ? ' is' : 's are'
+                        } satisfied.`
+                      : modalCompletionRule === 'ANY'
+                        ? 'Clears when any one of them is satisfied.'
+                        : `Clears when ${Math.min(
+                            modalCompletionN,
+                            modalRequirements.length || 1,
+                          )} of ${modalRequirements.length || 0} are satisfied.`}
+                  </div>
+                </div>
+
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Accountable <span className="lbl-hint">· who owns this gate — resolves to live people</span>
+                  </label>
+                  <AccountableField
+                    value={modalAccountableOwner}
+                    onChange={(group) => {
+                      setModalAccountableOwner(group)
+                      setModalAccountableTouched(true)
+                    }}
+                  />
+                  {!modalAccountableTouched && modalRequirements.length > 0 && (
+                    <span className="lbl-suggest">
+                      Suggested from this block’s approvers — change if needed
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Requirements <span className="lbl-hint">· owner, approver & unwind are inherited from the catalog</span>
+                  </label>
+                  <div className="msel-list">
+                    {modalRequirements.length === 0 && (
+                      <div className="msel-empty">
+                        Add from the catalog below. Each one brings its owner, approver and unwind.
+                      </div>
+                    )}
+                    {modalRequirements.map((requirement) => {
+                      const resolvedOwners = resolvePeople(
+                        requirement.owner === 'it'
+                          ? 'IT'
+                          : requirement.owner === 'supplier'
+                            ? 'PROCUREMENT'
+                            : 'HR',
+                      )
+                      return (
+                        <div key={requirement.id} className="msel-row">
+                          <div className="msel-main">
+                            <div className="msel-name">
+                              {requirement.name}
+                              <span className="msel-scope">
+                                {ownerLabel(requirement.owner)}
+                              </span>
+                            </div>
+                            <div className="msel-meta">
+                              <span
+                                className="msel-owner"
+                                style={{
+                                  background: '#eff6ff',
+                                  color: '#1d4ed8',
+                                  borderColor: '#bfdbfe',
+                                }}
+                              >
+                                {ownerLabel(requirement.owner)}
+                              </span>
+                              <span className="msel-dot">·</span>
+                              <span className="msel-approver">
+                                <PeopleStack
+                                  names={resolvedOwners.map((person) => person.name)}
+                                  max={2}
+                                />
+                                <span className="bx-role">Team sign-off</span>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="msel-right">
+                            <button
+                              type="button"
+                              className="chip-x"
+                              onClick={() => removeModalRequirement(requirement.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mavail">
+                    <div className="mavail-hd">Catalog</div>
+                    {catalogRequirements.filter(
+                      (requirement) =>
+                        !modalRequirements.some(
+                          (selected) => selected.id === requirement.id,
+                        ),
+                    ).map((requirement) => (
+                      <button
+                        key={requirement.id}
+                        type="button"
+                        onClick={() => addModalRequirement(requirement)}
+                        className="mavail-row"
+                      >
+                        <span className="mavail-name">
+                          <Plus className="h-3 w-3" />
+                          {requirement.name}
+                        </span>
+                        <span className="mavail-meta">
+                          <span className="msel-owner">
+                            {ownerLabel(requirement.owner)}
+                          </span>
+                          <span className="mavail-ap">
+                            {requirement.owner === 'it'
+                              ? roleLabel('IT')
+                              : requirement.owner === 'supplier'
+                                ? roleLabel('PROCUREMENT')
+                                : roleLabel('HR')}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                    {catalogRequirements.filter(
+                      (requirement) =>
+                        !modalRequirements.some(
+                          (selected) => selected.id === requirement.id,
+                        ),
+                    ).length === 0 && (
+                      <div className="msel-empty" style={{ margin: 0 }}>
+                        Every catalog requirement is in this block.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {showBlockModal === 'system' && (
+              <>
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Accountable <span className="lbl-hint">· who owns the integration</span>
+                  </label>
+                  <AccountableField
+                    value={modalAccountableOwner}
+                    onChange={(group) => {
+                      setModalAccountableOwner(group)
+                      setModalAccountableTouched(true)
+                    }}
+                  />
+                </div>
+
+                <div className="form-grp">
+                  <label className="form-lbl">
+                    Connect a system <span className="lbl-hint">· pre-built — you finish the last 10%</span>
+                  </label>
+                  <div className="intg-grid">
+                    {INTEGRATIONS.map((integration) => (
+                      <button
+                        key={integration.key}
+                        type="button"
+                        className={`intg-card ${
+                          modalIntegration === integration.key ? 'on' : ''
+                        }`}
+                        onClick={() => pickIntegration(integration.key)}
+                      >
+                        <div className="intg-top">
+                          <span className="intg-name">{integration.label}</span>
+                        </div>
+                        <span className="intg-blurb">{integration.blurb}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {integrationMeta(modalIntegration) && (
+                  <>
+                    <div className="form-grp">
+                      <label className="form-lbl">
+                        Direction <span className="lbl-hint">· what this block does with {integrationMeta(modalIntegration)?.label}</span>
+                      </label>
+                      <div className="dir-row">
+                        <button
+                          type="button"
+                          className={`dir-toggle ${modalPush ? 'on' : ''}`}
+                          onClick={() => setModalPush((current) => !current)}
+                        >
+                          <ArrowRight className="h-3.5 w-3.5" /> Push <span>send data out</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`dir-toggle ${modalPull ? 'on' : ''}`}
+                          onClick={() => setModalPull((current) => !current)}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5 rotate-90" /> Pull <span>get data back</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {(modalPush || modalPull) && (
+                      <div className="form-grp">
+                        <label className="form-lbl">
+                          Data flow <span className="lbl-hint">· which fields cross the boundary</span>
+                        </label>
+                        <div className="dataflow">
+                          {modalPush && (
+                            <>
+                              <div className="df-line">
+                                <span className="df-end levv">LEVV</span>
+                                <span className="df-arrow">
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="df-end sys">
+                                  {integrationMeta(modalIntegration)?.label}
+                                </span>
+                                <span className="df-cap">sends</span>
+                              </div>
+                              <div className="df-fields">
+                                {LEVV_FIELDS.map((field) => (
+                                  <button
+                                    key={field}
+                                    type="button"
+                                    className={`df-chip ${
+                                      modalReads.includes(field) ? 'on' : ''
+                                    }`}
+                                    onClick={() => toggleRead(field)}
+                                  >
+                                    {field}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          {modalPull && (
+                            <>
+                              <div className="df-line">
+                                <span className="df-end sys">
+                                  {integrationMeta(modalIntegration)?.label}
+                                </span>
+                                <span className="df-arrow">
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </span>
+                                <span className="df-end levv">LEVV</span>
+                                <span className="df-cap">writes back</span>
+                              </div>
+                              <div className="df-fields">
+                                {RETURN_FIELDS.map((field) => (
+                                  <button
+                                    key={field}
+                                    type="button"
+                                    className={`df-chip ${
+                                      modalWrites.includes(field) ? 'on' : ''
+                                    }`}
+                                    onClick={() => toggleWrite(field)}
+                                  >
+                                    {field}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                          <div className="df-nova">
+                            <Zap className="mt-0.5 h-3 w-3 shrink-0" />
+                            Nova maps these to the connector’s fields and reads the response. It never decides whether to fire.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {systemReversalFor(integrationMeta(modalIntegration), modalPush) && (
+                      <div className="form-grp">
+                        <label className="form-lbl">
+                          On exit <span className="lbl-hint">· registered now, runs in offboarding</span>
+                        </label>
+                        <div className="sys-rev">
+                          <div className="sys-rev-body">
+                            <RotateCcw className="h-3 w-3" />
+                            <strong>
+                              {systemReversalFor(
+                                integrationMeta(modalIntegration),
+                                modalPush,
+                              )?.action}
+                            </strong>
+                            <span className="sys-rev-auto">
+                              <Zap className="h-2.5 w-2.5" />
+                              automated
+                            </span>
+                          </div>
+                          <label className="recon-row">
+                            <input
+                              type="checkbox"
+                              checked={modalReconcile}
+                              onChange={(event) =>
+                                setModalReconcile(event.target.checked)
+                              }
+                            />
+                            <span>
+                              <strong>Reconcile</strong> — poll the connector to
+                              confirm the action completed.
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-grp">
+                      <label className="form-lbl">
+                        Connection <span className="lbl-hint">· managed by the integration block</span>
+                      </label>
+                      <div className="api-box">
+                        <div className="api-grid">
+                          <div className="form-grp">
+                            <label className="form-lbl">Endpoint</label>
+                            <input
+                              value={modalApiConfig.endpoint}
+                              onChange={(event) =>
+                                setModalApiConfig((current) => ({
+                                  ...current,
+                                  endpoint: event.target.value,
+                                }))
+                              }
+                              className="form-inp"
+                              placeholder="https://api.example.com/provision"
+                            />
+                          </div>
+                          <div className="form-grp">
+                            <label className="form-lbl">Auth</label>
+                            <select
+                              value={modalApiConfig.authType}
+                              onChange={(event) =>
+                                setModalApiConfig((current) => ({
+                                  ...current,
+                                  authType: event.target.value,
+                                }))
+                              }
+                              className="form-sel"
+                            >
+                              <option>OAuth</option>
+                              <option>API Key</option>
+                              <option>Basic</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-grp">
+                          <label className="form-lbl">Environment</label>
+                          <select
+                            value={modalApiConfig.environment}
+                            onChange={(event) =>
+                              setModalApiConfig((current) => ({
+                                ...current,
+                                environment: event.target.value,
+                              }))
+                            }
+                            className="form-sel"
+                          >
+                            <option>Production</option>
+                            <option>Staging</option>
+                            <option>Sandbox</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
+
     </div>
   )
 }
@@ -2604,7 +3503,6 @@ function WorkflowBuilderStyles() {
       .form-inp::placeholder{color:#9ca3af;}
       .lbl-hint{text-transform:none;letter-spacing:0;font-weight:400;color:#9ca3af;}
       .lbl-suggest{font-size:10px;color:#007a8a;margin-top:5px;display:block;}
-      .gate-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
       .gate-opt{padding:10px 11px;border-radius:8px;border:1.5px solid #e5e7eb;cursor:pointer;background:#fff;text-align:left;font-family:inherit;transition:all .15s;}
       .gate-opt.h{border-color:#dc2626;background:#fef2f2;}
       .gate-opt.s{border-color:#b45309;background:#fffbeb;}
@@ -2695,7 +3593,8 @@ function WorkflowBuilderStyles() {
       .mode-btn-ui+.mode-btn-ui{border-left:1px solid #e5e7eb;}
       .mode-btn-ui.on{color:#0a0a0a;background:#f3f4f6;}
       .mode-btn-ui.on.exit{background:#0a0a0a;color:#fff;}
-      .graph-canvas{position:relative;min-width:100%;overflow:visible;border-radius:14px;background:linear-gradient(#f8fafc,#f8fafc) padding-box,repeating-linear-gradient(90deg,transparent 0,transparent 243px,rgba(148,163,184,.16) 244px,transparent 245px) border-box;}
+      .graph-viewport{min-width:max-content;transform-origin:top left;}
+      .graph-canvas{position:relative;overflow:visible;border-radius:14px;background:linear-gradient(#f8fafc,#f8fafc) padding-box,repeating-linear-gradient(90deg,transparent 0,transparent 243px,rgba(148,163,184,.16) 244px,transparent 245px) border-box;}
       .graph-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
       .graph-edge{fill:none;stroke:#94a3b8;stroke-width:1.7;opacity:.9;}
       .graph-edge.derived{stroke-dasharray:5 5;opacity:.55;}
@@ -3104,17 +4003,41 @@ function buildGraphLayout(
   const ids = ordered.map((block) => block.pipelineId)
   const idSet = new Set(ids)
   const byId = new Map(ordered.map((block) => [block.pipelineId, block]))
-  let links = dependencies.filter(
+  const normalizedDependencies = dependencies
+    .map((dependency) => {
+      if (!isOffboarding) return dependency
+
+      if (dependency.from === START_NODE_ID && idSet.has(dependency.to)) {
+        return {
+          ...dependency,
+          from: dependency.to,
+          to: END_NODE_ID,
+        }
+      }
+
+      if (idSet.has(dependency.from) && dependency.to === END_NODE_ID) {
+        return {
+          ...dependency,
+          from: START_NODE_ID,
+          to: dependency.from,
+        }
+      }
+
+      return {
+        ...dependency,
+        from: dependency.to,
+        to: dependency.from,
+      }
+    })
+    .filter(
+      (dependency) =>
+        (dependency.from === START_NODE_ID || idSet.has(dependency.from)) &&
+        (dependency.to === END_NODE_ID || idSet.has(dependency.to)) &&
+        dependency.from !== dependency.to,
+    )
+  let links = normalizedDependencies.filter(
     (dependency) => idSet.has(dependency.from) && idSet.has(dependency.to),
   )
-
-  if (isOffboarding) {
-    links = links.map((dependency) => ({
-      ...dependency,
-      from: dependency.to,
-      to: dependency.from,
-    }))
-  }
 
   const level = new Map<string, number>()
   ordered.forEach((block, index) => {
@@ -3192,7 +4115,22 @@ function buildGraphLayout(
     })
   }
 
-  return { ordered, byId, columns, links }
+  const hasIn = new Set(links.map((link) => link.to))
+  const hasOut = new Set(links.map((link) => link.from))
+  const explicitSources = normalizedDependencies
+    .filter((dependency) => dependency.from === START_NODE_ID && idSet.has(dependency.to))
+    .map((dependency) => dependency.to)
+  const explicitSinks = normalizedDependencies
+    .filter((dependency) => idSet.has(dependency.from) && dependency.to === END_NODE_ID)
+    .map((dependency) => dependency.from)
+  const sources = explicitSources.length
+    ? Array.from(new Set(explicitSources))
+    : ordered.map((block) => block.pipelineId).filter((id) => !hasIn.has(id))
+  const sinks = explicitSinks.length
+    ? Array.from(new Set(explicitSinks))
+    : ordered.map((block) => block.pipelineId).filter((id) => !hasOut.has(id))
+
+  return { ordered, byId, columns, links, sources, sinks }
 }
 
 function WorkflowGraphEditor({
@@ -3222,7 +4160,8 @@ function WorkflowGraphEditor({
 }) {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const { ordered, byId, columns, links } = useMemo(
+  const [zoom, setZoom] = useState(1)
+  const { ordered, byId, columns, links, sources, sinks } = useMemo(
     () => buildGraphLayout(blocks, dependencies, mode),
     [blocks, dependencies, mode],
   )
@@ -3240,6 +4179,8 @@ function WorkflowGraphEditor({
     marginX * 2 + columns.length * nodeWidth + Math.max(0, columns.length - 1) * horizontalGap,
   )
   const height = Math.max(260, marginY * 2 + maxRows * nodeHeight + (maxRows - 1) * verticalGap)
+  const scaledWidth = width * zoom
+  const scaledHeight = height * zoom
   const positions = new Map<string, { x: number; y: number }>()
 
   columns.forEach((column, columnIndex) => {
@@ -3253,10 +4194,6 @@ function WorkflowGraphEditor({
     })
   })
 
-  const hasIn = new Set(links.map((link) => link.to))
-  const hasOut = new Set(links.map((link) => link.from))
-  const sources = ordered.map((block) => block.pipelineId).filter((id) => !hasIn.has(id))
-  const sinks = ordered.map((block) => block.pipelineId).filter((id) => !hasOut.has(id))
   const startX = 28
   const endX = width - 28
   const midY = height / 2
@@ -3270,11 +4207,17 @@ function WorkflowGraphEditor({
     if (!bounds) return { level: 0, position: 0 }
     const level = Math.max(
       0,
-      Math.round((clientX - bounds.left - marginX) / (nodeWidth + horizontalGap)),
+      Math.round(
+        ((clientX - bounds.left) / zoom - marginX) /
+          (nodeWidth + horizontalGap),
+      ),
     )
     const position = Math.max(
       0,
-      Math.round((clientY - bounds.top - marginY) / (nodeHeight + verticalGap)),
+      Math.round(
+        ((clientY - bounds.top) / zoom - marginY) /
+          (nodeHeight + verticalGap),
+      ),
     )
     return { level, position }
   }
@@ -3343,145 +4286,181 @@ function WorkflowGraphEditor({
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div
-        ref={canvasRef}
-        className="graph-canvas"
-        style={{ width, height }}
-      >
-        <svg className="graph-svg" viewBox={`0 0 ${width} ${height}`}>
-          <defs>
-            <marker
-              id="graph-arrow"
-              markerWidth="9"
-              markerHeight="9"
-              refX="6.5"
-              refY="4"
-              orient="auto"
-            >
-              <path
-                d="M0,0 L7,4 L0,8"
+    <div>
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900"
+          onClick={() => setZoom((current) => Math.max(0.7, current - 0.1))}
+          aria-label="Zoom out"
+          title="Zoom out"
+        >
+          <ZoomOut className="h-3.5 w-3.5" />
+        </button>
+        <span className="w-12 text-center font-mono text-[11px] font-semibold text-slate-400">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900"
+          onClick={() => setZoom((current) => Math.min(1.5, current + 0.1))}
+          aria-label="Zoom in"
+          title="Zoom in"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto pb-2">
+        <div
+          className="graph-viewport"
+          style={{ width: scaledWidth, height: scaledHeight }}
+        >
+          <div
+            ref={canvasRef}
+            className="graph-canvas"
+            style={{
+              width,
+              height,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <svg className="graph-svg" viewBox={`0 0 ${width} ${height}`}>
+              <defs>
+                <marker
+                  id="graph-arrow"
+                  markerWidth="9"
+                  markerHeight="9"
+                  refX="6.5"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path
+                    d="M0,0 L7,4 L0,8"
+                    fill="none"
+                    stroke="#64748b"
+                    strokeWidth="1.4"
+                  />
+                </marker>
+              </defs>
+
+              {sources.map((id) => {
+                const point = positions.get(id)
+                if (!point) return null
+                return (
+                  <path
+                    key={`source-${id}`}
+                    d={edgePath(startX + 9, midY, point.x, point.y + nodeHeight / 2)}
+                    className="graph-edge"
+                    markerEnd="url(#graph-arrow)"
+                  />
+                )
+              })}
+
+              {links.map((link) => {
+                const from = positions.get(link.from)
+                const to = positions.get(link.to)
+                if (!from || !to) return null
+                const explicit = dependencies.some(
+                  (dependency) =>
+                    dependency.from === link.from &&
+                    dependency.to === link.to,
+                )
+                return (
+                  <g key={link.id}>
+                    <path
+                      d={edgePath(
+                        from.x + nodeWidth,
+                        from.y + nodeHeight / 2,
+                        to.x,
+                        to.y + nodeHeight / 2,
+                      )}
+                      className={explicit ? 'graph-edge explicit' : 'graph-edge derived'}
+                      markerEnd="url(#graph-arrow)"
+                    />
+                    {editable && explicit && (
+                      <foreignObject
+                        x={(from.x + to.x + nodeWidth) / 2 - 11}
+                        y={(from.y + to.y) / 2 + nodeHeight / 2 - 11}
+                        width={22}
+                        height={22}
+                      >
+                        <button
+                          type="button"
+                          className="graph-edge-remove"
+                          aria-label="Remove dependency"
+                          onClick={() => onRemoveDependency(link.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </foreignObject>
+                    )}
+                  </g>
+                )
+              })}
+
+              {sinks.map((id) => {
+                const point = positions.get(id)
+                if (!point) return null
+                return (
+                  <path
+                    key={`sink-${id}`}
+                    d={edgePath(point.x + nodeWidth, point.y + nodeHeight / 2, endX, midY)}
+                    className="graph-edge"
+                    markerEnd="url(#graph-arrow)"
+                  />
+                )
+              })}
+
+              <circle cx={startX} cy={midY} r="9" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+              <text x={startX} y={midY + 24} textAnchor="middle" className="pv-term">
+                {isOffboarding ? 'Exit' : 'Start'}
+              </text>
+              <circle
+                cx={endX}
+                cy={midY}
+                r="9"
                 fill="none"
-                stroke="#64748b"
-                strokeWidth="1.4"
+                stroke={isOffboarding ? '#0a0a0a' : '#007a8a'}
+                strokeWidth="2"
               />
-            </marker>
-          </defs>
+              <circle cx={endX} cy={midY} r="3.5" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
+              <text x={endX} y={midY + 24} textAnchor="middle" className="pv-term">
+                {isOffboarding ? 'Offboarded' : 'Active'}
+              </text>
+            </svg>
 
-          {sources.map((id) => {
-            const point = positions.get(id)
-            if (!point) return null
-            return (
-              <path
-                key={`source-${id}`}
-                d={edgePath(startX + 9, midY, point.x, point.y + nodeHeight / 2)}
-                className="graph-edge"
-                markerEnd="url(#graph-arrow)"
-              />
-            )
-          })}
-
-          {links.map((link) => {
-            const from = positions.get(link.from)
-            const to = positions.get(link.to)
-            if (!from || !to) return null
-            const explicit = dependencies.some(
-              (dependency) =>
-                dependency.from === link.from &&
-                dependency.to === link.to,
-            )
-            return (
-              <g key={link.id}>
-                <path
-                  d={edgePath(
-                    from.x + nodeWidth,
-                    from.y + nodeHeight / 2,
-                    to.x,
-                    to.y + nodeHeight / 2,
-                  )}
-                  className={explicit ? 'graph-edge explicit' : 'graph-edge derived'}
-                  markerEnd="url(#graph-arrow)"
-                />
-                {editable && explicit && (
-                  <foreignObject
-                    x={(from.x + to.x + nodeWidth) / 2 - 11}
-                    y={(from.y + to.y) / 2 + nodeHeight / 2 - 11}
-                    width={22}
-                    height={22}
-                  >
-                    <button
-                      type="button"
-                      className="graph-edge-remove"
-                      aria-label="Remove dependency"
-                      onClick={() => onRemoveDependency(link.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </foreignObject>
-                )}
-              </g>
-            )
-          })}
-
-          {sinks.map((id) => {
-            const point = positions.get(id)
-            if (!point) return null
-            return (
-              <path
-                key={`sink-${id}`}
-                d={edgePath(point.x + nodeWidth, point.y + nodeHeight / 2, endX, midY)}
-                className="graph-edge"
-                markerEnd="url(#graph-arrow)"
-              />
-            )
-          })}
-
-          <circle cx={startX} cy={midY} r="9" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
-          <text x={startX} y={midY + 24} textAnchor="middle" className="pv-term">
-            {isOffboarding ? 'Exit' : 'Start'}
-          </text>
-          <circle
-            cx={endX}
-            cy={midY}
-            r="9"
-            fill="none"
-            stroke={isOffboarding ? '#0a0a0a' : '#007a8a'}
-            strokeWidth="2"
-          />
-          <circle cx={endX} cy={midY} r="3.5" fill={isOffboarding ? '#0a0a0a' : '#007a8a'} />
-          <text x={endX} y={midY + 24} textAnchor="middle" className="pv-term">
-            {isOffboarding ? 'Offboarded' : 'Active'}
-          </text>
-        </svg>
-
-        {ordered.map((block, index) => {
-          const point = positions.get(block.pipelineId)
-          if (!point) return null
-          const selected = selectedBlockId === block.pipelineId
-          const linking = linkFromBlockId === block.pipelineId
-          return (
-            <div
-              key={block.pipelineId}
-              data-pipeline-id={block.pipelineId}
-              className={`graph-node-wrap ${
-                draggingId === block.pipelineId ? 'dragging' : ''
-              }`}
-              style={{ left: point.x, top: point.y, width: nodeWidth }}
-              onMouseDown={(event) => handleNodeMouseDown(event, block.pipelineId)}
-            >
-              <GraphNodeCard
-                block={block}
-                mode={mode}
-                displayOrder={index + 1}
-                selected={selected}
-                linking={linking}
-                editable={editable}
-                onStartLink={() => onStartLink(block.pipelineId)}
-                onRemove={() => onRemoveBlock(block.pipelineId)}
-              />
-            </div>
-          )
-        })}
+            {ordered.map((block, index) => {
+              const point = positions.get(block.pipelineId)
+              if (!point) return null
+              const selected = selectedBlockId === block.pipelineId
+              const linking = linkFromBlockId === block.pipelineId
+              return (
+                <div
+                  key={block.pipelineId}
+                  data-pipeline-id={block.pipelineId}
+                  className={`graph-node-wrap ${
+                    draggingId === block.pipelineId ? 'dragging' : ''
+                  }`}
+                  style={{ left: point.x, top: point.y, width: nodeWidth }}
+                  onMouseDown={(event) => handleNodeMouseDown(event, block.pipelineId)}
+                >
+                  <GraphNodeCard
+                    block={block}
+                    mode={mode}
+                    displayOrder={index + 1}
+                    selected={selected}
+                    linking={linking}
+                    editable={editable}
+                    onStartLink={() => onStartLink(block.pipelineId)}
+                    onRemove={() => onRemoveBlock(block.pipelineId)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -4039,6 +5018,7 @@ function LibraryBlockCard({
   onDragStart,
   onDragEnd,
   onAdd,
+  onEdit,
   onRemove,
 }: {
   block: LibraryBlock
@@ -4048,6 +5028,7 @@ function LibraryBlockCard({
   onDragStart: (event: DragEvent<HTMLDivElement>, blockId: string) => void
   onDragEnd: () => void
   onAdd: () => void
+  onEdit: () => void
   onRemove: () => void
 }) {
   const isSystem = block.type === 'system'
@@ -4122,6 +5103,19 @@ function LibraryBlockCard({
         </div>
 
         <div className="flex items-center gap-1">
+          {!isUsed && (
+            <button
+              type="button"
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                onEdit()
+              }}
+              className="rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              Edit
+            </button>
+          )}
           <button
             type="button"
             onMouseDown={(event) => event.stopPropagation()}

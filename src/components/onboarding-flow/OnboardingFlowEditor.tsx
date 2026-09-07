@@ -88,6 +88,10 @@ type OnboardingFlowEditorProps = {
   usedLibraryBlockIds: Set<string>
   editable: boolean
   selectedBlockId: string | null
+  terminalLabels?: {
+    start: string
+    end: string
+  }
   onAddBlock: (block: FlowLibraryBlock, graphLevel?: number) => void
   onSelectBlock: (pipelineId: string | null) => void
   onMoveBlock: (pipelineId: string, graphLevel: number, position: number) => void
@@ -97,6 +101,7 @@ type OnboardingFlowEditorProps = {
 }
 
 const edgeStyle = { stroke: '#94a3b8', strokeWidth: 2 }
+const defaultTerminalLabels = { start: 'Start', end: 'Active' }
 
 function getDiagonalEdgePath({
   sourceX,
@@ -266,6 +271,7 @@ function buildNodes(
   selectedBlockId: string | null,
   editable: boolean,
   onRemoveBlock: (pipelineId: string) => void,
+  terminalLabels: { start: string; end: string },
 ): FlowNode[] {
   const maxLevel = blocks.length
     ? Math.max(...blocks.map((block) => Math.max(1, block.graphLevel)))
@@ -301,7 +307,7 @@ function buildNodes(
       id: START_NODE_ID,
       type: 'block',
       position: positionFor(0, 0),
-      data: { title: 'Start', gate: 'start', level: 0 },
+      data: { title: terminalLabels.start, gate: 'start', level: 0 },
       draggable: false,
       selectable: false,
       deletable: false,
@@ -311,7 +317,7 @@ function buildNodes(
       id: END_NODE_ID,
       type: 'block',
       position: positionFor(maxLevel + 1, 0),
-      data: { title: 'Active', gate: 'end', level: maxLevel + 1 },
+      data: { title: terminalLabels.end, gate: 'end', level: maxLevel + 1 },
       draggable: false,
       selectable: false,
       deletable: false,
@@ -327,6 +333,7 @@ function OnboardingFlowCanvas(props: OnboardingFlowEditorProps) {
     usedLibraryBlockIds,
     editable,
     selectedBlockId,
+    terminalLabels = defaultTerminalLabels,
     onAddBlock,
     onSelectBlock,
     onMoveBlock,
@@ -349,8 +356,15 @@ function OnboardingFlowCanvas(props: OnboardingFlowEditorProps) {
   )
 
   const nextNodes = useMemo(
-    () => buildNodes(blocks, selectedBlockId, editable, onRemoveBlock),
-    [blocks, editable, onRemoveBlock, selectedBlockId],
+    () =>
+      buildNodes(
+        blocks,
+        selectedBlockId,
+        editable,
+        onRemoveBlock,
+        terminalLabels,
+      ),
+    [blocks, editable, onRemoveBlock, selectedBlockId, terminalLabels],
   )
 
   const nextEdges = useMemo(

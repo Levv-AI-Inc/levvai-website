@@ -30,7 +30,17 @@ Brief greetings, thanks, and acknowledgments are fine — respond naturally and 
 - "thanks" → "Anytime."
 - "good morning" → "Morning. What's on your plate today?"
 
-Keep these to one short line. Don't list capabilities. Just acknowledge and invite the next message. Do NOT emit action chips or a rail for greetings.
+Keep these to one short line. Don't list capabilities. Just acknowledge and invite the next message. Do NOT mention contingent workforce, SOWs, suppliers, policy, portfolio data, or any other Levv topic unless the user mentions one first. Do NOT emit action chips or a rail for greetings.
+
+USER-LED TOPICS:
+Do not introduce a business topic just because it appears in your system context. If the user's message is neutral small talk, a bare greeting, or an acknowledgment, stay neutral and wait for them to name what they need. Only reference workforce operations, contracts, suppliers, policy, workers, SOWs, job postings, rates, or portfolio data after the user's message asks about or implies one of those topics.
+
+SCENARIO ENTRY RULE:
+Before answering, classify only the user's latest message. Enter a scenario below only when that latest message explicitly asks for, names, or clearly implies that scenario's work. Prior conversation can provide context after a scenario is entered, but it cannot trigger a new scenario by itself.
+- Do not mention SOWs, job postings, suppliers, workers, rates, policy, off-boarding, recertification, AI governance, or portfolio records as proactive suggestions unless the latest message asks about that area.
+- Do not run a diagnostic, decision tree, or "fastest path" recommendation just because the user sent conversational glue such as "hey", "ok", "sounds good", "cool", "can you help", or "what can you do".
+- If the latest message is broad but not scenario-specific, answer broadly and ask one neutral follow-up. Example: "I can help. What are you trying to get done?"
+- Emit NOVA_ACTIONS or NOVA_RAIL only after the latest user message has entered a concrete scenario. No scenario means no chips and no rail.
 
 OFF-TOPIC REFUSAL:
 Only refuse genuine off-topic requests — not conversational glue. Refuse for:
@@ -632,6 +642,74 @@ function normalizeMessages(messages: unknown[]) {
     }))
 }
 
+function getLastUserMessage(messages: unknown[]) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (
+      message &&
+      typeof message === 'object' &&
+      (message as { role?: unknown }).role !== 'assistant' &&
+      typeof (message as { content?: unknown }).content === 'string'
+    ) {
+      return (message as { content: string }).content.trim()
+    }
+  }
+
+  return ''
+}
+
+function getSmallTalkReply(message: string) {
+  const normalized = message
+    .toLowerCase()
+    .replace(/[^\w\s']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalized) return null
+
+  if (
+    /^(hey|hi|hello|yo|hiya|sup|what's up|whats up)( there| nova| faraz)?$/.test(
+      normalized,
+    )
+  ) {
+    return 'Hey Faraz — what can I help you with?'
+  }
+
+  if (
+    /^(thanks|thank you|thx|ty|appreciate it|thanks nova|thank you nova)$/.test(
+      normalized,
+    )
+  ) {
+    return 'Anytime.'
+  }
+
+  if (
+    /^(can you help|help|what can you do|what do you do|start|let's start|lets start)$/.test(
+      normalized,
+    )
+  ) {
+    return "I can help. What are you trying to get done?"
+  }
+
+  if (/^(ok|okay|cool|sounds good|got it|great)$/.test(normalized)) {
+    return "Got it. What's next?"
+  }
+
+  if (/^good morning\b/.test(normalized)) {
+    return "Morning. What's on your plate today?"
+  }
+
+  if (/^good afternoon\b/.test(normalized)) {
+    return "Afternoon. What's on your plate today?"
+  }
+
+  if (/^good evening\b/.test(normalized)) {
+    return "Evening. What's on your plate today?"
+  }
+
+  return null
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -644,6 +722,11 @@ export async function POST(req: Request) {
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ reply: 'No message received. Please try again.' }, { status: 400 })
+    }
+
+    const smallTalkReply = getSmallTalkReply(getLastUserMessage(messages))
+    if (smallTalkReply) {
+      return NextResponse.json({ reply: smallTalkReply })
     }
 
     const fullMessages = [

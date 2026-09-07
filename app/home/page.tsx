@@ -277,7 +277,9 @@ export default function Home() {
   const conversationRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const hasChat = chatMessages.length > 0
-  const pendingRequestLabel = loadingPendingRequests ? '...' : String(pendingRequestCount)
+  const pendingRequestCopy = loadingPendingRequests
+    ? 'Loading submitted request queue. One critical renewal, two policy advisories, and four work packages are waiting for routing.'
+    : `${pendingRequestCount.toLocaleString()} submitted ${pendingRequestCount === 1 ? 'request needs' : 'requests need'} review today. One critical renewal, two policy advisories, and four work packages are waiting for routing.`
   const activeRailInfo = (() => {
     const index = chatMessages.length - 1
     const message = chatMessages[index]
@@ -668,7 +670,7 @@ export default function Home() {
               </div>
               <h1 className="mt-4 text-4xl font-semibold leading-tight text-[#1e2528]">Control desk</h1>
               <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#52605c]">
-                {pendingRequestLabel} submitted requests need review today. One critical renewal, two policy advisories, and four work packages are waiting for routing.
+                {pendingRequestCopy}
               </p>
               {pendingRequestsError && <p className="mt-2 text-sm font-medium text-[#9a651e]">{pendingRequestsError}</p>}
             </div>

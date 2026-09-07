@@ -127,6 +127,7 @@ function formatCurrentPage(pathname: string) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
+  const [sessionChecking, setSessionChecking] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
   const isAdmin =
     (sessionUser?.role || '').trim().toLowerCase() === ROLE_ADMIN
@@ -194,12 +195,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (isStandalone) {
       setSessionUser(null)
+      setSessionChecking(false)
       return
     }
 
     const controller = new AbortController()
+    setSessionChecking(true)
 
     const loadSessionUser = async () => {
+      let redirecting = false
+
       try {
         const response = await fetch('/api/session', {
           method: 'GET',
@@ -211,6 +216,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         if (!response.ok) {
           setSessionUser(null)
           if (response.status === 401 || response.status === 403) {
+            redirecting = true
             window.location.replace(
               `/auth/login?next=${encodeURIComponent(pathname)}`,
             )
@@ -222,6 +228,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         const user = parseSessionUser(payload)
         setSessionUser(user)
         if (!user) {
+          redirecting = true
           window.location.replace(
             `/auth/login?next=${encodeURIComponent(pathname)}`,
           )
@@ -229,6 +236,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       } catch (error) {
         if ((error as { name?: string })?.name === 'AbortError') return
         setSessionUser(null)
+      } finally {
+        if (!controller.signal.aborted && !redirecting) {
+          setSessionChecking(false)
+        }
       }
     }
 
@@ -288,7 +299,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <aside className="h-screen w-64 min-w-[16rem] shrink-0 flex flex-col bg-[#1e2528] text-[#d9ddd8] border-r border-[#33413d]">
           <SidebarAccount user={sessionUser} />
 
-          <nav className="min-h-0 flex-1 px-4 py-6 space-y-7 overflow-y-auto">
+          <nav className="min-h-0 flex-1 px-4 py-6 space-y-7 overflow-y-auto [scrollbar-gutter:stable]">
             <NavSection label="Main">
               <NavItem label="Home" href="/home" icon={Home} />
               <NavGroup
@@ -343,29 +354,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   { label: 'Payments', href: '/payments/payments' },
                 ]}
               />
-              {isAdmin && (
+              {sessionChecking ? (
+                <NavItemPlaceholder />
+              ) : isAdmin ? (
                 <NavItem label="Settings" href="/admin" icon={Settings} />
-              )}
+              ) : null}
             </NavSection>
           </nav>
 
-          {sessionUser && (
-            <div className="p-4 border-t border-white/10">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={signingOut}
-                className="flex items-center gap-3 px-3 py-2 w-full text-[#aeb8b2] hover:text-[#ffb4a6] hover:bg-white/10 rounded-md transition-all text-sm font-medium disabled:opacity-60"
-              >
-                <LogOut className="w-4 h-4" />
-                {signingOut ? 'Signing Out...' : 'Sign Out'}
-              </button>
-            </div>
-          )}
         </aside>
 
         <div className="flex-1 flex h-screen min-w-0 flex-col">
-          <header className="h-16 border-b border-[#d8d1c4] bg-[#fcfbf7]/95 backdrop-blur flex items-center px-8 justify-between sticky top-0 z-10">
+          <header className="h-16 border-b border-[#d8d1c4] bg-[#fcfbf7]/95 backdrop-blur flex items-center px-8 justify-between sticky top-0 z-[1000]">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-[#1f3d38] rounded-md flex items-center justify-center font-bold text-white text-[10px]">
                 L
@@ -447,7 +447,7 @@ function AccountMenu({
   }, [open])
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative z-[1001]">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -459,7 +459,7 @@ function AccountMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] text-[#26312f] shadow-2xl">
+        <div className="absolute right-0 z-[1002] mt-2 w-72 overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] text-[#26312f] shadow-2xl">
           <div className="border-b border-[#d8d1c4] px-4 py-3">
             <div className="text-sm font-semibold text-[#1e2528]">{display.name}</div>
             <div className="mt-1 text-xs text-[#6b746f]">{display.label}</div>
@@ -508,6 +508,18 @@ function NavSection({
   )
 }
 
+function NavItemPlaceholder() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-transparent"
+    >
+      <div className="h-4 w-4 rounded bg-white/10" />
+      <div className="h-3 w-16 rounded bg-white/10" />
+    </div>
+  )
+}
+
 /* =========================
    Nav Item
 ========================= */
@@ -536,8 +548,8 @@ function NavItem({
         }
       `}
     >
-      <Icon className={`w-[18px] h-[18px] transition-colors ${isActive ? 'text-[#89d3bd]' : 'text-[#8e9a94] group-hover:text-[#d9ddd8]'}`} />
-      {label}
+      <Icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? 'text-[#89d3bd]' : 'text-[#8e9a94] group-hover:text-[#d9ddd8]'}`} />
+      <span className="min-w-0 whitespace-nowrap">{label}</span>
 
       {isActive && (
         <span className="absolute left-[-12px] top-2 bottom-2 w-1 bg-[#89d3bd] rounded-r-full" />
@@ -580,12 +592,12 @@ function NavGroup({
           }
         `}
       >
-        <span className="flex items-center gap-3">
-          <Icon className={`w-[18px] h-[18px] ${isAnyActive ? 'text-[#89d3bd]' : 'text-[#8e9a94]'}`} />
-          {label}
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <Icon className={`h-[18px] w-[18px] shrink-0 ${isAnyActive ? 'text-[#89d3bd]' : 'text-[#8e9a94]'}`} />
+          <span className="whitespace-nowrap">{label}</span>
         </span>
         <ChevronDown
-          className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-[#8e9a94]'}`}
+          className={`h-4 w-4 shrink-0 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-[#8e9a94]'}`}
         />
       </button>
 

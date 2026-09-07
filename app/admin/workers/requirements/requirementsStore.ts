@@ -308,8 +308,10 @@ export function smartUnwind(name: string, _owner?: OwnerRole): Unwind {
   return unwindForCategory(inferCategory(name), name)
 }
 
+const REQUIREMENTS_STORAGE_KEY = 'levv_requirement_catalog'
+
 /* ── Seed data — now reversible ── */
-let requirements: Requirement[] = [
+const SEED_REQUIREMENTS: Requirement[] = [
   {
     id: 'gov-id',
     name: 'Government ID Photo Check',
@@ -354,10 +356,41 @@ let requirements: Requirement[] = [
   },
 ]
 
+let requirements: Requirement[] = SEED_REQUIREMENTS
+
+function canUseLocalStorage() {
+  return typeof window !== 'undefined' && Boolean(window.localStorage)
+}
+
+function readStoredRequirements() {
+  if (!canUseLocalStorage()) return null
+
+  try {
+    const raw = window.localStorage.getItem(REQUIREMENTS_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return null
+    return parsed.filter(
+      (requirement): requirement is Requirement =>
+        Boolean(requirement) &&
+        typeof requirement === 'object' &&
+        typeof requirement.id === 'string' &&
+        typeof requirement.name === 'string',
+    )
+  } catch {
+    return null
+  }
+}
+
 export function getRequirements() {
+  const stored = readStoredRequirements()
+  if (stored) requirements = stored
   return requirements
 }
 
 export function setRequirements(next: Requirement[]) {
   requirements = next
+  if (!canUseLocalStorage()) return
+
+  window.localStorage.setItem(REQUIREMENTS_STORAGE_KEY, JSON.stringify(next))
 }
