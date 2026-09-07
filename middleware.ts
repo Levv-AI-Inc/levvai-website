@@ -5,6 +5,7 @@ import { isTenantHost, normalizeHost } from './lib/tenant'
 const INTERNAL_PATH_PREFIXES = [
   '/admin',
   '/approvals',
+  '/compliance',
   '/cw',
   '/home',
   '/my-items',
@@ -66,6 +67,7 @@ export const config = {
     '/',
     '/admin/:path*',
     '/approvals/:path*',
+    '/compliance/:path*',
     '/cw/:path*',
     '/home/:path*',
     '/my-items/:path*',

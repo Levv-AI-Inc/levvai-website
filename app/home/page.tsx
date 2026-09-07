@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
@@ -12,6 +13,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { getIntakes, IntakeApiError } from '@/lib/api/intake'
 import { usePolicyStatus, type StoredPolicyStatus } from '../../lib/policyStatus'
 
 interface ChatMessage {
@@ -34,11 +36,6 @@ interface RailTileData {
 interface RailData {
   header: string
   tiles: RailTileData[]
-}
-
-type IntakeListResponse = {
-  detail?: unknown
-  results?: unknown[]
 }
 
 type UploadedPolicyAnalysis = {
@@ -265,11 +262,11 @@ export default function Home() {
   const policyContext = policyActive ? buildPolicyContext(policyStatus) : ''
   const policyStatusTitle = policyUploaded
     ? [
-        policyStatus.policyName || policyStatus.fileName || 'Policy uploaded',
-        policyStatus.summary,
-      ]
-        .filter(Boolean)
-        .join(': ')
+      policyStatus.policyName || policyStatus.fileName || 'Policy uploaded',
+      policyStatus.summary,
+    ]
+      .filter(Boolean)
+      .join(': ')
     : 'No policy loaded. Nova advises without blocking.'
   const [pendingRequestCount, setPendingRequestCount] = useState(0)
   const [loadingPendingRequests, setLoadingPendingRequests] = useState(true)
@@ -308,28 +305,26 @@ export default function Home() {
       setPendingRequestsError('')
 
       try {
-        const response = await fetch('/api/intake?status=submitted&mine=true', {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-          signal: controller.signal,
+        const response = await getIntakes({
+          mine: true,
+          status: 'submitted',
+          page: 1,
+          page_size: 1,
         })
-        const payload = (await response.json().catch(() => ({}))) as IntakeListResponse
-
-        if (response.status === 401) {
+        if (controller.signal.aborted) return
+        setPendingRequestCount(response.pagination.total_count)
+      } catch (error) {
+        if (error instanceof IntakeApiError && error.status === 401) {
           router.replace('/auth/login?next=/home')
           return
         }
-        if (!response.ok) {
-          setPendingRequestCount(0)
-          setPendingRequestsError(typeof payload.detail === 'string' ? payload.detail : 'Unable to load pending requests.')
-          return
-        }
-        setPendingRequestCount(Array.isArray(payload.results) ? payload.results.length : 0)
-      } catch (error) {
         if ((error as { name?: string })?.name !== 'AbortError') {
           setPendingRequestCount(0)
-          setPendingRequestsError('Unable to load pending requests.')
+          setPendingRequestsError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load pending requests.',
+          )
         }
       } finally {
         if (!controller.signal.aborted) setLoadingPendingRequests(false)
@@ -430,6 +425,76 @@ export default function Home() {
       )
     }), [navigateToRoute])
 
+  const renderNovaContent = useCallback((content: string) => {
+    const blocks: ReactNode[] = []
+    const lines = content.split(/\r?\n/)
+    let paragraph: string[] = []
+    let listItems: string[] = []
+    let listType: 'ul' | 'ol' | null = null
+
+    const flushParagraph = () => {
+      const text = paragraph.join('\n').trim()
+      if (!text) {
+        paragraph = []
+        return
+      }
+      blocks.push(
+        <p key={`p-${blocks.length}`} className="whitespace-pre-wrap">
+          {linkifyRecords(text)}
+        </p>,
+      )
+      paragraph = []
+    }
+
+    const flushList = () => {
+      if (!listType || listItems.length === 0) return
+      const Tag = listType
+      blocks.push(
+        <Tag
+          key={`list-${blocks.length}`}
+          className={`my-3 space-y-1.5 pl-5 ${listType === 'ul' ? 'list-disc' : 'list-decimal'}`}
+        >
+          {listItems.map((item, index) => (
+            <li key={index} className="pl-1">
+              {linkifyRecords(item)}
+            </li>
+          ))}
+        </Tag>,
+      )
+      listItems = []
+      listType = null
+    }
+
+    lines.forEach((line) => {
+      const trimmed = line.trim()
+      const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/)
+      const numberedMatch = trimmed.match(/^\d+[.)]\s+(.+)$/)
+
+      if (!trimmed) {
+        flushParagraph()
+        flushList()
+        return
+      }
+
+      if (bulletMatch || numberedMatch) {
+        const nextType = bulletMatch ? 'ul' : 'ol'
+        flushParagraph()
+        if (listType && listType !== nextType) flushList()
+        listType = nextType
+        listItems.push((bulletMatch?.[1] ?? numberedMatch?.[1] ?? '').trim())
+        return
+      }
+
+      flushList()
+      paragraph.push(line)
+    })
+
+    flushParagraph()
+    flushList()
+
+    return <div className="space-y-3">{blocks.length ? blocks : linkifyRecords(content)}</div>
+  }, [linkifyRecords])
+
   const endConversation = useCallback(() => {
     setChatMessages([])
     conversationRef.current = []
@@ -464,13 +529,12 @@ export default function Home() {
           <span
             role="status"
             aria-live="polite"
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase ${
-              policyActive
-                ? 'border-[#b9dfcf] bg-[#eefaf5] text-[#1f3d38]'
-                : policyUploaded
-                  ? 'border-[#d8d1c4] bg-[#f4f1ea] text-[#6b746f]'
-                  : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase ${policyActive
+              ? 'border-[#b9dfcf] bg-[#eefaf5] text-[#1f3d38]'
+              : policyUploaded
+                ? 'border-[#d8d1c4] bg-[#f4f1ea] text-[#6b746f]'
+                : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
+              }`}
             title={policyStatusTitle}
           >
             {policyActive ? (
@@ -511,79 +575,79 @@ export default function Home() {
       <div className="h-[calc(100vh-7rem)] overflow-hidden bg-[#f4f1ea] lg:h-[calc(100vh-8rem)]">
         <div ref={chatScrollRef} className="h-full overflow-y-auto">
           <div className="mx-auto max-w-[1120px] space-y-5 px-6 py-8 pb-48">
-          <div className="flex items-center justify-between border-b border-[#d8d1c4] pb-4">
-            <div className="flex items-center gap-3 text-xs font-bold uppercase text-[#6b746f]">
-              <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-              Nova desk / {clockTime || '--:--'}
-            </div>
-          </div>
-
-          <div className={hasRail ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]' : ''}>
-            <div className="space-y-5">
-              {chatMessages.map((message, index) => (
-                <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                  <div className={message.role === 'user' ? 'max-w-[78%] rounded-lg bg-[#e4ddcf] px-5 py-3 text-sm text-[#1e2528]' : 'max-w-[88%] text-sm leading-7 text-[#3d4945]'}>
-                    {message.role === 'nova' ? linkifyRecords(message.content) : message.content}
-                    {message.role === 'nova' && message.actions && message.actions.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {message.actions.map((action) => {
-                          const isRoute = action.prompt.startsWith('/')
-                          return (
-                            <button
-                              key={action.label}
-                              type="button"
-                              onClick={() => handleAction(action)}
-                              className={
-                                isRoute
-                                  ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
-                                  : 'inline-flex items-center gap-1.5 rounded-md border border-[#cfc7b8] bg-[#fcfbf7] px-3 py-2 text-xs font-semibold text-[#1f3d38] hover:bg-[#f4f1ea]'
-                              }
-                            >
-                              {action.label}
-                              {isRoute && <ArrowRight className="h-3 w-3" />}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isLoading && <div className="text-sm text-[#6b746f]">Nova is reviewing the record...</div>}
-              <div ref={chatEndRef} />
+            <div className="flex items-center justify-between border-b border-[#d8d1c4] pb-4">
+              <div className="flex items-center gap-3 text-xs font-bold uppercase text-[#6b746f]">
+                <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
+                Nova desk / {clockTime || '--:--'}
+              </div>
             </div>
 
-            {activeRail && (
-              <aside className="hidden lg:block">
-                <div className="sticky top-24 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
-                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{activeRail.header}</span>
+            <div className={hasRail ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]' : ''}>
+              <div className="space-y-5">
+                {chatMessages.map((message, index) => (
+                  <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                    <div className={message.role === 'user' ? 'max-w-[78%] rounded-lg bg-[#e4ddcf] px-5 py-3 text-sm text-[#1e2528]' : 'max-w-[88%] text-sm leading-7 text-[#3d4945]'}>
+                      {message.role === 'nova' ? renderNovaContent(message.content) : message.content}
+                      {message.role === 'nova' && message.actions && message.actions.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {message.actions.map((action) => {
+                            const isRoute = action.prompt.startsWith('/')
+                            return (
+                              <button
+                                key={action.label}
+                                type="button"
+                                onClick={() => handleAction(action)}
+                                className={
+                                  isRoute
+                                    ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
+                                    : 'inline-flex items-center gap-1.5 rounded-md border border-[#cfc7b8] bg-[#fcfbf7] px-3 py-2 text-xs font-semibold text-[#1f3d38] hover:bg-[#f4f1ea]'
+                                }
+                              >
+                                {action.label}
+                                {isRoute && <ArrowRight className="h-3 w-3" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={dismissRail}
-                      className="rounded-md p-1 text-[#8b918e] hover:bg-[#f4f1ea] hover:text-[#52605c]"
-                      aria-label="Hide Nova rail"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
                   </div>
-                  <div className="space-y-2.5">
-                    {activeRail.tiles.map((tile, index) => (
-                      <RailTile
-                        key={`${tile.title}-${index}`}
-                        tile={tile}
-                        onClick={() => handleAction({ label: tile.action, prompt: tile.destination })}
-                      />
-                    ))}
+                ))}
+                {isLoading && <div className="text-sm text-[#6b746f]">Nova is reviewing the record...</div>}
+                <div ref={chatEndRef} />
+              </div>
+
+              {activeRail && (
+                <aside className="hidden lg:block">
+                  <div className="sticky top-24 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
+                        <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{activeRail.header}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={dismissRail}
+                        className="rounded-md p-1 text-[#8b918e] hover:bg-[#f4f1ea] hover:text-[#52605c]"
+                        aria-label="Hide Nova rail"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2.5">
+                      {activeRail.tiles.map((tile, index) => (
+                        <RailTile
+                          key={`${tile.title}-${index}`}
+                          tile={tile}
+                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination })}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </aside>
-            )}
+                </aside>
+              )}
+            </div>
           </div>
-        </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea] to-transparent pb-4 pt-12 lg:left-64">
           <div className="mx-auto max-w-[1120px] px-6">{inputBox}</div>
@@ -600,7 +664,7 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#6b746f]">
                 <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-                Nova monitoring / {clockTime || '--:--'}
+                Nova monitoring
               </div>
               <h1 className="mt-4 text-4xl font-semibold leading-tight text-[#1e2528]">Control desk</h1>
               <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#52605c]">
@@ -608,18 +672,41 @@ export default function Home() {
               </p>
               {pendingRequestsError && <p className="mt-2 text-sm font-medium text-[#9a651e]">{pendingRequestsError}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <button onClick={() => router.push('/requests/sow/create')} className="flex items-center gap-2 rounded-md border border-[#cfc7b8] bg-white px-3 py-2 font-semibold text-[#26312f]">
-                <FileText className="h-4 w-4 text-[#1f3d38]" />
-                Create SOW
-              </button>
-              <button onClick={() => router.push('/requests/new/job/create/define')} className="flex items-center gap-2 rounded-md border border-[#cfc7b8] bg-white px-3 py-2 font-semibold text-[#26312f]">
-                <Briefcase className="h-4 w-4 text-[#1f3d38]" />
-                New posting
-              </button>
-            </div>
           </div>
           <div className="mt-6">{inputBox}</div>
+
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <Link
+              href="/requests/sow/create"
+              className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#bfc9c0] bg-[#f7fbf8] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(31,61,56,0.85)] transition hover:-translate-y-0.5 hover:border-[#89d3bd] hover:bg-[#eefaf5] hover:shadow-[0_18px_38px_-28px_rgba(31,61,56,0.75)] focus:outline-none focus:ring-2 focus:ring-[#89d3bd] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#1f3d38] text-white shadow-sm">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-[#1e2528]">Create SOW</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-[#52605c]">Scope, terms, and commercials</span>
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[#1f3d38] transition group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/requests/new/job/create/define"
+              className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#d8c49a] bg-[#fffaf0] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(154,101,30,0.75)] transition hover:-translate-y-0.5 hover:border-[#e5b766] hover:bg-[#fff7e6] hover:shadow-[0_18px_38px_-28px_rgba(154,101,30,0.7)] focus:outline-none focus:ring-2 focus:ring-[#e5b766] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#9a651e] text-white shadow-sm">
+                  <Briefcase className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-[#1e2528]">Create Job Posting</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-[#665742]">Role, suppliers, and rates</span>
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[#9a651e] transition group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </section>
       </div>
 

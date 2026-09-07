@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation'
-
-export default function CompliancePoliciesRedirectPage() {
-  redirect('/admin/compliance/policies')
-}
+export { default } from '../../admin/compliance/policies/page'

@@ -6,19 +6,14 @@ type ApprovalStep = {
 
 const APPROVAL_STEPS: ApprovalStep[] = [
   {
-    name: 'Amy Jackson',
+    name: 'Faraz Chatta',
     role: 'Supervisor',
     status: 'completed',
   },
   {
-    name: 'Christopher Chang',
+    name: 'Mark Li',
     role: 'CC Owner',
     status: 'active',
-  },
-  {
-    name: 'Harjot Kaur',
-    role: 'InfoSec',
-    status: 'pending',
   },
 ]
 
@@ -40,10 +35,9 @@ export default function ApprovalChain() {
                 <div
                   className={`
                     flex items-center justify-center w-9 h-9 rounded-full border-2
-                    ${
-                      step.status === 'completed'
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : step.status === 'active'
+                    ${step.status === 'completed'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : step.status === 'active'
                         ? 'border-amber-500 text-amber-600'
                         : 'border-gray-300 text-gray-400'
                     }
@@ -65,10 +59,9 @@ export default function ApprovalChain() {
                 <div
                   className={`
                     flex-1 h-px mx-4
-                    ${
-                      step.status === 'completed'
-                        ? 'bg-green-500'
-                        : 'bg-gray-300'
+                    ${step.status === 'completed'
+                      ? 'bg-green-500'
+                      : 'bg-gray-300'
                     }
                   `}
                 />

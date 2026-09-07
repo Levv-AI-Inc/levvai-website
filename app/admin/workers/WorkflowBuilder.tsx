@@ -18,7 +18,6 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
-  ClipboardList,
   Cog,
   Info,
   Link2,
@@ -33,7 +32,6 @@ import {
   Zap,
 } from 'lucide-react'
 import {
-  HUMAN_APPROVERS,
   resolvePeople,
   roleLabel,
   type ApproverGroup,
@@ -217,11 +215,19 @@ const GRAPH_POSITION_OFFSET = 100000
 const GRAPH_POSITION_ORDER_BUCKET = 100
 const GRAPH_POSITION_OUTGOING_BUCKET = 1000
 
-const FALLBACK_WORKER_TYPE_OPTIONS: Option[] = [
-  { value: 'contingent', label: 'Contingent' },
-  { value: 'employee', label: 'Employee' },
-  { value: 'contractor', label: 'Contractor' },
+const WORKER_TYPE_DIMENSION_VALUES = [
+  'Contingent',
+  'SOW',
+  'Non-transactional',
+  'Independent contractor',
+  'Temp / Agency',
+  'Consultant',
+  'Intern',
+  'Freelancer',
 ]
+
+const FALLBACK_WORKER_TYPE_OPTIONS: Option[] =
+  WORKER_TYPE_DIMENSION_VALUES.map((value) => ({ value, label: value }))
 
 const FALLBACK_SCOPE_FIELD_OPTIONS: Option[] = [
   { value: 'location', label: 'Location' },
@@ -280,7 +286,7 @@ function isRequirementOwner(value: string): value is RequirementOwner {
 }
 
 function isWorkerType(value: string): value is WorkerType {
-  return value === 'contingent' || value === 'employee' || value === 'contractor'
+  return value.trim().length > 0
 }
 
 function isIntegrationType(value: string): value is IntegrationType {
@@ -302,6 +308,8 @@ function ownerLabel(owner: RequirementOwner) {
 }
 
 function workerTypeLabel(workerType: WorkerType) {
+  if (workerType.toLowerCase() === 'contingent') return 'Contingent'
+
   return (
     FALLBACK_WORKER_TYPE_OPTIONS.find((option) => option.value === workerType)
       ?.label ?? workerType
@@ -380,22 +388,6 @@ function AvatarStack({ labels, max = 2 }: { labels: string[]; max?: number }) {
   )
 }
 
-const LEVV_FIELDS = [
-  'Legal name',
-  'Work email',
-  'Start date',
-  'End date',
-  'Worker type',
-  'Job title',
-  'Manager',
-  'Cost center',
-  'Work location',
-  'SOW ID',
-  'Supplier',
-]
-
-const RETURN_FIELDS = ['Account ID', 'Status', 'External ID', 'Created date']
-
 const INTEGRATIONS: {
   key: SystemIntegrationKey
   label: string
@@ -472,33 +464,6 @@ function completionLabel(
   return null
 }
 
-function suggestedAccountable(requirements: Requirement[]): ApproverGroup {
-  const counts: Partial<Record<ApproverGroup, number>> = {}
-  for (const requirement of requirements) {
-    switch (requirement.owner) {
-      case 'it':
-        counts.IT = (counts.IT ?? 0) + 1
-        break
-      case 'supplier':
-        counts.PROCUREMENT = (counts.PROCUREMENT ?? 0) + 1
-        break
-      case 'hiring_manager':
-        counts.HR = (counts.HR ?? 0) + 1
-        break
-      case 'worker':
-        counts.HR = (counts.HR ?? 0) + 1
-        break
-      case 'system':
-        counts.IT = (counts.IT ?? 0) + 1
-        break
-    }
-  }
-
-  const top = (Object.entries(counts) as [ApproverGroup, number][])
-    .sort((a, b) => b[1] - a[1])[0]
-  return top?.[0] ?? 'HR'
-}
-
 function roleInitials(name: string) {
   return name
     .split(/\s+/)
@@ -534,83 +499,6 @@ function PeopleStack({ names, max = 2 }: { names: string[]; max?: number }) {
       )}
     </span>
   )
-}
-
-function AccountableField({
-  value,
-  onChange,
-}: {
-  value: ApproverGroup
-  onChange: (group: ApproverGroup) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const people = resolvePeople(value)
-
-  return (
-    <div className="acctf">
-      <button
-        type="button"
-        className="acctf-trigger"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <PeopleStack names={people.map((person) => person.name)} max={3} />
-        <span className="acctf-role">{roleLabel(value)}</span>
-        <span className="acctf-names">
-          {people.map((person) => person.name).join(', ')}
-        </span>
-        <ChevronLeft
-          className={
-            open
-              ? 'ml-auto h-3 w-3 shrink-0 rotate-90 text-slate-400'
-              : 'ml-auto h-3 w-3 shrink-0 -rotate-90 text-slate-400'
-          }
-        />
-      </button>
-      {open && (
-        <div className="acctf-panel">
-          <div className="acctf-cap">Who is accountable?</div>
-          {HUMAN_APPROVERS.map((group) => {
-            const groupPeople = resolvePeople(group)
-            return (
-              <button
-                key={group}
-                type="button"
-                className={`acctf-opt ${group === value ? 'on' : ''}`}
-                onClick={() => {
-                  onChange(group)
-                  setOpen(false)
-                }}
-              >
-                <PeopleStack
-                  names={groupPeople.map((person) => person.name)}
-                  max={3}
-                />
-                <span className="acctf-opt-main">
-                  <span className="acctf-opt-role">{roleLabel(group)}</span>
-                  <span className="acctf-opt-people">
-                    {groupPeople.map((person) => person.name).join(', ')}
-                  </span>
-                </span>
-                {group === value && (
-                  <Check className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function gateClass(gate: GateType) {
-  return gate === 'hard'
-    ? 'border-red-200 bg-red-50 text-red-700'
-    : 'border-amber-200 bg-amber-50 text-amber-700'
-}
-
-function gateLabel(gate: GateType) {
-  return gate === 'hard' ? 'Hard Gate' : 'Soft Gate'
 }
 
 function optionLabel(options: Option[], value: string) {
@@ -1493,13 +1381,14 @@ export default function WorkflowBuilder({
   const router = useRouter()
   const apiWorkflowType = workflowTypeToApi(workflowType)
   const listHref = workflowListHref(workflowType)
+  const showProcessViewButton = apiWorkflowType === 'offboarding'
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [mode, setMode] = useState<BuilderMode>(apiWorkflowType)
   const [view, setView] = useState<BuilderView>('build')
   const [scope, setScope] = useState<ScopeState>({
     name: '',
-    workerType: 'contingent',
-    workerTypes: ['contingent'],
+    workerType: 'Contingent',
+    workerTypes: ['Contingent'],
     isActive: true,
   })
   const [workflowStatus, setWorkflowStatus] =
@@ -1534,43 +1423,12 @@ export default function WorkflowBuilder({
   const [supplierRows, setSupplierRows] = useState<SupplierRecord[]>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [locationError, setLocationError] = useState('')
-  const [showBlockModal, setShowBlockModal] = useState<BlockType | null>(null)
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
-  const [modalName, setModalName] = useState('')
-  const [modalGate, setModalGate] = useState<GateType>('hard')
-  const [modalCompletionRule, setModalCompletionRule] =
-    useState<CompletionRule>('ALL')
-  const [modalCompletionN, setModalCompletionN] = useState(1)
-  const [modalAccountableOwner, setModalAccountableOwner] =
-    useState<ApproverGroup>('HR')
-  const [modalAccountableTouched, setModalAccountableTouched] = useState(false)
-  const [modalRequirements, setModalRequirements] = useState<Requirement[]>([])
-  const [modalIntegration, setModalIntegration] =
-    useState<SystemIntegrationKey>('WORKDAY')
-  const [modalPush, setModalPush] = useState(true)
-  const [modalPull, setModalPull] = useState(true)
-  const [modalReads, setModalReads] = useState<string[]>(defaultReads())
-  const [modalWrites, setModalWrites] = useState<string[]>(defaultWrites())
-  const [modalReconcile, setModalReconcile] = useState(true)
-  const [modalApiConfig, setModalApiConfig] = useState({
-    endpoint: '',
-    authType: 'OAuth',
-    environment: 'Production',
-  })
   const [serverHealth, setServerHealth] = useState<WorkflowHealth | null>(null)
   const [saveError, setSaveError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
-  const workerTypeOptions = useMemo(
-    () =>
-      getValidOptions(
-        lookups?.worker_types,
-        FALLBACK_WORKER_TYPE_OPTIONS,
-        isWorkerType,
-      ),
-    [lookups],
-  )
+  const workerTypeOptions = FALLBACK_WORKER_TYPE_OPTIONS
   const scopeFieldOptions = useMemo(
     () =>
       getValidOptions(
@@ -1732,7 +1590,7 @@ export default function WorkflowBuilder({
         const workflow = await getComplianceWorkflow(workflowId)
         if (cancelled) return
 
-        const workerType = workflow.policy_scope?.worker_type || 'contingent'
+        const workerType = workflow.policy_scope?.worker_type || 'Contingent'
         setScope({
           name: workflow.name,
           workerType,
@@ -1896,69 +1754,6 @@ export default function WorkflowBuilder({
     setShowAddFieldModal(false)
   }
 
-  function openBlockModal(type: BlockType, block?: LibraryBlock) {
-    setShowBlockModal(type)
-    setEditingBlockId(block?.id ?? null)
-    setModalName(block?.name ?? '')
-    setModalGate(block?.gate ?? 'hard')
-    setModalRequirements(block?.requirements ?? [])
-    setModalCompletionRule(block?.completionRule ?? 'ALL')
-    setModalCompletionN(block?.completionN ?? 1)
-    setModalAccountableOwner(block?.accountableOwner ?? 'HR')
-    setModalAccountableTouched(Boolean(block?.accountableOwner))
-    setModalIntegration(block?.systemIntegration ?? 'WORKDAY')
-    setModalPush(block?.push ?? true)
-    setModalPull(block?.pull ?? true)
-    setModalReads(block?.reads ?? defaultReads())
-    setModalWrites(block?.writes ?? defaultWrites())
-    setModalReconcile(block?.reconcile ?? true)
-    setModalApiConfig(
-      block?.config && typeof block.config === 'object'
-        ? {
-            endpoint:
-              typeof block.config.endpoint === 'string'
-                ? block.config.endpoint
-                : '',
-            authType:
-              typeof block.config.authType === 'string'
-                ? block.config.authType
-                : 'OAuth',
-            environment:
-              typeof block.config.environment === 'string'
-                ? block.config.environment
-                : 'Production',
-          }
-        : {
-            endpoint: '',
-            authType: 'OAuth',
-            environment: 'Production',
-          },
-    )
-  }
-
-  function closeBlockModal() {
-    setShowBlockModal(null)
-    setEditingBlockId(null)
-    setModalName('')
-    setModalGate('hard')
-    setModalCompletionRule('ALL')
-    setModalCompletionN(1)
-    setModalAccountableOwner('HR')
-    setModalAccountableTouched(false)
-    setModalRequirements([])
-    setModalIntegration('WORKDAY')
-    setModalPush(true)
-    setModalPull(true)
-    setModalReads(defaultReads())
-    setModalWrites(defaultWrites())
-    setModalReconcile(true)
-    setModalApiConfig({
-      endpoint: '',
-      authType: 'OAuth',
-      environment: 'Production',
-    })
-  }
-
   function computeGraphDropLevel(clientX: number) {
     const bounds = canvasRef.current?.getBoundingClientRect()
     if (!bounds) return pipelineBlocks.length
@@ -2022,112 +1817,6 @@ export default function WorkflowBuilder({
     setSelectedBlockId(pipelineId)
     setServerHealth(null)
     setDependencyWarning('')
-  }
-
-  function addModalRequirement(requirement: Requirement) {
-    setModalRequirements((current) => {
-      if (current.some((candidate) => candidate.id === requirement.id)) {
-        return current
-      }
-
-      const next = [...current, requirement]
-      if (!modalAccountableTouched) {
-        setModalAccountableOwner(suggestedAccountable(next))
-      }
-      return next
-    })
-  }
-
-  function removeModalRequirement(requirementId: string) {
-    setModalRequirements((current) => {
-      const next = current.filter((candidate) => candidate.id !== requirementId)
-      if (next.length > 0 && !modalAccountableTouched) {
-        setModalAccountableOwner(suggestedAccountable(next))
-      }
-      return next
-    })
-  }
-
-  function pickIntegration(key: SystemIntegrationKey) {
-    setModalIntegration(key)
-    const meta = integrationMeta(key)
-    setModalPush(meta?.push ?? true)
-    setModalPull(meta?.pull ?? true)
-    setModalReads(defaultReads())
-    setModalWrites(defaultWrites())
-    setModalReconcile(Boolean(meta?.reverseAction))
-  }
-
-  function toggleRead(field: string) {
-    setModalReads((current) =>
-      current.includes(field)
-        ? current.filter((candidate) => candidate !== field)
-        : [...current, field],
-    )
-  }
-
-  function toggleWrite(field: string) {
-    setModalWrites((current) =>
-      current.includes(field)
-        ? current.filter((candidate) => candidate !== field)
-        : [...current, field],
-    )
-  }
-
-  function createOrUpdateBlock() {
-    if (!showBlockModal || !modalName.trim()) return
-    if (showBlockModal === 'requirement' && modalRequirements.length === 0) {
-      return
-    }
-    if (showBlockModal === 'system' && !modalIntegration) return
-
-    const completionN =
-      modalCompletionRule === 'N_OF'
-        ? Math.max(1, Math.min(modalCompletionN, modalRequirements.length || 1))
-        : undefined
-    const selectedMeta = integrationMeta(modalIntegration)
-
-    const nextBlock: LibraryBlock = {
-      id: editingBlockId ?? randomId('library-block'),
-      name: modalName.trim(),
-      type: showBlockModal,
-      gate: modalGate,
-      accountableOwner: modalAccountableOwner,
-      completionRule: modalCompletionRule,
-      completionN,
-      requirements:
-        showBlockModal === 'requirement' ? modalRequirements : [],
-      integrationType:
-        showBlockModal === 'system' ? 'api_call' : undefined,
-      systemIntegration:
-        showBlockModal === 'system' ? modalIntegration : undefined,
-      push: showBlockModal === 'system' ? modalPush : undefined,
-      pull: showBlockModal === 'system' ? modalPull : undefined,
-      reads: showBlockModal === 'system' && modalPush ? modalReads : undefined,
-      writes: showBlockModal === 'system' && modalPull ? modalWrites : undefined,
-      reconcile: showBlockModal === 'system' ? modalReconcile : undefined,
-      systemUnwind:
-        showBlockModal === 'system'
-          ? systemReversalFor(selectedMeta, modalPush)
-          : undefined,
-      config:
-        showBlockModal === 'system'
-          ? {
-              endpoint: modalApiConfig.endpoint.trim(),
-              authType: modalApiConfig.authType,
-              environment: modalApiConfig.environment,
-            }
-          : undefined,
-    }
-
-    setLibraryBlocks((current) => {
-      if (!editingBlockId) return [...current, nextBlock]
-      return current.map((block) =>
-        block.id === editingBlockId ? nextBlock : block,
-      )
-    })
-
-    closeBlockModal()
   }
 
   function handleLibraryDragStart(
@@ -2340,20 +2029,24 @@ export default function WorkflowBuilder({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setView((current) => (current === 'process' ? 'build' : 'process'))
-          }
-          className={
-            view === 'process'
-              ? 'inline-flex h-8 items-center gap-2 rounded-md border border-cyan-600 bg-cyan-50 px-4 text-xs font-semibold text-cyan-700'
-              : 'inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700'
-          }
-        >
-          <WorkflowIcon className="h-3.5 w-3.5" />
-          {view === 'process' ? 'Back to builder' : 'Process view'}
-        </button>
+        {showProcessViewButton && (
+          <button
+            type="button"
+            onClick={() =>
+              setView((current) =>
+                current === 'process' ? 'build' : 'process',
+              )
+            }
+            className={
+              view === 'process'
+                ? 'inline-flex h-8 items-center gap-2 rounded-md border border-cyan-600 bg-cyan-50 px-4 text-xs font-semibold text-cyan-700'
+                : 'inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700'
+            }
+          >
+            <WorkflowIcon className="h-3.5 w-3.5" />
+            {view === 'process' ? 'Back to builder' : 'Process view'}
+          </button>
+        )}
       </header>
 
       <div className="grid min-h-[calc(100vh-7rem)] 2xl:grid-cols-[minmax(0,1fr)_310px]">
@@ -2668,33 +2361,6 @@ export default function WorkflowBuilder({
               Block Library
             </h2>
 
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => openBlockModal('requirement')}
-                className="flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-cyan-400 hover:bg-cyan-50 hover:shadow-sm"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
-                  <ClipboardList className="h-4 w-4" />
-                </span>
-                Requirement
-                <br />
-                Block
-              </button>
-              <button
-                type="button"
-                onClick={() => openBlockModal('system')}
-                className="flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-cyan-400 hover:bg-cyan-50 hover:shadow-sm"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100">
-                  <Cog className="h-4 w-4" />
-                </span>
-                System
-                <br />
-                Block
-              </button>
-            </div>
-
             <div className="space-y-2">
               {libraryBlocks.map((block) => {
                 const isUsed =
@@ -2710,7 +2376,6 @@ export default function WorkflowBuilder({
                     onDragStart={handleLibraryDragStart}
                     onDragEnd={() => setDragBlockId(null)}
                     onAdd={() => addLibraryBlockToPipeline(block)}
-                    onEdit={() => openBlockModal(block.type, block)}
                     onRemove={() =>
                       setLibraryBlocks((current) =>
                         current.filter(
@@ -2858,505 +2523,6 @@ export default function WorkflowBuilder({
         </Modal>
       )}
 
-      {showBlockModal && (
-        <Modal
-          title={
-            editingBlockId
-              ? 'Edit Block'
-              : showBlockModal === 'requirement'
-                ? 'New Requirement Block'
-                : 'New System Block'
-          }
-          onClose={closeBlockModal}
-          footer={
-            <div className="flex w-full items-center justify-between">
-              <button
-                type="button"
-                onClick={closeBlockModal}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={createOrUpdateBlock}
-                disabled={
-                  !modalName.trim() ||
-                  (showBlockModal === 'requirement' &&
-                    modalRequirements.length === 0) ||
-                  (showBlockModal === 'system' && !modalIntegration)
-                }
-                className="rounded-lg bg-slate-950 px-5 py-2 text-xs font-semibold text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-400"
-              >
-                {editingBlockId ? 'Save Changes' : 'Create Block'}
-              </button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <div className="form-grp">
-              <label className="form-lbl">Block Name</label>
-              <input
-                autoFocus
-                value={modalName}
-                onChange={(event) => setModalName(event.target.value)}
-                placeholder={
-                  showBlockModal === 'requirement'
-                    ? 'e.g. Identity Verification'
-                    : 'e.g. Workday Provisioning'
-                }
-                className="form-inp"
-              />
-            </div>
-
-            <div className="form-grp">
-              <label className="form-lbl">
-                Gate Type <span className="lbl-hint">· does it hold up everything downstream?</span>
-              </label>
-              <div className="gate-grid">
-                <GateOption
-                  gate="hard"
-                  active={modalGate === 'hard'}
-                  onClick={() => setModalGate('hard')}
-                />
-                <GateOption
-                  gate="soft"
-                  active={modalGate === 'soft'}
-                  onClick={() => setModalGate('soft')}
-                />
-              </div>
-            </div>
-
-            {showBlockModal === 'requirement' && (
-              <>
-                <div className="form-grp">
-                  <label className="form-lbl">
-                    Completion rule <span className="lbl-hint">· what makes this block satisfied</span>
-                  </label>
-                  <div className="comp-seg">
-                    <button
-                      type="button"
-                      className={modalCompletionRule === 'ALL' ? 'on' : ''}
-                      onClick={() => setModalCompletionRule('ALL')}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      className={modalCompletionRule === 'ANY' ? 'on' : ''}
-                      onClick={() => setModalCompletionRule('ANY')}
-                    >
-                      Any one
-                    </button>
-                    <button
-                      type="button"
-                      className={modalCompletionRule === 'N_OF' ? 'on' : ''}
-                      onClick={() => setModalCompletionRule('N_OF')}
-                    >
-                      N of M
-                    </button>
-                  </div>
-                  {modalCompletionRule === 'N_OF' && (
-                    <div className="comp-n">
-                      Needs
-                      <input
-                        type="number"
-                        min={1}
-                        max={Math.max(1, modalRequirements.length)}
-                        value={modalCompletionN}
-                        onChange={(event) =>
-                          setModalCompletionN(
-                            Math.max(
-                              1,
-                              Math.min(
-                                Number(event.target.value) || 1,
-                                Math.max(1, modalRequirements.length),
-                              ),
-                            ),
-                          )
-                        }
-                      />
-                      of {modalRequirements.length}
-                    </div>
-                  )}
-                  <div className="comp-readout">
-                    <Info className="h-3 w-3" />
-                    {modalCompletionRule === 'ALL'
-                      ? `Clears when all ${modalRequirements.length || 0} requirement${
-                          modalRequirements.length === 1 ? ' is' : 's are'
-                        } satisfied.`
-                      : modalCompletionRule === 'ANY'
-                        ? 'Clears when any one of them is satisfied.'
-                        : `Clears when ${Math.min(
-                            modalCompletionN,
-                            modalRequirements.length || 1,
-                          )} of ${modalRequirements.length || 0} are satisfied.`}
-                  </div>
-                </div>
-
-                <div className="form-grp">
-                  <label className="form-lbl">
-                    Accountable <span className="lbl-hint">· who owns this gate — resolves to live people</span>
-                  </label>
-                  <AccountableField
-                    value={modalAccountableOwner}
-                    onChange={(group) => {
-                      setModalAccountableOwner(group)
-                      setModalAccountableTouched(true)
-                    }}
-                  />
-                  {!modalAccountableTouched && modalRequirements.length > 0 && (
-                    <span className="lbl-suggest">
-                      Suggested from this block’s approvers — change if needed
-                    </span>
-                  )}
-                </div>
-
-                <div className="form-grp">
-                  <label className="form-lbl">
-                    Requirements <span className="lbl-hint">· owner, approver & unwind are inherited from the catalog</span>
-                  </label>
-                  <div className="msel-list">
-                    {modalRequirements.length === 0 && (
-                      <div className="msel-empty">
-                        Add from the catalog below. Each one brings its owner, approver and unwind.
-                      </div>
-                    )}
-                    {modalRequirements.map((requirement) => {
-                      const resolvedOwners = resolvePeople(
-                        requirement.owner === 'it'
-                          ? 'IT'
-                          : requirement.owner === 'supplier'
-                            ? 'PROCUREMENT'
-                            : 'HR',
-                      )
-                      return (
-                        <div key={requirement.id} className="msel-row">
-                          <div className="msel-main">
-                            <div className="msel-name">
-                              {requirement.name}
-                              <span className="msel-scope">
-                                {ownerLabel(requirement.owner)}
-                              </span>
-                            </div>
-                            <div className="msel-meta">
-                              <span
-                                className="msel-owner"
-                                style={{
-                                  background: '#eff6ff',
-                                  color: '#1d4ed8',
-                                  borderColor: '#bfdbfe',
-                                }}
-                              >
-                                {ownerLabel(requirement.owner)}
-                              </span>
-                              <span className="msel-dot">·</span>
-                              <span className="msel-approver">
-                                <PeopleStack
-                                  names={resolvedOwners.map((person) => person.name)}
-                                  max={2}
-                                />
-                                <span className="bx-role">Team sign-off</span>
-                              </span>
-                            </div>
-                          </div>
-                          <div className="msel-right">
-                            <button
-                              type="button"
-                              className="chip-x"
-                              onClick={() => removeModalRequirement(requirement.id)}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="mavail">
-                    <div className="mavail-hd">Catalog</div>
-                    {REQUIREMENTS.filter(
-                      (requirement) =>
-                        !modalRequirements.some(
-                          (selected) => selected.id === requirement.id,
-                        ),
-                    ).map((requirement) => (
-                      <button
-                        key={requirement.id}
-                        type="button"
-                        onClick={() => addModalRequirement(requirement)}
-                        className="mavail-row"
-                      >
-                        <span className="mavail-name">
-                          <Plus className="h-3 w-3" />
-                          {requirement.name}
-                        </span>
-                        <span className="mavail-meta">
-                          <span className="msel-owner">
-                            {ownerLabel(requirement.owner)}
-                          </span>
-                          <span className="mavail-ap">
-                            {requirement.owner === 'it'
-                              ? roleLabel('IT')
-                              : requirement.owner === 'supplier'
-                                ? roleLabel('PROCUREMENT')
-                                : roleLabel('HR')}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                    {REQUIREMENTS.filter(
-                      (requirement) =>
-                        !modalRequirements.some(
-                          (selected) => selected.id === requirement.id,
-                        ),
-                    ).length === 0 && (
-                      <div className="msel-empty" style={{ margin: 0 }}>
-                        Every catalog requirement is in this block.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {showBlockModal === 'system' && (
-              <>
-                <div className="form-grp">
-                  <label className="form-lbl">
-                    Accountable <span className="lbl-hint">· who owns the integration</span>
-                  </label>
-                  <AccountableField
-                    value={modalAccountableOwner}
-                    onChange={(group) => {
-                      setModalAccountableOwner(group)
-                      setModalAccountableTouched(true)
-                    }}
-                  />
-                </div>
-
-                <div className="form-grp">
-                  <label className="form-lbl">
-                    Connect a system <span className="lbl-hint">· pre-built — you finish the last 10%</span>
-                  </label>
-                  <div className="intg-grid">
-                    {INTEGRATIONS.map((integration) => (
-                      <button
-                        key={integration.key}
-                        type="button"
-                        className={`intg-card ${
-                          modalIntegration === integration.key ? 'on' : ''
-                        }`}
-                        onClick={() => pickIntegration(integration.key)}
-                      >
-                        <div className="intg-top">
-                          <span className="intg-name">{integration.label}</span>
-                        </div>
-                        <span className="intg-blurb">{integration.blurb}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {integrationMeta(modalIntegration) && (
-                  <>
-                    <div className="form-grp">
-                      <label className="form-lbl">
-                        Direction <span className="lbl-hint">· what this block does with {integrationMeta(modalIntegration)?.label}</span>
-                      </label>
-                      <div className="dir-row">
-                        <button
-                          type="button"
-                          className={`dir-toggle ${modalPush ? 'on' : ''}`}
-                          onClick={() => setModalPush((current) => !current)}
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" /> Push <span>send data out</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`dir-toggle ${modalPull ? 'on' : ''}`}
-                          onClick={() => setModalPull((current) => !current)}
-                        >
-                          <ArrowDown
-                            className="h-3.5 w-3.5 rotate-90"
-                          />{' '}
-                          Pull <span>get data back</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {(modalPush || modalPull) && (
-                      <div className="form-grp">
-                        <label className="form-lbl">
-                          Data flow <span className="lbl-hint">· which fields cross the boundary</span>
-                        </label>
-                        <div className="dataflow">
-                          {modalPush && (
-                            <>
-                              <div className="df-line">
-                                <span className="df-end levv">LEVV</span>
-                                <span className="df-arrow">
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </span>
-                                <span className="df-end sys">
-                                  {integrationMeta(modalIntegration)?.label}
-                                </span>
-                                <span className="df-cap">sends</span>
-                              </div>
-                              <div className="df-fields">
-                                {LEVV_FIELDS.map((field) => (
-                                  <button
-                                    key={field}
-                                    type="button"
-                                    className={`df-chip ${
-                                      modalReads.includes(field) ? 'on' : ''
-                                    }`}
-                                    onClick={() => toggleRead(field)}
-                                  >
-                                    {field}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-
-                          {modalPull && (
-                            <>
-                              <div className="df-line">
-                                <span className="df-end sys">
-                                  {integrationMeta(modalIntegration)?.label}
-                                </span>
-                                <span className="df-arrow">
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </span>
-                                <span className="df-end levv">LEVV</span>
-                                <span className="df-cap">writes back</span>
-                              </div>
-                              <div className="df-fields">
-                                {RETURN_FIELDS.map((field) => (
-                                  <button
-                                    key={field}
-                                    type="button"
-                                    className={`df-chip ${
-                                      modalWrites.includes(field) ? 'on' : ''
-                                    }`}
-                                    onClick={() => toggleWrite(field)}
-                                  >
-                                    {field}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-
-                          <div className="df-nova">
-                            <Zap className="mt-0.5 h-3 w-3 shrink-0" />
-                            Nova maps these to the connector’s fields and reads the response. It never decides whether to fire.
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {systemReversalFor(integrationMeta(modalIntegration), modalPush) && (
-                      <div className="form-grp">
-                        <label className="form-lbl">
-                          On exit <span className="lbl-hint">· registered now, runs in offboarding</span>
-                        </label>
-                        <div className="sys-rev">
-                          <div className="sys-rev-body">
-                            <RotateCcw className="h-3 w-3" />
-                            <strong>
-                              {systemReversalFor(
-                                integrationMeta(modalIntegration),
-                                modalPush,
-                              )?.action}
-                            </strong>
-                            <span className="sys-rev-auto">
-                              <Zap className="h-2.5 w-2.5" />
-                              automated
-                            </span>
-                          </div>
-                          <label className="recon-row">
-                            <input
-                              type="checkbox"
-                              checked={modalReconcile}
-                              onChange={(event) =>
-                                setModalReconcile(event.target.checked)
-                              }
-                            />
-                            <span>
-                              <strong>Reconcile</strong> — poll the connector to
-                              confirm the action completed.
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="form-grp">
-                      <label className="form-lbl">
-                        Connection <span className="lbl-hint">· managed by the integration block</span>
-                      </label>
-                      <div className="api-box">
-                        <div className="api-grid">
-                          <div className="form-grp">
-                            <label className="form-lbl">Endpoint</label>
-                            <input
-                              value={modalApiConfig.endpoint}
-                              onChange={(event) =>
-                                setModalApiConfig((current) => ({
-                                  ...current,
-                                  endpoint: event.target.value,
-                                }))
-                              }
-                              className="form-inp"
-                              placeholder="https://api.example.com/provision"
-                            />
-                          </div>
-                          <div className="form-grp">
-                            <label className="form-lbl">Auth</label>
-                            <select
-                              value={modalApiConfig.authType}
-                              onChange={(event) =>
-                                setModalApiConfig((current) => ({
-                                  ...current,
-                                  authType: event.target.value,
-                                }))
-                              }
-                              className="form-sel"
-                            >
-                              <option>OAuth</option>
-                              <option>API Key</option>
-                              <option>Basic</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="form-grp">
-                          <label className="form-lbl">Environment</label>
-                          <select
-                            value={modalApiConfig.environment}
-                            onChange={(event) =>
-                              setModalApiConfig((current) => ({
-                                ...current,
-                                environment: event.target.value,
-                              }))
-                            }
-                            className="form-sel"
-                          >
-                            <option>Production</option>
-                            <option>Staging</option>
-                            <option>Sandbox</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
@@ -4873,7 +4039,6 @@ function LibraryBlockCard({
   onDragStart,
   onDragEnd,
   onAdd,
-  onEdit,
   onRemove,
 }: {
   block: LibraryBlock
@@ -4883,7 +4048,6 @@ function LibraryBlockCard({
   onDragStart: (event: DragEvent<HTMLDivElement>, blockId: string) => void
   onDragEnd: () => void
   onAdd: () => void
-  onEdit: () => void
   onRemove: () => void
 }) {
   const isSystem = block.type === 'system'
@@ -4958,19 +4122,6 @@ function LibraryBlockCard({
         </div>
 
         <div className="flex items-center gap-1">
-          {!isUsed && (
-            <button
-              type="button"
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit()
-              }}
-              className="rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            >
-              Edit
-            </button>
-          )}
           <button
             type="button"
             onMouseDown={(event) => event.stopPropagation()}
@@ -5063,45 +4214,6 @@ function ChecklistItem({ label, pass }: { label: string; pass: boolean }) {
       {pass ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
       {label}
     </div>
-  )
-}
-
-function GateOption({
-  gate,
-  active,
-  onClick,
-}: {
-  gate: GateType
-  active: boolean
-  onClick: () => void
-}) {
-  const isHard = gate === 'hard'
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        active
-          ? isHard
-            ? 'rounded-lg border border-red-500 bg-red-50 px-3 py-3 text-left'
-            : 'rounded-lg border border-amber-500 bg-amber-50 px-3 py-3 text-left'
-          : 'rounded-lg border border-slate-200 bg-white px-3 py-3 text-left hover:border-cyan-300'
-      }
-    >
-      <div className="flex items-center gap-1 text-xs font-semibold text-slate-900">
-        {isHard ? (
-          <Shield className="h-3 w-3 text-red-600" />
-        ) : (
-          <Zap className="h-3 w-3 text-amber-600" />
-        )}
-        {gateLabel(gate)}
-      </div>
-      <p className="mt-1 text-[10px] text-slate-400">
-        {isHard
-          ? 'Blocks all progression until complete'
-          : 'Allows progression with warnings'}
-      </p>
-    </button>
   )
 }
 

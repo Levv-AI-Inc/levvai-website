@@ -319,66 +319,6 @@ function buildNodes(
   ]
 }
 
-function OnboardingFlowPalette({
-  libraryBlocks,
-  usedLibraryBlockIds,
-  editable,
-  onAddBlock,
-}: Pick<
-  OnboardingFlowEditorProps,
-  'libraryBlocks' | 'usedLibraryBlockIds' | 'editable' | 'onAddBlock'
->) {
-  return (
-    <aside className="onboarding-flow-editor__palette nodrag nopan">
-      <div className="onboarding-flow-editor__palette-head">
-        <span className="onboarding-flow-editor__palette-title">Blocks</span>
-        <span className="onboarding-flow-editor__palette-count">
-          {libraryBlocks.length}
-        </span>
-      </div>
-      <div className="onboarding-flow-editor__palette-list">
-        {libraryBlocks.map((block) => {
-          const isUsed = isUsedLibraryBlock(block, usedLibraryBlockIds)
-          const disabled = !editable || isUsed
-          return (
-            <button
-              key={block.id}
-              type="button"
-              className={`onboarding-flow-editor__palette-item ${gateForBlock(
-                block,
-              )} ${isUsed ? 'used' : ''}`}
-              disabled={disabled}
-              draggable={!disabled}
-              onClick={() => {
-                if (!disabled) onAddBlock(block)
-              }}
-              onDragStart={(event) => {
-                if (disabled) {
-                  event.preventDefault()
-                  return
-                }
-                event.dataTransfer.setData(
-                  'application/levv-workflow-block',
-                  block.id,
-                )
-                event.dataTransfer.setData('text/plain', block.id)
-                event.dataTransfer.effectAllowed = 'copy'
-              }}
-            >
-              <span className="onboarding-flow-editor__palette-name">
-                {block.name}
-              </span>
-              <span className="onboarding-flow-editor__palette-subtitle">
-                {isUsed ? 'Added' : blockSubtitle(block)}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </aside>
-  )
-}
-
 function OnboardingFlowCanvas(props: OnboardingFlowEditorProps) {
   const {
     blocks,
@@ -612,12 +552,6 @@ function OnboardingFlowCanvas(props: OnboardingFlowEditorProps) {
           >
             <Background color="#e2e8f0" gap={24} size={1} />
             <Controls showInteractive={false} />
-            <OnboardingFlowPalette
-              libraryBlocks={libraryBlocks}
-              usedLibraryBlockIds={usedLibraryBlockIds}
-              editable={editable}
-              onAddBlock={onAddBlock}
-            />
           </ReactFlow>
         </div>
       </div>

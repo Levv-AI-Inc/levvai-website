@@ -39,7 +39,7 @@ const ADMIN_NAV = [
   { label: 'Rates', href: '/admin/rates' },
   { label: 'Suppliers', href: '/admin/suppliers' },
   { label: 'Workers', href: '/admin/workers' },
-  { label: 'Compliance Policies', href: '/admin/compliance/policies' },
+  { label: 'Compliance Policies', href: '/compliance/policies' },
   { label: 'Tenant Docs', href: '/admin/tenant-docs' },
   { label: 'Integrations', href: '/admin/integrations' },
   { label: 'Configuration', href: '/admin/configuration' },
@@ -125,7 +125,10 @@ export default function AdminLayout({
           {ADMIN_NAV.map((item) => {
             const isActive =
               pathname === item.href ||
-              pathname.startsWith(item.href + '/')
+              pathname.startsWith(item.href + '/') ||
+              (item.href === '/compliance/policies' &&
+                (pathname === '/admin/compliance/policies' ||
+                  pathname.startsWith('/admin/compliance/policies/')))
 
             return (
               <Link

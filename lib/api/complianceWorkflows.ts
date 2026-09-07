@@ -56,7 +56,7 @@ export type PolicyScopeField = {
 
 export type PolicyScope = {
   id?: number
-  worker_type: 'contingent' | 'employee' | 'contractor' | ''
+  worker_type: string
   fields: PolicyScopeField[]
 }
 
@@ -329,16 +329,7 @@ function normalizeIntegrationType(value: unknown): IntegrationType | '' {
 function normalizeWorkerType(
   value: unknown,
 ): PolicyScope['worker_type'] {
-  const workerType = readOptionalString(value)?.toLowerCase()
-  if (
-    workerType === 'contingent' ||
-    workerType === 'employee' ||
-    workerType === 'contractor'
-  ) {
-    return workerType
-  }
-
-  return ''
+  return readOptionalString(value) || ''
 }
 
 function normalizeOption(row: unknown): Option | null {

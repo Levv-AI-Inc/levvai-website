@@ -292,7 +292,7 @@ export default function CWDefinePage() {
       endDate: request.endDate || undefined,
       workerCount:
         typeof request.positions === 'number' &&
-        request.positions > 0
+          request.positions > 0
           ? request.positions
           : undefined,
       costCenter: request.costCenterId,
@@ -479,19 +479,13 @@ export default function CWDefinePage() {
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#89d3bd]">
               <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-              New job request
+              Create Job Request
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight !text-white">
-              Job setup
-            </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c8d0cc]">
-              Define the role, timing, ownership, and work location for this
-              engagement.
+              Provide the core details for your contingent worker engagement.
             </p>
           </div>
-          <p className="text-xs text-[#aeb8b2]">
-            Required fields are marked <span className="text-[#ff8d7e]">*</span>
-          </p>
+
         </div>
       </header>
 
@@ -732,9 +726,9 @@ export default function CWDefinePage() {
                       : undefined,
                     costCenter: event.target.value
                       ? costCenters.find(
-                          (option) =>
-                            option.id === Number(event.target.value),
-                        )?.label
+                        (option) =>
+                          option.id === Number(event.target.value),
+                      )?.label
                       : undefined,
                   })
                 }}
