@@ -284,11 +284,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen bg-[#f4f1ea] text-[#1e2528] font-sans">
-        <aside className="w-64 min-w-[16rem] flex flex-col bg-[#1e2528] text-[#d9ddd8] border-r border-[#33413d]">
+      <body className="flex h-screen overflow-hidden bg-[#f4f1ea] text-[#1e2528] font-sans">
+        <aside className="h-screen w-64 min-w-[16rem] shrink-0 flex flex-col bg-[#1e2528] text-[#d9ddd8] border-r border-[#33413d]">
           <SidebarAccount user={sessionUser} />
 
-          <nav className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
+          <nav className="min-h-0 flex-1 px-4 py-6 space-y-7 overflow-y-auto">
             <NavSection label="Main">
               <NavItem label="Home" href="/home" icon={Home} />
               <NavGroup
@@ -364,7 +364,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           )}
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex h-screen min-w-0 flex-col">
           <header className="h-16 border-b border-[#d8d1c4] bg-[#fcfbf7]/95 backdrop-blur flex items-center px-8 justify-between sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-[#1f3d38] rounded-md flex items-center justify-center font-bold text-white text-[10px]">
@@ -390,7 +390,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main className="flex-1 p-6 lg:p-8">
+          <main className="min-h-0 flex-1 overflow-y-auto p-6 lg:p-8">
             <CWRequestProvider>{children}</CWRequestProvider>
           </main>
         </div>

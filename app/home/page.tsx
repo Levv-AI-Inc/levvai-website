@@ -8,7 +8,6 @@ import {
   Briefcase,
   CheckCircle2,
   FileText,
-  Paperclip,
   Search,
   ShieldAlert,
   Sparkles,
@@ -47,8 +46,8 @@ const observations = [
     id: 1,
     tag: 'Expiry risk',
     severity: 'Critical',
-    time: '12 min ago',
-    body: 'Accenture SOW-2024-0041 expires in 14 days and no renewal is in flight. Strategic dependency is high.',
+    time: 'Flagged 12 min ago',
+    body: "Accenture SOW-2024-0041 expires in 14 days and no renewal is in flight. Given the strategic nature of this work, I'd suggest contacting procurement by Friday.",
     primary: 'Draft renewal',
     prompt: 'Draft a renewal for Accenture SOW-2024-0041 expiring in 14 days',
     href: '/services/sow/2024-0041',
@@ -57,9 +56,9 @@ const observations = [
     id: 2,
     tag: 'Spend velocity',
     severity: 'Elevated',
-    time: '47 min ago',
-    body: 'Deloitte is tracking 12% above its approved cap, projecting a $182k overage by quarter-end.',
-    primary: 'Review budget',
+    time: 'Flagged 47 min ago',
+    body: "The Deloitte engagement is tracking 12% above its approved cap, which projects a $182k overage by quarter-end. You'll want to either expand scope or trim.",
+    primary: 'Adjust budget',
     prompt: 'Review the Deloitte budget overrun and suggest remediation options',
     href: '/payments/invoices',
   },
@@ -67,9 +66,9 @@ const observations = [
     id: 3,
     tag: 'Tenure limit',
     severity: 'Advisory',
-    time: '2 hr ago',
-    body: 'Three contingent workers are within 60 days of the 18-month policy ceiling.',
-    primary: 'Start review',
+    time: 'Flagged 2 hours ago',
+    body: "Three contingent workers are within 60 days of the 18-month policy ceiling under §4.2. They'll need recertification or off-boarding.",
+    primary: 'Start recertification',
     prompt: 'Show me the workers approaching the 18-month tenure limit and start recertification',
     href: '/workers/workers',
   },
@@ -216,19 +215,19 @@ export default function Home() {
   const [loadingPendingRequests, setLoadingPendingRequests] = useState(true)
   const [pendingRequestsError, setPendingRequestsError] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const conversationRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const hasChat = chatMessages.length > 0
   const pendingRequestLabel = loadingPendingRequests ? '...' : String(pendingRequestCount)
   const activeRailInfo = (() => {
-    for (let index = chatMessages.length - 1; index >= 0; index -= 1) {
-      const message = chatMessages[index]
-      if (message.role === 'nova' && message.rail?.tiles.length) {
-        return { rail: message.rail, index }
-      }
-    }
-    return null
+    const index = chatMessages.length - 1
+    const message = chatMessages[index]
+
+    if (message?.role !== 'nova' || !message.rail?.tiles.length) return null
+
+    return { rail: message.rail, index }
   })()
   const hasRail = !!activeRailInfo && activeRailInfo.index !== dismissedRailIndex
   const activeRail = hasRail ? activeRailInfo!.rail : null
@@ -289,8 +288,26 @@ export default function Home() {
   }, [input])
 
   useEffect(() => {
-    if (hasChat) chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [chatMessages, isLoading, hasChat])
+    if (!hasChat) return
+
+    let frame = 0
+    const timeout = window.setTimeout(() => {
+      frame = window.requestAnimationFrame(() => {
+        const container = chatScrollRef.current
+        if (!container) return
+
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        })
+      })
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeout)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [chatMessages, isLoading, hasChat, hasRail])
 
   const sendMessage = useCallback(async (text?: string) => {
     const value = (text ?? input).trim()
@@ -392,9 +409,15 @@ export default function Home() {
             <ShieldAlert className="h-3.5 w-3.5" />
             {policyActive ? 'Policy active' : 'Policy inactive'}
           </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-md text-[#6b746f] hover:bg-[#f4f1ea]" title="Attach a document">
-            <Paperclip className="h-4 w-4" />
-          </button>
+          {hasChat && (
+            <button
+              type="button"
+              onClick={endConversation}
+              className="rounded-md px-2.5 py-1 text-[10px] font-bold uppercase text-[#6b746f] hover:bg-[#f4f1ea] hover:text-[#1e2528]"
+            >
+              End conversation
+            </button>
+          )}
         </div>
         <button
           onClick={() => sendMessage()}
@@ -410,16 +433,14 @@ export default function Home() {
 
   if (hasChat) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#f4f1ea]">
-        <div className="mx-auto max-w-[1120px] space-y-5 px-6 py-8 pb-48">
+      <div className="h-[calc(100vh-7rem)] overflow-hidden bg-[#f4f1ea] lg:h-[calc(100vh-8rem)]">
+        <div ref={chatScrollRef} className="h-full overflow-y-auto">
+          <div className="mx-auto max-w-[1120px] space-y-5 px-6 py-8 pb-48">
           <div className="flex items-center justify-between border-b border-[#d8d1c4] pb-4">
             <div className="flex items-center gap-3 text-xs font-bold uppercase text-[#6b746f]">
               <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
               Nova desk / {clockTime || '--:--'}
             </div>
-            <button onClick={endConversation} className="rounded-md px-3 py-1.5 text-xs font-semibold text-[#6b746f] hover:bg-[#fcfbf7]">
-              End conversation
-            </button>
           </div>
 
           <div className={hasRail ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]' : ''}>
@@ -487,6 +508,7 @@ export default function Home() {
               </aside>
             )}
           </div>
+        </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea] to-transparent pb-4 pt-12 lg:left-64">
           <div className="mx-auto max-w-[1120px] px-6">{inputBox}</div>
