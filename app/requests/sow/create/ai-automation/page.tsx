@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
@@ -385,14 +385,10 @@ export default function AIAutomationPage() {
     })
   }
 
-  useEffect(() => {
-    saveDraft('ai-automation')
-  }, [gateAnswer, form, showForm, items])
-
   const handleContinue = () => {
     if (!canContinue) return
 
-    saveDraft()
+    saveDraft('ai-automation')
     router.push('/requests/sow/create/review')
   }
 

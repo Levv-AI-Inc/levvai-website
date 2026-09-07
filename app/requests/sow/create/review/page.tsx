@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useSOW } from '../context'
-import type { AIAutomationItem, CostModel } from '../context'
+import type { AIAutomationItem, CostModel, SOWData } from '../context'
 import { assignSeverity } from '@/lib/intelligence/nova/severity'
 import {
   AlertTriangle,
@@ -189,6 +189,30 @@ export default function ReviewPage() {
   )
   const aiVendorTrains = aiAutomation.filter((item) => item.vendorTrainsOnData)
   const aiUsageBased = aiAutomation.filter((item) => isUsageBased(item.costModel))
+  const submissionPayload: Partial<SOWData> = {
+    workType: sow.workType,
+    otherWorkDescription: sow.otherWorkDescription,
+    name,
+    vendor,
+    startDate,
+    endDate,
+    rawScope,
+    structuredScope: sow.structuredScope,
+    contractTerms: sow.contractTerms,
+    financials,
+    commercials,
+    aiGateAnswer: sow.aiGateAnswer,
+    aiAutomation,
+    attachments,
+  }
+
+  const handleSubmit = () => {
+    router.push(
+      `/requests/sow_submitted?sow=${encodeURIComponent(
+        JSON.stringify(submissionPayload)
+      )}`
+    )
+  }
 
   useEffect(() => {
     const requestId = scanRequestIdRef.current + 1
@@ -725,13 +749,7 @@ export default function ReviewPage() {
           </button>
 
           <button
-            onClick={() =>
-              router.push(
-                `/requests/sow_submitted?sow=${encodeURIComponent(
-                  JSON.stringify(sow)
-                )}`
-              )
-            }
+            onClick={handleSubmit}
             className="px-6 py-2.5 rounded-full text-sm bg-slate-900 text-white hover:bg-slate-800 transition"
           >
             Submit

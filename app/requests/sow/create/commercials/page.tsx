@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { addCompletedStep, type SOWProgressStep, useSOW } from '../context'
 import {
   Plus,
@@ -228,25 +228,10 @@ export default function CommercialsPage() {
     })
   }
 
-  useEffect(() => {
-    saveDraft('commercials')
-  }, [
-    pricingModel,
-    fixedAmount,
-    milestones,
-    tmRoles,
-    recurringAmount,
-    billingFrequency,
-    recurringStart,
-    recurringEnd,
-    costBase,
-    markupPct,
-  ])
-
   const handleContinue = () => {
     if (!canContinue) return
 
-    saveDraft()
+    saveDraft('commercials')
     router.push('/requests/sow/create/ai-automation')
   }
 

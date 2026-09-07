@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { SOWProgress } from './components/SOWProgress'
@@ -56,14 +56,10 @@ export default function CreateSOWPage() {
     }
   }
 
-  useEffect(() => {
-    saveDraft('engagement')
-  }, [selected, otherText])
-
   const handleContinue = () => {
     if (!selected) return
 
-    saveDraft()
+    saveDraft('engagement')
     const params = new URLSearchParams({
       workType: selected,
       ...(selected === 'other' ? { description: otherText } : {}),

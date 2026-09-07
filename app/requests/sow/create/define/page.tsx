@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react'
+import { ChangeEvent, DragEvent, useRef, useState } from 'react'
 import {
   CheckCircle2,
   ChevronLeft,
@@ -136,14 +136,10 @@ export default function DefineSOWPage() {
     })
   }
 
-  useEffect(() => {
-    saveDraft('scope')
-  }, [workType, name, supplier, startDate, endDate, rawInput, selectedFile])
-
   const handleContinue = () => {
     if (!canContinue) return
 
-    saveDraft()
+    saveDraft('scope')
 
     router.push('/requests/sow/create/financials')
   }

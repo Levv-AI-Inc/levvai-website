@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useState } from 'react'
 
 export type StructuredScope = {
   summary: string
@@ -161,29 +161,13 @@ type SOWContextValue = {
   setSOW: (data: Partial<SOWData>) => void
 }
 
-const SOW_DRAFT_STORAGE_KEY = 'levvai:sow-create:draft'
-
 const SOWContext = createContext<SOWContextValue>({
   sow: {},
   setSOW: () => {},
 })
 
-function readStoredDraft(): Partial<SOWData> {
-  if (typeof window === 'undefined') {
-    return {}
-  }
-
-  try {
-    const stored = window.sessionStorage.getItem(SOW_DRAFT_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : {}
-  } catch (error) {
-    console.warn('Unable to read SOW draft from session storage', error)
-    return {}
-  }
-}
-
 export function SOWProvider({ children }: { children: React.ReactNode }) {
-  const [sow, setSOWState] = useState<Partial<SOWData>>(readStoredDraft)
+  const [sow, setSOWState] = useState<Partial<SOWData>>({})
 
   const setSOW = useCallback((data: Partial<SOWData>) => {
     setSOWState(prev => ({
@@ -210,14 +194,6 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
       aiAutomation: data.aiAutomation ?? prev.aiAutomation,
     }))
   }, [])
-
-  useEffect(() => {
-    try {
-      window.sessionStorage.setItem(SOW_DRAFT_STORAGE_KEY, JSON.stringify(sow))
-    } catch (error) {
-      console.warn('Unable to save SOW draft to session storage', error)
-    }
-  }, [sow])
 
   return (
     <SOWContext.Provider value={{ sow, setSOW }}>

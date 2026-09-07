@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { addCompletedStep, type SOWProgressStep, useSOW } from '../context'
 import {
   DollarSign,
@@ -93,14 +93,10 @@ export default function FinancialsPage() {
     })
   }
 
-  useEffect(() => {
-    saveDraft('financials')
-  }, [totalValue, allocations])
-
   const handleContinue = () => {
     if (!canContinue) return
 
-    saveDraft()
+    saveDraft('financials')
     router.push('/requests/sow/create/commercials')
   }
 

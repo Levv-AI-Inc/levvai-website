@@ -8,7 +8,18 @@ export default function ReadOnlySOWSummary() {
 
   if (!sowParam) return null
 
-  const sow = JSON.parse(decodeURIComponent(sowParam))
+  let sow: any
+
+  try {
+    sow = JSON.parse(decodeURIComponent(sowParam))
+  } catch (error) {
+    console.error('Unable to read submitted SOW payload', error)
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-8 py-6 text-sm text-amber-800">
+        The SOW was submitted, but the summary payload could not be displayed.
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-8 py-6 shadow-sm">
