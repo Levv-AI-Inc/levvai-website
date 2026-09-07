@@ -259,7 +259,7 @@ export default function ReviewPage() {
       try {
         setNovaScan({ status: 'scanning', signals: [] })
 
-        const res = await fetch('/api/nova/scan', {
+        const res = await fetch('/nova/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -329,7 +329,7 @@ export default function ReviewPage() {
         setIsGeneratingPackage(true)
         setPackageError('')
 
-        const res = await fetch('/api/nova/review-package', {
+        const res = await fetch('/nova/review-package', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

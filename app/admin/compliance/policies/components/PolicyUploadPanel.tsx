@@ -141,7 +141,7 @@ function uploadPolicyWithProgress({
   return new Promise<PolicyAnalysisSummary>((resolve, reject) => {
     const request = new XMLHttpRequest()
 
-    request.open('POST', '/api/nova/policy')
+    request.open('POST', '/nova/policy')
 
     request.upload.onprogress = (event) => {
       if (!event.lengthComputable || event.total <= 0) {
