@@ -262,7 +262,7 @@ export default function Home() {
   const policyStatus = usePolicyStatus()
   const policyUploaded = Boolean(policyStatus.fileName || policyStatus.policyName || policyStatus.analysis)
   const policyActive = policyStatus.active
-  const policyContext = buildPolicyContext(policyStatus)
+  const policyContext = policyActive ? buildPolicyContext(policyStatus) : ''
   const policyStatusTitle = policyUploaded
     ? [
         policyStatus.policyName || policyStatus.fileName || 'Policy uploaded',
@@ -383,7 +383,12 @@ export default function Home() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ messages: conversationRef.current, policyActive, policyUploaded, policyContext }),
+        body: JSON.stringify({
+          messages: conversationRef.current,
+          policyActive,
+          policyUploaded: policyActive && policyUploaded,
+          policyContext,
+        }),
       })
       const data = await res.json()
       const raw: string = data.reply ?? 'I encountered an issue. Please try again.'

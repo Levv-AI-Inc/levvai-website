@@ -568,6 +568,26 @@ function sanitizePolicyContext(policyContext: unknown) {
   return policyContext.trim().slice(0, 3500)
 }
 
+function buildBaseSystemPrompt(policyActive: boolean, today: string) {
+  const basePrompt = SYSTEM.replace('{TODAY}', today)
+
+  if (policyActive) return basePrompt
+
+  return basePrompt
+    .replace(
+      /RATE CARD \(policy ceilings, \$\/hr\):/,
+      'RATE CARD (reference market ranges, $/hr):',
+    )
+    .replace(
+      /Above-ceiling rates require VP Finance \+ Procurement exception approval\./,
+      'Rates outside these ranges can be discussed, but no policy approval requirement is being enforced.',
+    )
+    .replace(
+      /POLICY \(effective\):[\s\S]*?(?=\n\n═══════════════════════════════════════════════════════════════\nPOLICY ENFORCEMENT MODE)/,
+      'POLICY (inactive):\nNo tenant policy is active in this chat. Do not present the static demo rules, uploaded rules, citations, caps, or approval requirements as policy.',
+    )
+}
+
 function buildSystemPrompt({
   policyActive,
   policyUploaded,
@@ -595,7 +615,7 @@ function buildSystemPrompt({
       ? `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: DEACTIVATED\n═══════════════════════════════════════════════════════════════\nA policy has been uploaded, but enforcement is deactivated. You may summarize and answer questions about the uploaded policy, but NOTHING is being enforced. Do NOT say an action is blocked, "not allowed," or "outside policy," and do NOT cite a § as a hard stop. If a user asks about an action that would violate the uploaded policy, frame it as reference-only guidance because enforcement is deactivated. In rail tiles use the "warn" or "default" variant — never "risk", never a BLOCKED badge. The user is free to proceed.${uploadedPolicySummary}`
       : `\n\n═══════════════════════════════════════════════════════════════\nCURRENT POLICY STATE: INACTIVE\n═══════════════════════════════════════════════════════════════\nNo policy is loaded, so NOTHING is being enforced. Do NOT say an action is blocked, "not allowed," or "outside policy," and do NOT cite a § as a hard stop. You may give ONE brief advisory heads-up framed as the user's own decision — e.g. "No active policy is enforcing this, but teams usually cap tenure around 24 months. Want to proceed, or load that as a policy?" In rail tiles use the "warn" or "default" variant — never "risk", never a BLOCKED badge. The user is free to proceed with whatever they asked.`
 
-  return SYSTEM.replace('{TODAY}', today) + policyState
+  return buildBaseSystemPrompt(policyActive, today) + policyState
 }
 
 function normalizeMessages(messages: unknown[]) {
@@ -617,8 +637,8 @@ export async function POST(req: Request) {
     const body = await req.json()
     const messages = body?.messages
     const policyActive = body?.policyActive === true
-    const policyUploaded = body?.policyUploaded === true || policyActive
-    const policyContext = policyUploaded
+    const policyUploaded = policyActive && body?.policyUploaded === true
+    const policyContext = policyActive
       ? sanitizePolicyContext(body?.policyContext)
       : ''
 

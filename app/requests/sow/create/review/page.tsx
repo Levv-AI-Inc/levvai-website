@@ -217,7 +217,6 @@ export default function ReviewPage() {
   useEffect(() => {
     const requestId = scanRequestIdRef.current + 1
     scanRequestIdRef.current = requestId
-    const controller = new AbortController()
 
     async function runNovaScan() {
       if (!rawScope) {
@@ -231,16 +230,15 @@ export default function ReviewPage() {
         const res = await fetch('/api/nova/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
           body: JSON.stringify({
-          workType: sow.workType,
-          pricingModel: commercials.pricingModel || null,
-          billingFrequency:
-            commercials.billingFrequency ||
-            (commercials.recurringAmount ? 'Recurring' : null),
-          scopeSummary: rawScope || sow.scope || '',
+            workType: sow.workType,
+            pricingModel: commercials.pricingModel || null,
+            billingFrequency:
+              commercials.billingFrequency ||
+              (commercials.recurringAmount ? 'Recurring' : null),
+            scopeSummary: rawScope || sow.scope || '',
 
-        }),
+          }),
         })
 
         const data = await res.json()
@@ -277,17 +275,13 @@ export default function ReviewPage() {
 
         setNovaScan({ status: 'complete', signals: mapped })
       } catch (err) {
-        if (controller.signal.aborted || scanRequestIdRef.current !== requestId) return
+        if (scanRequestIdRef.current !== requestId) return
         console.error('Nova scan failed', err)
         setNovaScan({ status: 'unavailable', signals: [] })
       }
     }
 
     runNovaScan()
-
-    return () => {
-      controller.abort()
-    }
   }, [
     rawScope,
     sow.workType,

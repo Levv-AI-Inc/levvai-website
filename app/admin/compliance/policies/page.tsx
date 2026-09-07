@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText } from 'lucide-react'
+import { ArrowDown, ArrowUp, FileText } from 'lucide-react'
 import {
   usePolicyStatus,
   type StoredPolicyHistoryItem,
@@ -54,6 +54,8 @@ type PolicyTableRow = {
   updatedAt: string
   analysis?: unknown
 }
+
+type UpdatedAtSortDirection = 'desc' | 'asc'
 
 function isUploadedPolicyAnalysis(
   value: unknown,
@@ -153,6 +155,13 @@ function getStatusMeta(row: PolicyTableRow) {
   }
 }
 
+function getUpdatedAtTime(row: PolicyTableRow) {
+  if (!row.updatedAt) return 0
+
+  const time = new Date(row.updatedAt).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
 async function loadPolicyMasterData(): Promise<PolicyMasterData> {
   const [
     businessUnitsResult,
@@ -184,6 +193,8 @@ async function loadPolicyMasterData(): Promise<PolicyMasterData> {
 
 export default function CompliancePoliciesPage() {
   const policyStatus = usePolicyStatus()
+  const [updatedAtSortDirection, setUpdatedAtSortDirection] =
+    useState<UpdatedAtSortDirection>('desc')
   const [policyMasterData, setPolicyMasterData] = useState<PolicyMasterData>(
     () => emptyPolicyMasterData(),
   )
@@ -192,6 +203,14 @@ export default function CompliancePoliciesPage() {
     ...(currentPolicyRow ? [currentPolicyRow] : []),
     ...(policyStatus.history ?? []),
   ]
+  const sortedPolicyRows = [...policyRows].sort((left, right) => {
+    const directionMultiplier = updatedAtSortDirection === 'desc' ? -1 : 1
+    const timeDifference = getUpdatedAtTime(left) - getUpdatedAtTime(right)
+
+    if (timeDifference !== 0) return timeDifference * directionMultiplier
+
+    return getPolicyName(left).localeCompare(getPolicyName(right))
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -247,12 +266,34 @@ export default function CompliancePoliciesPage() {
                   <th className="px-4 py-3">Rules</th>
                   <th className="px-4 py-3">Gaps</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Last Updated</th>
+                  <th className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUpdatedAtSortDirection((direction) =>
+                          direction === 'desc' ? 'asc' : 'desc',
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 font-medium text-slate-600 transition hover:text-slate-900"
+                      aria-label={`Sort by last updated ${
+                        updatedAtSortDirection === 'desc'
+                          ? 'oldest first'
+                          : 'newest first'
+                      }`}
+                    >
+                      <span>Last Updated</span>
+                      {updatedAtSortDirection === 'desc' ? (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                {policyRows.map((row) => {
+                {sortedPolicyRows.map((row) => {
                   const statusMeta = getStatusMeta(row)
 
                   return (
