@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { NOVA_SOW_DRAFT_STORAGE_KEY, useSOW } from '../context'
+import { NOVA_SOW_DRAFT_STORAGE_KEY, SOW_DRAFT_STORAGE_KEY, useSOW } from '../context'
 import type { AIAutomationItem, CostModel, SOWData } from '../context'
 import { assignSeverity } from '@/lib/intelligence/nova/severity'
 import {
@@ -240,6 +240,7 @@ export default function ReviewPage() {
 
   const handleSubmit = () => {
     window.sessionStorage.removeItem(NOVA_SOW_DRAFT_STORAGE_KEY)
+    window.sessionStorage.removeItem(SOW_DRAFT_STORAGE_KEY)
     router.push(
       `/requests/sow_submitted?sow=${encodeURIComponent(
         JSON.stringify(submissionPayload)

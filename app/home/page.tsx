@@ -17,6 +17,7 @@ import { getIntakes, IntakeApiError } from '@/lib/api/intake'
 import { usePolicyStatus, type StoredPolicyStatus } from '../../lib/policyStatus'
 import {
   NOVA_SOW_DRAFT_STORAGE_KEY,
+  SOW_DRAFT_STORAGE_KEY,
   type SOWData,
   type SOWProgressStep,
 } from '../requests/sow/create/context'
@@ -320,13 +321,17 @@ function normalizeNovaSowDraft(draft: Partial<SOWData>): Partial<SOWData> {
 }
 
 function persistNovaSowDraft(sowDraft: Partial<SOWData> | null | undefined) {
-  if (!sowDraft) return
+  if (!sowDraft) {
+    clearSowDrafts()
+    return
+  }
 
   window.sessionStorage.setItem(NOVA_SOW_DRAFT_STORAGE_KEY, JSON.stringify(sowDraft))
 }
 
-function clearNovaSowDraft() {
+function clearSowDrafts() {
   window.sessionStorage.removeItem(NOVA_SOW_DRAFT_STORAGE_KEY)
+  window.sessionStorage.removeItem(SOW_DRAFT_STORAGE_KEY)
 }
 
 const workerRoutes: Record<string, string> = {
@@ -794,7 +799,7 @@ export default function Home() {
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Link
               href="/requests/sow/create"
-              onClick={clearNovaSowDraft}
+              onClick={clearSowDrafts}
               className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#bfc9c0] bg-[#f7fbf8] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(31,61,56,0.85)] transition hover:-translate-y-0.5 hover:border-[#89d3bd] hover:bg-[#eefaf5] hover:shadow-[0_18px_38px_-28px_rgba(31,61,56,0.75)] focus:outline-none focus:ring-2 focus:ring-[#89d3bd] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
             >
               <span className="flex min-w-0 items-center gap-3">

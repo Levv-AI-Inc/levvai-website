@@ -157,6 +157,7 @@ export type SOWData = {
 }
 
 export const NOVA_SOW_DRAFT_STORAGE_KEY = 'levv:nova:sowDraft'
+export const SOW_DRAFT_STORAGE_KEY = 'levv:sowDraft'
 
 type SOWContextValue = {
   sow: Partial<SOWData>
@@ -173,38 +174,48 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false)
 
   const setSOW = useCallback((data: Partial<SOWData>) => {
-    setSOWState(prev => ({
-      ...prev,
-      ...data,
-      contractTerms: data.contractTerms
-        ? {
-            ...prev.contractTerms,
-            ...data.contractTerms,
-          }
-        : prev.contractTerms,
-      financials: data.financials
-        ? {
-            ...prev.financials,
-            ...data.financials,
-          }
-        : prev.financials,
-      commercials: data.commercials
-        ? {
-            ...prev.commercials,
-            ...data.commercials,
-          }
-        : prev.commercials,
-      aiAutomation: data.aiAutomation ?? prev.aiAutomation,
-    }))
+    setSOWState(prev => {
+      const next = {
+        ...prev,
+        ...data,
+        contractTerms: data.contractTerms
+          ? {
+              ...prev.contractTerms,
+              ...data.contractTerms,
+            }
+          : prev.contractTerms,
+        financials: data.financials
+          ? {
+              ...prev.financials,
+              ...data.financials,
+            }
+          : prev.financials,
+        commercials: data.commercials
+          ? {
+              ...prev.commercials,
+              ...data.commercials,
+            }
+          : prev.commercials,
+        aiAutomation: data.aiAutomation ?? prev.aiAutomation,
+      }
+
+      window.sessionStorage.setItem(SOW_DRAFT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
   }, [])
 
   useEffect(() => {
     try {
-      const storedDraft = window.sessionStorage.getItem(NOVA_SOW_DRAFT_STORAGE_KEY)
+      const novaDraft = window.sessionStorage.getItem(NOVA_SOW_DRAFT_STORAGE_KEY)
+      const storedDraft = novaDraft || window.sessionStorage.getItem(SOW_DRAFT_STORAGE_KEY)
 
       if (storedDraft) {
         const parsed = JSON.parse(storedDraft) as Partial<SOWData>
         setSOW(parsed)
+      }
+
+      if (novaDraft) {
+        window.sessionStorage.removeItem(NOVA_SOW_DRAFT_STORAGE_KEY)
       }
     } catch (error) {
       console.error('Unable to load Nova SOW draft', error)
