@@ -533,7 +533,11 @@ export default function AIAutomationPage() {
                 Nova AI Governance
               </h3>
             </div>
-            {items.length === 0 ? (
+            {gateAnswer === 'no' ? (
+              <p className="text-sm leading-6 text-indigo-700">
+                No AI agents or automation tools are attached to this SOW.
+              </p>
+            ) : items.length === 0 ? (
               <p className="text-sm leading-6 text-indigo-700">
                 Add an AI item and Nova will evaluate ownership, access,
                 deployment, data handling, compliance, and spend controls.

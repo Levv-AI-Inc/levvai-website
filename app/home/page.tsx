@@ -15,12 +15,18 @@ import {
 } from 'lucide-react'
 import { getIntakes, IntakeApiError } from '@/lib/api/intake'
 import { usePolicyStatus, type StoredPolicyStatus } from '../../lib/policyStatus'
+import {
+  NOVA_SOW_DRAFT_STORAGE_KEY,
+  type SOWData,
+  type SOWProgressStep,
+} from '../requests/sow/create/context'
 
 interface ChatMessage {
   role: 'user' | 'nova'
   content: string
   actions?: { label: string; prompt: string }[]
   rail?: RailData | null
+  sowDraft?: Partial<SOWData> | null
 }
 
 interface RailTileData {
@@ -169,8 +175,10 @@ function parseNovaResponse(raw: string): {
   text: string
   actions: { label: string; prompt: string }[]
   rail: RailData | null
+  sowDraft: Partial<SOWData> | null
 } {
-  let text = raw
+  const extractedDraft = extractNovaSowDraft(raw)
+  let text = extractedDraft.text
   let rail: RailData | null = null
 
   const railMatch = text.match(/\[NOVA_RAIL:\s*([^\]]+)\]/)
@@ -216,7 +224,109 @@ function parseNovaResponse(raw: string): {
     text = text.replace(actionMatch[0], '')
   }
 
-  return { text: text.trim(), actions, rail }
+  return { text: text.trim(), actions, rail, sowDraft: extractedDraft.sowDraft }
+}
+
+function extractNovaSowDraft(raw: string): {
+  text: string
+  sowDraft: Partial<SOWData> | null
+} {
+  const marker = '[NOVA_SOW_DRAFT:'
+  const markerIndex = raw.indexOf(marker)
+  if (markerIndex === -1) return { text: raw, sowDraft: null }
+
+  const jsonStart = raw.indexOf('{', markerIndex + marker.length)
+  if (jsonStart === -1) {
+    return { text: raw.replace(marker, '').trim(), sowDraft: null }
+  }
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+  let jsonEnd = -1
+
+  for (let index = jsonStart; index < raw.length; index += 1) {
+    const char = raw[index]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+    } else if (char === '{') {
+      depth += 1
+    } else if (char === '}') {
+      depth -= 1
+      if (depth === 0) {
+        jsonEnd = index
+        break
+      }
+    }
+  }
+
+  if (jsonEnd === -1) {
+    return {
+      text: `${raw.slice(0, markerIndex)}${raw.slice(jsonStart)}`.trim(),
+      sowDraft: null,
+    }
+  }
+
+  const tagEnd = raw[jsonEnd + 1] === ']' ? jsonEnd + 2 : jsonEnd + 1
+  const text = `${raw.slice(0, markerIndex)}${raw.slice(tagEnd)}`.trim()
+
+  try {
+    return {
+      text,
+      sowDraft: normalizeNovaSowDraft(
+        JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as Partial<SOWData>,
+      ),
+    }
+  } catch (error) {
+    console.error('Unable to parse Nova SOW draft', error)
+    return { text, sowDraft: null }
+  }
+}
+
+function normalizeNovaSowDraft(draft: Partial<SOWData>): Partial<SOWData> {
+  const normalized: Partial<SOWData> = { ...draft }
+  const rawGateAnswer =
+    typeof draft.aiGateAnswer === 'string'
+      ? draft.aiGateAnswer.toLowerCase().trim()
+      : draft.aiGateAnswer
+
+  if (rawGateAnswer === 'no' || rawGateAnswer === 'false') {
+    normalized.aiGateAnswer = 'no'
+    normalized.aiAutomation = []
+    normalized.aiAutomationFormOpen = false
+  } else if (rawGateAnswer === 'yes' || rawGateAnswer === 'true') {
+    normalized.aiGateAnswer = 'yes'
+  }
+
+  if (normalized.aiGateAnswer === 'no') {
+    normalized.completedSteps = Array.from(
+      new Set<SOWProgressStep>([...(draft.completedSteps || []), 'ai-automation']),
+    )
+  }
+
+  return normalized
+}
+
+function persistNovaSowDraft(sowDraft: Partial<SOWData> | null | undefined) {
+  if (!sowDraft) return
+
+  window.sessionStorage.setItem(NOVA_SOW_DRAFT_STORAGE_KEY, JSON.stringify(sowDraft))
+}
+
+function clearNovaSowDraft() {
+  window.sessionStorage.removeItem(NOVA_SOW_DRAFT_STORAGE_KEY)
 }
 
 const workerRoutes: Record<string, string> = {
@@ -389,9 +499,9 @@ export default function Home() {
       })
       const data = await res.json()
       const raw: string = data.reply ?? 'I encountered an issue. Please try again.'
-      const { text: reply, actions, rail } = parseNovaResponse(raw)
+      const { text: reply, actions, rail, sowDraft } = parseNovaResponse(raw)
       conversationRef.current = [...conversationRef.current, { role: 'assistant', content: raw }]
-      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions, rail }])
+      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions, rail, sowDraft }])
     } catch {
       setChatMessages((prev) => [...prev, { role: 'nova', content: 'Nova is temporarily unavailable. Please try again.' }])
     } finally {
@@ -399,13 +509,17 @@ export default function Home() {
     }
   }, [input, isLoading, policyActive, policyUploaded, policyContext])
 
-  const navigateToRoute = useCallback((destination: string) => {
+  const navigateToRoute = useCallback((destination: string, sowDraft?: Partial<SOWData> | null) => {
+    if (destination.startsWith('/requests/sow/create')) {
+      persistNovaSowDraft(sowDraft)
+    }
+
     router.push(destination)
   }, [router])
 
-  const handleAction = useCallback((action: { label: string; prompt: string }) => {
+  const handleAction = useCallback((action: { label: string; prompt: string }, sowDraft?: Partial<SOWData> | null) => {
     if (action.prompt.startsWith('/')) {
-      navigateToRoute(action.prompt)
+      navigateToRoute(action.prompt, sowDraft)
       return
     }
     void sendMessage(action.prompt)
@@ -598,7 +712,7 @@ export default function Home() {
                               <button
                                 key={action.label}
                                 type="button"
-                                onClick={() => handleAction(action)}
+                                onClick={() => handleAction(action, message.sowDraft)}
                                 className={
                                   isRoute
                                     ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
@@ -641,7 +755,7 @@ export default function Home() {
                         <RailTile
                           key={`${tile.title}-${index}`}
                           tile={tile}
-                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination })}
+                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination }, chatMessages[activeRailInfo!.index]?.sowDraft)}
                         />
                       ))}
                     </div>
@@ -680,6 +794,7 @@ export default function Home() {
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Link
               href="/requests/sow/create"
+              onClick={clearNovaSowDraft}
               className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#bfc9c0] bg-[#f7fbf8] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(31,61,56,0.85)] transition hover:-translate-y-0.5 hover:border-[#89d3bd] hover:bg-[#eefaf5] hover:shadow-[0_18px_38px_-28px_rgba(31,61,56,0.75)] focus:outline-none focus:ring-2 focus:ring-[#89d3bd] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
             >
               <span className="flex min-w-0 items-center gap-3">

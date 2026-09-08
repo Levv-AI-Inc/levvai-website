@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useCallback, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 export type StructuredScope = {
   summary: string
@@ -156,6 +156,8 @@ export type SOWData = {
   attachments?: SOWAttachment[]
 }
 
+export const NOVA_SOW_DRAFT_STORAGE_KEY = 'levv:nova:sowDraft'
+
 type SOWContextValue = {
   sow: Partial<SOWData>
   setSOW: (data: Partial<SOWData>) => void
@@ -168,6 +170,7 @@ const SOWContext = createContext<SOWContextValue>({
 
 export function SOWProvider({ children }: { children: React.ReactNode }) {
   const [sow, setSOWState] = useState<Partial<SOWData>>({})
+  const [hydrated, setHydrated] = useState(false)
 
   const setSOW = useCallback((data: Partial<SOWData>) => {
     setSOWState(prev => ({
@@ -194,6 +197,23 @@ export function SOWProvider({ children }: { children: React.ReactNode }) {
       aiAutomation: data.aiAutomation ?? prev.aiAutomation,
     }))
   }, [])
+
+  useEffect(() => {
+    try {
+      const storedDraft = window.sessionStorage.getItem(NOVA_SOW_DRAFT_STORAGE_KEY)
+
+      if (storedDraft) {
+        const parsed = JSON.parse(storedDraft) as Partial<SOWData>
+        setSOW(parsed)
+      }
+    } catch (error) {
+      console.error('Unable to load Nova SOW draft', error)
+    } finally {
+      setHydrated(true)
+    }
+  }, [setSOW])
+
+  if (!hydrated) return null
 
   return (
     <SOWContext.Provider value={{ sow, setSOW }}>

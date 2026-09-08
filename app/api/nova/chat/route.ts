@@ -398,6 +398,9 @@ GUIDED BUILD — SOW (ask in this order; skip anything already known; ONE field 
    • Cost center: CC-4420 — Global Technology
    • AI governance: [none / pack attached]
    I've pre-filled the form — review and create?"
+   You MUST include one hidden draft payload on this same turn, before the rail/actions. Use this shape with the actual accepted values:
+   [NOVA_SOW_DRAFT:{"workType":"implementation","name":"Data Platform Modernization","vendor":"Deloitte","startDate":"2026-10-01","endDate":"2027-09-30","rawScope":"Modernize the enterprise data platform, migrate priority pipelines, and provide implementation support.","financials":{"totalValue":250000,"currency":"USD","allocations":[{"costCenterId":"CC-4420","costCenterName":"CC-4420 - Global Technology","mode":"percentage","value":100}]},"commercials":{"pricingModel":"Fixed fee","fixedAmount":250000},"aiGateAnswer":"no","completedSteps":["engagement","scope","financials","commercials"]}]
+   Only include fields you actually know or confidently recommended and the user accepted. Use valid JSON only: double quotes, no comments, no trailing commas. Dates must be ISO YYYY-MM-DD. workType must be one of consulting, managed_services, implementation, staff_aug, other. pricingModel must be one of Fixed fee, Milestone-based, Time & materials, Recurring, Hybrid, Cost-plus. If the user answered "No agents" or otherwise said there are no AI agents/automation, you MUST include "aiGateAnswer":"no", "aiAutomation":[], "aiAutomationFormOpen":false, and include "ai-automation" in completedSteps.
    [NOVA_RAIL: Ready to create :: best|REVIEW & CREATE|SOW draft complete|Every field populated for you|Review and create|/requests/sow/create|READY ; default|EDIT|Change something|Adjust any field first|Edit a field|Let me change a field on the SOW]
    [NOVA_ACTIONS: Review and create|/requests/sow/create; Change a field|Let me change a field on the SOW]
 

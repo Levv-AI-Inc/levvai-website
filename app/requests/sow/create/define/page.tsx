@@ -16,6 +16,10 @@ import { novaImproveDescription } from '@/lib/intelligence'
 import { SOWProgress } from '../components/SOWProgress'
 
 const SUPPLIERS = [
+  'Accenture',
+  'Deloitte',
+  'KPMG',
+  'IBM',
   'Acme Consulting',
   'BluePeak Solutions',
   'NorthStar Advisory',
