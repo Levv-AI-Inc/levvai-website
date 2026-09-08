@@ -19,6 +19,19 @@ function supplierKey(supplier: SupplierRecord) {
   return String(supplier.id ?? supplier.supplier_id)
 }
 
+function normalizeMatchValue(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function matchesSupplier(supplier: SupplierRecord, value: string) {
+  const query = normalizeMatchValue(value)
+  if (!query) return false
+
+  return [supplier.name, supplier.supplier_code, supplier.supplier_id]
+    .filter(Boolean)
+    .some((candidate) => normalizeMatchValue(String(candidate)) === query)
+}
+
 export default function CWSuppliersPage() {
   const router = useRouter()
   const { request, update } = useCWRequest()
@@ -94,6 +107,33 @@ export default function CWSuppliersPage() {
       window.clearTimeout(timer)
     }
   }, [search])
+
+  useEffect(() => {
+    if (loadingSuppliers || suppliers.length === 0) return
+    if (selectedSupplierId && Number.isFinite(Number(selectedSupplierId))) return
+
+    const candidateSuppliers = [
+      selectedSupplierId,
+      ...(request.suppliers || []),
+    ].filter(Boolean)
+
+    const preferredSupplier = candidateSuppliers.find((supplier) =>
+      suppliers.some((row) => matchesSupplier(row, supplier)),
+    )
+    if (!preferredSupplier) return
+
+    const matchedSupplier = suppliers.find((supplier) =>
+      matchesSupplier(supplier, preferredSupplier),
+    )
+    if (matchedSupplier) {
+      setSelectedSupplierId(supplierKey(matchedSupplier))
+    }
+  }, [
+    loadingSuppliers,
+    request.suppliers,
+    selectedSupplierId,
+    suppliers,
+  ])
 
   const roleQuery = request.role?.trim().toLowerCase() || ''
 

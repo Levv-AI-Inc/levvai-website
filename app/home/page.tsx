@@ -21,6 +21,11 @@ import {
   type SOWData,
   type SOWProgressStep,
 } from '../requests/sow/create/context'
+import {
+  CW_REQUEST_STORAGE_KEY,
+  NOVA_JOB_DRAFT_STORAGE_KEY,
+  type CWRequest,
+} from '../requests/new/job/context/CWRequestContext'
 
 interface ChatMessage {
   role: 'user' | 'nova'
@@ -28,6 +33,7 @@ interface ChatMessage {
   actions?: { label: string; prompt: string }[]
   rail?: RailData | null
   sowDraft?: Partial<SOWData> | null
+  jobDraft?: Partial<CWRequest> | null
 }
 
 interface RailTileData {
@@ -177,9 +183,11 @@ function parseNovaResponse(raw: string): {
   actions: { label: string; prompt: string }[]
   rail: RailData | null
   sowDraft: Partial<SOWData> | null
+  jobDraft: Partial<CWRequest> | null
 } {
-  const extractedDraft = extractNovaSowDraft(raw)
-  let text = extractedDraft.text
+  const extractedSowDraft = extractNovaDraft(raw, '[NOVA_SOW_DRAFT:')
+  const extractedJobDraft = extractNovaDraft(extractedSowDraft.text, '[NOVA_JOB_DRAFT:')
+  let text = extractedJobDraft.text
   let rail: RailData | null = null
 
   const railMatch = text.match(/\[NOVA_RAIL:\s*([^\]]+)\]/)
@@ -225,20 +233,29 @@ function parseNovaResponse(raw: string): {
     text = text.replace(actionMatch[0], '')
   }
 
-  return { text: text.trim(), actions, rail, sowDraft: extractedDraft.sowDraft }
+  return {
+    text: text.trim(),
+    actions,
+    rail,
+    sowDraft: extractedSowDraft.draft
+      ? normalizeNovaSowDraft(extractedSowDraft.draft as Partial<SOWData>)
+      : null,
+    jobDraft: extractedJobDraft.draft
+      ? normalizeNovaJobDraft(extractedJobDraft.draft as Partial<CWRequest>)
+      : null,
+  }
 }
 
-function extractNovaSowDraft(raw: string): {
+function extractNovaDraft(raw: string, marker: string): {
   text: string
-  sowDraft: Partial<SOWData> | null
+  draft: Record<string, unknown> | null
 } {
-  const marker = '[NOVA_SOW_DRAFT:'
   const markerIndex = raw.indexOf(marker)
-  if (markerIndex === -1) return { text: raw, sowDraft: null }
+  if (markerIndex === -1) return { text: raw, draft: null }
 
   const jsonStart = raw.indexOf('{', markerIndex + marker.length)
   if (jsonStart === -1) {
-    return { text: raw.replace(marker, '').trim(), sowDraft: null }
+    return { text: raw.replace(marker, '').trim(), draft: null }
   }
 
   let depth = 0
@@ -276,7 +293,7 @@ function extractNovaSowDraft(raw: string): {
   if (jsonEnd === -1) {
     return {
       text: `${raw.slice(0, markerIndex)}${raw.slice(jsonStart)}`.trim(),
-      sowDraft: null,
+      draft: null,
     }
   }
 
@@ -286,13 +303,11 @@ function extractNovaSowDraft(raw: string): {
   try {
     return {
       text,
-      sowDraft: normalizeNovaSowDraft(
-        JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as Partial<SOWData>,
-      ),
+      draft: JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as Record<string, unknown>,
     }
   } catch (error) {
-    console.error('Unable to parse Nova SOW draft', error)
-    return { text, sowDraft: null }
+    console.error('Unable to parse Nova draft', error)
+    return { text, draft: null }
   }
 }
 
@@ -320,6 +335,37 @@ function normalizeNovaSowDraft(draft: Partial<SOWData>): Partial<SOWData> {
   return normalized
 }
 
+function normalizeNovaJobDraft(draft: Partial<CWRequest>): Partial<CWRequest> {
+  const normalized: Partial<CWRequest> = { ...draft }
+  const parseNumber = (value: unknown) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string') {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ''))
+      if (Number.isFinite(parsed)) return parsed
+    }
+    return undefined
+  }
+
+  const targetRate = parseNumber(draft.targetRate ?? draft.enteredRate)
+  if (targetRate !== undefined) {
+    normalized.targetRate = targetRate
+    normalized.enteredRate = targetRate
+    normalized.stRate = targetRate
+    normalized.rateMode = 'fixed'
+  }
+
+  const positions = parseNumber(draft.positions)
+  if (positions !== undefined) normalized.positions = Math.max(1, Math.round(positions))
+
+  const hoursPerWeek = parseNumber(draft.hoursPerWeek)
+  if (hoursPerWeek !== undefined) normalized.hoursPerWeek = hoursPerWeek
+
+  normalized.rateUnit = normalized.rateUnit || 'hourly'
+  normalized.currency = normalized.currency || 'USD'
+
+  return normalized
+}
+
 function persistNovaSowDraft(sowDraft: Partial<SOWData> | null | undefined) {
   if (!sowDraft) {
     clearSowDrafts()
@@ -329,9 +375,23 @@ function persistNovaSowDraft(sowDraft: Partial<SOWData> | null | undefined) {
   window.sessionStorage.setItem(NOVA_SOW_DRAFT_STORAGE_KEY, JSON.stringify(sowDraft))
 }
 
+function persistNovaJobDraft(jobDraft: Partial<CWRequest> | null | undefined) {
+  if (!jobDraft) {
+    clearJobDrafts()
+    return
+  }
+
+  window.sessionStorage.setItem(NOVA_JOB_DRAFT_STORAGE_KEY, JSON.stringify(jobDraft))
+}
+
 function clearSowDrafts() {
   window.sessionStorage.removeItem(NOVA_SOW_DRAFT_STORAGE_KEY)
   window.sessionStorage.removeItem(SOW_DRAFT_STORAGE_KEY)
+}
+
+function clearJobDrafts() {
+  window.sessionStorage.removeItem(NOVA_JOB_DRAFT_STORAGE_KEY)
+  window.sessionStorage.removeItem(CW_REQUEST_STORAGE_KEY)
 }
 
 const workerRoutes: Record<string, string> = {
@@ -504,9 +564,9 @@ export default function Home() {
       })
       const data = await res.json()
       const raw: string = data.reply ?? 'I encountered an issue. Please try again.'
-      const { text: reply, actions, rail, sowDraft } = parseNovaResponse(raw)
+      const { text: reply, actions, rail, sowDraft, jobDraft } = parseNovaResponse(raw)
       conversationRef.current = [...conversationRef.current, { role: 'assistant', content: raw }]
-      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions, rail, sowDraft }])
+      setChatMessages((prev) => [...prev, { role: 'nova', content: reply, actions, rail, sowDraft, jobDraft }])
     } catch {
       setChatMessages((prev) => [...prev, { role: 'nova', content: 'Nova is temporarily unavailable. Please try again.' }])
     } finally {
@@ -514,17 +574,28 @@ export default function Home() {
     }
   }, [input, isLoading, policyActive, policyUploaded, policyContext])
 
-  const navigateToRoute = useCallback((destination: string, sowDraft?: Partial<SOWData> | null) => {
+  const navigateToRoute = useCallback((
+    destination: string,
+    drafts?: {
+      sowDraft?: Partial<SOWData> | null
+      jobDraft?: Partial<CWRequest> | null
+    },
+  ) => {
     if (destination.startsWith('/requests/sow/create')) {
-      persistNovaSowDraft(sowDraft)
+      persistNovaSowDraft(drafts?.sowDraft)
+    } else if (destination.startsWith('/requests/new/job/create')) {
+      persistNovaJobDraft(drafts?.jobDraft)
     }
 
     router.push(destination)
   }, [router])
 
-  const handleAction = useCallback((action: { label: string; prompt: string }, sowDraft?: Partial<SOWData> | null) => {
+  const handleAction = useCallback((action: { label: string; prompt: string }, message?: ChatMessage) => {
     if (action.prompt.startsWith('/')) {
-      navigateToRoute(action.prompt, sowDraft)
+      navigateToRoute(action.prompt, {
+        sowDraft: message?.sowDraft,
+        jobDraft: message?.jobDraft,
+      })
       return
     }
     void sendMessage(action.prompt)
@@ -717,7 +788,7 @@ export default function Home() {
                               <button
                                 key={action.label}
                                 type="button"
-                                onClick={() => handleAction(action, message.sowDraft)}
+                                onClick={() => handleAction(action, message)}
                                 className={
                                   isRoute
                                     ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
@@ -760,7 +831,7 @@ export default function Home() {
                         <RailTile
                           key={`${tile.title}-${index}`}
                           tile={tile}
-                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination }, chatMessages[activeRailInfo!.index]?.sowDraft)}
+                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination }, chatMessages[activeRailInfo!.index])}
                         />
                       ))}
                     </div>
@@ -815,6 +886,7 @@ export default function Home() {
             </Link>
             <Link
               href="/requests/new/job/create/define"
+              onClick={clearJobDrafts}
               className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#d8c49a] bg-[#fffaf0] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(154,101,30,0.75)] transition hover:-translate-y-0.5 hover:border-[#e5b766] hover:bg-[#fff7e6] hover:shadow-[0_18px_38px_-28px_rgba(154,101,30,0.7)] focus:outline-none focus:ring-2 focus:ring-[#e5b766] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
             >
               <span className="flex min-w-0 items-center gap-3">

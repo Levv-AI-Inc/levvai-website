@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -46,7 +47,9 @@ export type CWRequest = {
   costCenter?: string
   costCenterId?: number
   siteId?: number
+  site?: string
   legalEntityId?: string
+  legalEntity?: string
   supplierId?: number
   suppliers?: string[]
   customFields?: Record<string, unknown>
@@ -60,13 +63,14 @@ export type CWRequest = {
   otRate?: number
 }
 
-const STORAGE_KEY = 'cw-request-form:v1'
+export const CW_REQUEST_STORAGE_KEY = 'cw-request-form:v1'
+export const NOVA_JOB_DRAFT_STORAGE_KEY = 'levv:nova:jobDraft'
 
 function readPersistedRequest(): CWRequest {
   if (typeof window === 'undefined') return {}
 
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    const raw = window.sessionStorage.getItem(CW_REQUEST_STORAGE_KEY)
     if (!raw) return {}
 
     const parsed = JSON.parse(raw)
@@ -76,6 +80,25 @@ function readPersistedRequest(): CWRequest {
 
     return parsed as CWRequest
   } catch {
+    return {}
+  }
+}
+
+function readNovaDraft(): CWRequest {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const raw = window.sessionStorage.getItem(NOVA_JOB_DRAFT_STORAGE_KEY)
+    if (!raw) return {}
+
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+
+    return parsed as CWRequest
+  } catch (error) {
+    console.error('Unable to load Nova job draft', error)
     return {}
   }
 }
@@ -100,30 +123,52 @@ export const CWRequestProvider = ({
   const [request, setRequest] = useState<CWRequest>(() =>
     readPersistedRequest(),
   )
+  const [hydrated, setHydrated] = useState(false)
 
-  const update = (data: Partial<CWRequest>) =>
+  const update = useCallback((data: Partial<CWRequest>) =>
     setRequest(prev => ({ ...prev, ...data }))
+  , [])
 
-  const replace = (data: CWRequest) => setRequest(data)
+  const replace = useCallback((data: CWRequest) => setRequest(data), [])
 
-  const clear = () => setRequest({})
+  const clear = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(NOVA_JOB_DRAFT_STORAGE_KEY)
+      window.sessionStorage.removeItem(CW_REQUEST_STORAGE_KEY)
+    }
+    setRequest({})
+  }, [])
+
+  useEffect(() => {
+    const novaDraft = readNovaDraft()
+    if (Object.keys(novaDraft).length > 0) {
+      setRequest(novaDraft)
+    }
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(NOVA_JOB_DRAFT_STORAGE_KEY)
+    }
+    setHydrated(true)
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (!hydrated) return
 
     try {
       if (Object.keys(request).length === 0) {
-        window.sessionStorage.removeItem(STORAGE_KEY)
+        window.sessionStorage.removeItem(CW_REQUEST_STORAGE_KEY)
         return
       }
       window.sessionStorage.setItem(
-        STORAGE_KEY,
+        CW_REQUEST_STORAGE_KEY,
         JSON.stringify(request),
       )
     } catch {
       // best-effort persistence
     }
-  }, [request])
+  }, [hydrated, request])
+
+  if (!hydrated) return null
 
   return (
     <CWRequestContext.Provider value={{ request, update, replace, clear }}>

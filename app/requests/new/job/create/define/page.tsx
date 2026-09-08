@@ -55,6 +55,23 @@ function readOptionalString(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
+function normalizeMatchValue(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function includesMatch(candidate: string | undefined, query: string | undefined) {
+  if (!candidate || !query) return false
+
+  const normalizedCandidate = normalizeMatchValue(candidate)
+  const normalizedQuery = normalizeMatchValue(query)
+
+  return (
+    normalizedCandidate === normalizedQuery ||
+    normalizedCandidate.includes(normalizedQuery) ||
+    normalizedQuery.includes(normalizedCandidate)
+  )
+}
+
 function readFirstDefinedString(
   source: Record<string, unknown>,
   keys: string[],
@@ -463,6 +480,101 @@ export default function CWDefinePage() {
       cancelled = true
     }
   }, [router])
+
+  useEffect(() => {
+    if (referenceLoading) return
+
+    const next: Partial<typeof request> = {}
+
+    if (request.role && request.roleId === undefined && roles.length > 0) {
+      const matchedRole = roles.find((role) =>
+        includesMatch(role.name, request.role) ||
+        includesMatch(role.code, request.role),
+      )
+
+      if (matchedRole) {
+        next.roleId = matchedRole.id
+        next.role = matchedRole.name
+        next.description = request.description || matchedRole.description || ''
+        next.country = request.country || matchedRole.country || ''
+        next.stateProvince =
+          request.stateProvince || matchedRole.region || ''
+        next.city = request.city || matchedRole.city || ''
+        next.region =
+          request.region || matchedRole.region || matchedRole.city || ''
+        next.currency = request.currency || matchedRole.default_currency || undefined
+        next.rateUnit =
+          request.rateUnit || mapRoleUnitToRateUnit(matchedRole.default_unit)
+      }
+    }
+
+    if (
+      request.costCenter &&
+      request.costCenterId === undefined &&
+      costCenters.length > 0
+    ) {
+      const matchedCostCenter = costCenters.find((option) =>
+        includesMatch(option.label, request.costCenter),
+      )
+
+      if (matchedCostCenter) {
+        next.costCenterId = matchedCostCenter.id
+        next.costCenter = matchedCostCenter.label
+      }
+    }
+
+    if (request.siteId === undefined && sites.length > 0) {
+      const matchedSite = sites.find((option) =>
+        includesMatch(option.label, request.site) ||
+        includesMatch(option.label, request.city) ||
+        includesMatch(readOptionalString(option.raw.name), request.city) ||
+        includesMatch(readOptionalString(option.raw.city), request.city),
+      )
+
+      if (matchedSite) {
+        next.siteId = matchedSite.id
+        Object.assign(next, readSiteDerivedFields(matchedSite))
+      }
+    }
+
+    if (!request.legalEntityId && legalEntities.length > 0) {
+      const matchedLegalEntity = legalEntities.find((entity) =>
+        includesMatch(entity.name, request.legalEntity) ||
+        includesMatch(entity.id, request.legalEntity) ||
+        includesMatch(entity.erp_code, request.legalEntity),
+      )
+
+      if (matchedLegalEntity) {
+        next.legalEntityId = String(matchedLegalEntity.id)
+      }
+    }
+
+    if (Object.keys(next).length > 0) {
+      update(next)
+    }
+  }, [
+    costCenters,
+    legalEntities,
+    referenceLoading,
+    request.city,
+    request.costCenter,
+    request.costCenterId,
+    request.country,
+    request.description,
+    request.legalEntityId,
+    request.rateUnit,
+    request.region,
+    request.role,
+    request.roleId,
+    request.site,
+    request.siteId,
+    request.stateProvince,
+    request.currency,
+    request.legalEntity,
+    roles,
+    sites,
+    update,
+  ])
 
   return (
     <form
