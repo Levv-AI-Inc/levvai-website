@@ -121,15 +121,21 @@ function formatSeverity(severity: PolicyGap['severity']) {
 }
 
 const PROCESSING_STEPS = [
-  { label: 'Uploading document', duration: 0 },
-  { label: 'Reading document structure', duration: 1800 },
-  { label: 'Identifying policy clauses', duration: 2400 },
-  { label: 'Extracting enforceable workforce rules', duration: 3200 },
-  { label: 'Separating intake controls from config controls', duration: 2800 },
-  { label: 'Cross-referencing current company setup', duration: 2600 },
-  { label: 'Flagging policy-to-config gaps', duration: 3000 },
-  { label: 'Building action plan', duration: 99999 },
+  'Uploading document',
+  'Reading document structure',
+  'Identifying policy clauses',
+  'Extracting enforceable workforce rules',
+  'Separating intake controls from config controls',
+  'Cross-referencing current company setup',
+  'Flagging policy-to-config gaps',
+  'Building action plan',
 ]
+
+const ANALYSIS_WAIT_STEP_INDEX = PROCESSING_STEPS.indexOf(
+  'Cross-referencing current company setup',
+)
+const PROCESSING_STEP_INTERVAL_MS = 1100
+const RESULTS_HANDOFF_DELAY_MS = 650
 
 function uploadPolicyWithProgress({
   payload,
@@ -202,29 +208,24 @@ function PolicyProcessingSteps({
   )
 
   useEffect(() => {
-    if (analysisReady) return
-
     if (uploadProgress !== 100) {
       setCurrentStep(0)
       return
     }
 
-    let step = 1
-    let timeout: ReturnType<typeof setTimeout>
+    setCurrentStep((step) => Math.max(step, 1))
+  }, [uploadProgress])
 
-    const advance = () => {
-      const nextStep = step + 1
-      if (nextStep < PROCESSING_STEPS.length) {
-        step = nextStep
-        setCurrentStep(step)
-        timeout = setTimeout(advance, PROCESSING_STEPS[step].duration)
-      }
-    }
+  useEffect(() => {
+    if (analysisReady || uploadProgress !== 100) return
 
-    setCurrentStep(step)
-    timeout = setTimeout(advance, PROCESSING_STEPS[step].duration)
+    const timeout = setTimeout(() => {
+      setCurrentStep((step) =>
+        step < ANALYSIS_WAIT_STEP_INDEX ? step + 1 : step,
+      )
+    }, PROCESSING_STEP_INTERVAL_MS)
     return () => clearTimeout(timeout)
-  }, [analysisReady, uploadProgress])
+  }, [analysisReady, currentStep, uploadProgress])
 
   useEffect(() => {
     if (!analysisReady || uploadProgress !== 100) return
@@ -232,7 +233,7 @@ function PolicyProcessingSteps({
     let timeout: ReturnType<typeof setTimeout>
 
     setCurrentStep(PROCESSING_STEPS.length)
-    timeout = setTimeout(onComplete, 0)
+    timeout = setTimeout(onComplete, RESULTS_HANDOFF_DELAY_MS)
     return () => clearTimeout(timeout)
   }, [analysisReady, onComplete, uploadProgress])
 
@@ -290,7 +291,7 @@ function PolicyProcessingSteps({
 
           return (
             <li
-              key={step.label}
+              key={step}
               className={`flex items-center gap-2.5 rounded-xl px-2 py-2 transition-all duration-300 ${
                 isActive ? 'bg-amber-50' : ''
               }`}
@@ -315,7 +316,7 @@ function PolicyProcessingSteps({
                       : 'font-medium text-slate-400'
                 }`}
               >
-                {step.label}
+                {step}
                 {isActive ? (
                   <span className="ml-1 inline-flex">
                     <span className="inline-block animate-[bounce_1s_infinite_0ms]">
