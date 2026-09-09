@@ -26,6 +26,8 @@ import {
   NOVA_JOB_DRAFT_STORAGE_KEY,
   type CWRequest,
 } from '../requests/new/job/context/CWRequestContext'
+import { LevvPage, levvUi } from '@/components/ui/levv-app'
+import { MOCK_WORKERS } from '@/lib/mockWorkers'
 
 interface ChatMessage {
   role: 'user' | 'nova'
@@ -149,11 +151,11 @@ const observations = [
 
 const railVariants: Record<string, { card: string; eyebrow: string; badge: string; sub: string; action: string }> = {
   best: {
-    card: 'border-[#89d3bd] bg-[#eefaf5]',
-    eyebrow: 'text-[#1f3d38]',
-    badge: 'bg-[#d9f3e9] text-[#1f3d38]',
-    sub: 'text-[#52605c]',
-    action: 'text-[#1f3d38]',
+    card: 'border-[#bfdbfe] bg-[#eff6ff]',
+    eyebrow: 'text-[#2563eb]',
+    badge: 'bg-[#dbeafe] text-[#1d4ed8]',
+    sub: 'text-[#52637a]',
+    action: 'text-[#2563eb]',
   },
   warn: {
     card: 'border-[#e5b766] bg-[#fff7e6]',
@@ -170,11 +172,11 @@ const railVariants: Record<string, { card: string; eyebrow: string; badge: strin
     action: 'text-[#a44135]',
   },
   default: {
-    card: 'border-[#d8d1c4] bg-white',
-    eyebrow: 'text-[#1f3d38]',
-    badge: 'bg-[#ebe5d8] text-[#52605c]',
-    sub: 'text-[#6b746f]',
-    action: 'text-[#1f3d38]',
+    card: 'border-[#dbe3ee] bg-white',
+    eyebrow: 'text-[#334155]',
+    badge: 'bg-[#eef2f7] text-[#52637a]',
+    sub: 'text-[#64748b]',
+    action: 'text-[#2563eb]',
   },
 }
 
@@ -394,15 +396,17 @@ function clearJobDrafts() {
   window.sessionStorage.removeItem(CW_REQUEST_STORAGE_KEY)
 }
 
-const workerRoutes: Record<string, string> = {
-  'Sarah Cheng': '/cw/work-orders/WO-2024-0089',
-  'Marcus Holloway': '/cw/work-orders/WO-2024-0067',
-  'Priya Kapoor': '/cw/work-orders/WO-2024-0078',
-  'Jin Park': '/cw/work-orders/WO-2024-0079',
-  'David Nakamura': '/cw/work-orders/WO-2024-0091',
-}
+const workerRoutes = Object.fromEntries(
+  MOCK_WORKERS.map((worker) => [worker.name, '/workers/workers']),
+) as Record<string, string>
 
-const recordPattern = /(Sarah Cheng|Marcus Holloway|Priya Kapoor|Jin Park|David Nakamura|SOW-\d{4}-\d{4}|WO-\d{4}-\d{4})/g
+const workerNamePattern = MOCK_WORKERS.map((worker) =>
+  worker.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+).join('|')
+const recordPattern = new RegExp(
+  `(${workerNamePattern}|SOW-\\d{4}-\\d{4}|WO-\\d{4}-\\d{4})`,
+  'g',
+)
 
 function recordRoute(token: string): string | null {
   if (workerRoutes[token]) return workerRoutes[token]
@@ -610,7 +614,7 @@ export default function Home() {
           key={index}
           type="button"
           onClick={() => navigateToRoute(route)}
-          className="inline align-baseline font-semibold text-[#1f3d38] underline decoration-[#89d3bd] underline-offset-2 hover:text-[#255345]"
+          className="inline align-baseline font-semibold text-[#2563eb] underline decoration-[#93c5fd] underline-offset-2 hover:text-[#1d4ed8]"
         >
           {part}
         </button>
@@ -699,7 +703,7 @@ export default function Home() {
   }, [activeRailInfo])
 
   const inputBox = (
-    <div className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_18px_45px_-36px_rgba(31,61,56,0.75)] focus-within:border-[#1f3d38]">
+    <div className="rounded-xl border border-[#dbe3ee] bg-white shadow-[0_12px_35px_-26px_rgba(15,23,42,0.35)] transition focus-within:border-[#93b4f8] focus-within:ring-4 focus-within:ring-[#dbeafe]/70">
       <textarea
         ref={textareaRef}
         value={input}
@@ -713,7 +717,7 @@ export default function Home() {
         placeholder="Ask Nova to inspect an SOW, explain a blocker, or prepare an approval note..."
         rows={1}
         disabled={isLoading}
-        className="w-full resize-none bg-transparent px-5 pb-2 pt-4 text-[15px] leading-relaxed text-[#1e2528] outline-none placeholder:text-[#8b918e]"
+        className="w-full resize-none bg-transparent px-5 pb-2 pt-4 text-[15px] leading-relaxed text-[#17213c] outline-none placeholder:text-[#94a3b8]"
         style={{ minHeight: 32, maxHeight: 180 }}
       />
       <div className="flex items-center justify-between px-4 pb-3">
@@ -754,7 +758,7 @@ export default function Home() {
           onClick={() => sendMessage()}
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-[#1f3d38] text-white disabled:bg-[#ebe5d8] disabled:text-[#aaa296]"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#101b3c] text-white transition hover:bg-[#192a56] disabled:bg-[#e8edf5] disabled:text-[#94a3b8]"
         >
           <ArrowUp className="h-4 w-4" />
         </button>
@@ -841,7 +845,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea] to-transparent pb-4 pt-12 lg:left-64">
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f7fb] via-[#f4f7fb] to-transparent pb-4 pt-12 lg:left-64">
           <div className="mx-auto max-w-[1120px] px-6">{inputBox}</div>
         </div>
       </div>
@@ -849,9 +853,9 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto max-w-[1180px]">
+    <LevvPage width="standard" className="p-0 sm:p-0 lg:p-0">
       <div className="mb-6">
-        <section className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-6 shadow-[0_18px_45px_-36px_rgba(31,61,56,0.8)]">
+        <section className="rounded-lg border border-[#cfc7b8] bg-white p-6 shadow-[0_18px_45px_-36px_rgba(31,61,56,0.8)]">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#6b746f]">
@@ -906,32 +910,32 @@ export default function Home() {
 
       <div>
         <section className="space-y-3">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#2563eb]">
             <Sparkles className="h-3.5 w-3.5" />
             Nova brief
           </div>
           {observations.map((item) => (
-            <div key={item.id} className="rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-4">
+            <div key={item.id} className="rounded-[16px] border border-[#e1e8f2] bg-white p-4 shadow-[0_10px_30px_-25px_rgba(15,23,42,0.35)]">
               <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-md bg-[#e9f5ef] px-2 py-1 text-[10px] font-bold uppercase text-[#1f3d38]">{item.tag}</span>
-                <span className="text-[10px] font-bold uppercase text-[#6b746f]">{item.severity}</span>
-                <span className="text-[10px] text-[#8b918e]">{item.time}</span>
+                <span className="rounded-md bg-[#eaf2ff] px-2 py-1 text-[10px] font-bold uppercase text-[#2563eb]">{item.tag}</span>
+                <span className="text-[10px] font-bold uppercase text-[#64748b]">{item.severity}</span>
+                <span className="text-[10px] text-[#94a3b8]">{item.time}</span>
               </div>
-              <p className="text-sm leading-6 text-[#3d4945]">{item.body}</p>
+              <p className="text-sm leading-6 text-[#334155]">{item.body}</p>
               <div className="mt-4 flex items-center gap-2">
-                <button onClick={() => sendMessage(item.prompt)} className="rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white">
+                <button onClick={() => sendMessage(item.prompt)} className={levvUi.primaryButton}>
                   {item.primary}
                 </button>
-                <button onClick={() => router.push(item.href)} className="rounded-md px-3 py-2 text-xs font-semibold text-[#52605c] hover:bg-[#f4f1ea]">
+                <button onClick={() => router.push(item.href)} className="rounded-lg px-3 py-2 text-xs font-semibold text-[#52637a] hover:bg-[#f1f5f9]">
                   Open record
                 </button>
-                <CheckCircle2 className="ml-auto h-4 w-4 text-[#255345]" />
+                <CheckCircle2 className="ml-auto h-4 w-4 text-[#059669]" />
               </div>
             </div>
           ))}
         </section>
       </div>
-    </div>
+    </LevvPage>
   )
 }
 
@@ -948,7 +952,7 @@ function RailTile({
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${variant.card}`}
+      className={`block w-full rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${variant.card}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className={`text-[10px] font-bold uppercase ${variant.eyebrow}`}>
@@ -960,7 +964,7 @@ function RailTile({
           </div>
         )}
       </div>
-      <div className="mt-2 text-sm font-semibold text-[#1e2528]">
+      <div className="mt-2 text-sm font-semibold text-[#17213c]">
         {tile.title}
       </div>
       <div className={`mt-1 text-xs leading-5 ${variant.sub}`}>

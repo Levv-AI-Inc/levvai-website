@@ -7,7 +7,10 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  CheckCircle2,
   ChevronDown,
+  Clock3,
+  FileEdit,
   Loader2,
   Search,
   Sparkles,
@@ -25,6 +28,12 @@ import {
   buildCWRequestFromIntake,
   getResumePathForDraft,
 } from '@/lib/cwRequestDraft'
+import {
+  LevvPage,
+  LevvPageHeader,
+  LevvPanel,
+  LevvStatCard,
+} from '@/components/ui/levv-app'
 
 function toTitleCase(value: string | undefined) {
   if (!value) return '-'
@@ -255,23 +264,15 @@ export default function MyJobPostingsPage() {
   }, [filteredRequests])
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              My Job Postings
-            </h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Review your request details, approval routing, and current
-              approval progress.
-            </p>
-          </div>
-
+    <LevvPage width="wide">
+      <div className="space-y-6">
+        <LevvPageHeader
+          title="My Job Postings"
+          description="Review your request details, approval routing, and current approval progress."
+          actions={
           <div className="group relative w-full md:w-96">
-            <div className="absolute inset-0 rounded-3xl bg-cyan-400/10 blur-xl transition-all group-hover:bg-cyan-400/20" />
-            <div className="relative flex items-center overflow-hidden rounded-2xl border border-cyan-100 bg-white p-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-cyan-400/30">
-              <div className="ml-1 rounded-xl bg-slate-950 p-2.5 text-cyan-400 shadow-lg shadow-cyan-900/10">
+            <div className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm transition-all focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100/70">
+              <div className="ml-1 rounded-lg bg-slate-950 p-2.5 text-blue-400">
                 <Sparkles className="h-4 w-4" />
               </div>
               <input
@@ -283,52 +284,47 @@ export default function MyJobPostingsPage() {
               />
               <button
                 type="button"
-                className="pr-3 text-xs font-bold uppercase text-cyan-600 transition-colors hover:text-cyan-700"
+                className="pr-3 text-xs font-bold uppercase text-blue-600 transition-colors hover:text-blue-700"
               >
                 Ask
               </button>
             </div>
           </div>
-        </div>
+          }
+        />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          <div className="flex flex-col justify-center rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Total requests
-              </span>
-              <BarChart3 className="h-5 w-5 text-cyan-500" />
-            </div>
-            <div className="mt-2 text-3xl font-black text-slate-900">
-              {pagination.total_count}
-            </div>
-            <div className="mt-1 text-xs font-medium text-slate-400">
-              {pagination.total_count > 0
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <LevvStatCard
+            icon={BarChart3}
+            label="Total requests"
+            value={pagination.total_count}
+            detail={
+              pagination.total_count > 0
                 ? `Showing ${startRow}-${endRow} of ${pagination.total_count}`
-                : 'No requests found'}
-            </div>
-          </div>
-
-          {[
-            ['Drafts', pageStats.drafts],
-            ['In flight', pageStats.inFlight],
-            ['Approved', pageStats.approved],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                {label}
-              </span>
-              <div className="mt-2 text-3xl font-black text-slate-900">
-                {value}
-              </div>
-            </div>
-          ))}
+                : 'No requests found'
+            }
+          />
+          <LevvStatCard
+            icon={FileEdit}
+            label="Drafts"
+            value={pageStats.drafts}
+            tone="amber"
+          />
+          <LevvStatCard
+            icon={Clock3}
+            label="In flight"
+            value={pageStats.inFlight}
+            tone="blue"
+          />
+          <LevvStatCard
+            icon={CheckCircle2}
+            label="Approved"
+            value={pageStats.approved}
+            tone="emerald"
+          />
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <LevvPanel className="p-6">
           <div className="grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
             <div className="group relative">
               <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -402,9 +398,9 @@ export default function MyJobPostingsPage() {
               Reset
             </button>
           </div>
-        </div>
+        </LevvPanel>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <LevvPanel className="overflow-hidden">
         {resumeError ? (
           <div className="mx-6 mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
             {resumeError}
@@ -582,8 +578,8 @@ export default function MyJobPostingsPage() {
             </div>
           </div>
         ) : null}
-        </div>
+        </LevvPanel>
       </div>
-    </div>
+    </LevvPage>
   )
 }

@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Clock3, Sparkles } from 'lucide-react'
+import { BarChart3, CheckCircle2, Clock3, Sparkles } from 'lucide-react'
+import {
+  LevvPage,
+  LevvPageHeader,
+  LevvPanel,
+  LevvStatCard,
+} from '@/components/ui/levv-app'
 
 type ApprovalItem = {
   id: string
@@ -274,7 +280,7 @@ function Card({
   children: React.ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <LevvPanel className="overflow-hidden">
       <div className="border-b border-slate-100 px-6 py-5">
         <h2 className="text-lg font-black tracking-tight text-slate-900">
           {title}
@@ -288,7 +294,7 @@ function Card({
       <div className="p-6">
       {children}
       </div>
-    </section>
+    </LevvPanel>
   )
 }
 
@@ -605,23 +611,15 @@ export default function MyApprovalsPage() {
   }, [decisionModal, loadData, router])
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              My Approvals
-            </h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Review approval queue, make decisions, and audit your completed
-              approvals.
-            </p>
-          </div>
-
+    <LevvPage width="wide">
+      <div className="space-y-6">
+        <LevvPageHeader
+          title="My Approvals"
+          description="Review approval queue, make decisions, and audit your completed approvals."
+          actions={
           <div className="group relative w-full md:w-96">
-            <div className="absolute inset-0 rounded-3xl bg-cyan-400/10 blur-xl transition-all group-hover:bg-cyan-400/20" />
-            <div className="relative flex items-center overflow-hidden rounded-2xl border border-cyan-100 bg-white p-1 shadow-sm">
-              <div className="ml-1 rounded-xl bg-slate-950 p-2.5 text-cyan-400 shadow-lg shadow-cyan-900/10">
+            <div className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              <div className="ml-1 rounded-lg bg-slate-950 p-2.5 text-blue-400">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="px-3 py-2 text-sm font-semibold text-slate-500">
@@ -629,39 +627,28 @@ export default function MyApprovalsPage() {
               </div>
             </div>
           </div>
-        </div>
+          }
+        />
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Pending queue
-              </span>
-              <Clock3 className="h-5 w-5 text-cyan-500" />
-            </div>
-            <div className="mt-2 text-3xl font-black text-slate-900">
-              {pending.length}
-            </div>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Completed
-              </span>
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div className="mt-2 text-3xl font-black text-slate-900">
-              {history.length}
-            </div>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Tenant submitted
-            </span>
-            <div className="mt-2 text-3xl font-black text-slate-900">
-              {tenantPendingSubmittedCount ?? '-'}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <LevvStatCard
+            icon={Clock3}
+            label="Pending queue"
+            value={pending.length}
+            tone="amber"
+          />
+          <LevvStatCard
+            icon={CheckCircle2}
+            label="Completed"
+            value={history.length}
+            tone="emerald"
+          />
+          <LevvStatCard
+            icon={BarChart3}
+            label="Tenant submitted"
+            value={tenantPendingSubmittedCount ?? '-'}
+            tone="blue"
+          />
         </div>
 
       <Card title="My Queue" description={queueDescription}>
@@ -714,7 +701,7 @@ export default function MyApprovalsPage() {
         />
       )}
       </div>
-    </div>
+    </LevvPage>
   )
 }
 

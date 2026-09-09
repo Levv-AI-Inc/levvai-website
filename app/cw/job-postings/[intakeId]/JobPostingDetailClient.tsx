@@ -5,15 +5,29 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
+  Briefcase,
+  Building2,
+  CalendarDays,
+  Check,
   CheckCircle2,
-  X,
+  ChevronUp,
+  Circle,
+  Clock3,
+  DollarSign,
   ExternalLink,
+  FileText,
   GitBranch,
+  Info,
+  Landmark,
   Loader2,
   MapPin,
+  Percent,
   ReceiptText,
   ShieldCheck,
   UserRound,
+  Users,
+  Wallet,
+  X,
 } from 'lucide-react'
 import {
   IntakeApiError,
@@ -54,6 +68,13 @@ import {
   type PendingWorkOrderCandidate,
   savePendingWorkOrderCandidate,
 } from '@/lib/workOrders'
+import {
+  LevvDetailTile,
+  LevvPanel,
+  LevvPanelHeader,
+  LevvStatCard,
+  levvUi,
+} from '@/components/ui/levv-app'
 import {
   normalizeRole,
   parseSessionRole,
@@ -140,6 +161,22 @@ function formatMoney(amount?: string, currency?: string, unit?: string) {
   }
 
   return unit ? `${amount}/${unit}` : amount
+}
+
+function formatQualificationSummary(
+  responseMode?: string,
+  minYears?: number,
+  proficiency?: string,
+  weight?: number,
+) {
+  if (responseMode === 'years') {
+    return `${minYears || 0}+ years • ${proficiency || 'Intermediate'}`
+  }
+  if (responseMode === 'rating') {
+    return `Rated qualification • ${proficiency || 'Intermediate'}`
+  }
+  if (responseMode === 'yes_no') return 'Yes / No response'
+  return `Weighted preference • ${weight || 1}/5`
 }
 
 function statusClasses(status: string | undefined) {
@@ -482,6 +519,10 @@ export default function JobPostingDetailClient({
     workflowStatus,
     intake?.approvalRuntime?.approvalsRemaining,
   )
+  const approvalStatus = workflowStatus.trim().toLowerCase()
+  const approvalComplete =
+    approvalStatus === 'approved' ||
+    (chain.steps.length > 0 && approvalsRemaining === 0)
   const isFullyApproved =
     intake?.status?.trim().toLowerCase() === 'approved' &&
     intake?.approvalStatus?.trim().toLowerCase() === 'approved'
@@ -718,36 +759,52 @@ export default function JobPostingDetailClient({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
-      <div className="space-y-8">
-        <div>
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {backLabel}
-          </Link>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-            {intake?.title || intake?.roleDefinitionName || 'Job posting detail'}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Review approval progress and, once fully approved, submit the
-            selected candidate for this posting.
-          </p>
+    <div className="levv-job-detail -m-5 min-h-full bg-[#f4f7fb] sm:-m-6 lg:-m-8">
+      <div className="mx-auto max-w-[1500px] space-y-6 px-5 py-7 sm:px-7 lg:px-10 lg:py-9">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#64748b] transition hover:text-[#2563eb]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {backLabel}
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-[#101b3c] lg:text-[2.15rem]">
+              {intake?.title || intake?.roleDefinitionName || 'Job posting detail'}
+            </h1>
+            <p className="mt-1.5 text-sm text-[#64748b]">
+              Review request details, matched approval routing, and selected candidates.
+            </p>
+          </div>
+
+          {intake ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusPill
+                icon={CheckCircle2}
+                label={toTitleCase(intake.status)}
+                tone="success"
+              />
+              <StatusPill
+                icon={approvalComplete ? CheckCircle2 : Clock3}
+                label={`Approval: ${toTitleCase(intake.approvalStatus || workflowStatus)}`}
+                tone={approvalComplete ? 'success' : 'warning'}
+              />
+            </div>
+          ) : null}
         </div>
 
         {loading ? (
-          <section className="rounded-3xl border bg-white p-12 shadow-sm">
+          <section className="rounded-[18px] border border-[#e1e8f2] bg-white p-12 shadow-[0_10px_35px_-24px_rgba(15,23,42,0.35)]">
             <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                <Loader2 className="h-7 w-7 animate-spin text-slate-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#eef4ff]">
+                <Loader2 className="h-7 w-7 animate-spin text-[#2563eb]" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">
+                <h2 className="text-lg font-semibold text-[#101b3c]">
                   Loading job posting
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[#64748b]">
                   Pulling request details, approval progress, and candidate
                   submissions.
                 </p>
@@ -755,58 +812,74 @@ export default function JobPostingDetailClient({
             </div>
           </section>
         ) : error || !intake ? (
-          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-8 shadow-sm">
+          <section className="rounded-[18px] border border-rose-200 bg-rose-50 p-8 shadow-sm">
             <h2 className="text-lg font-semibold text-rose-900">
               Job posting unavailable
             </h2>
             <p className="mt-2 text-sm leading-6 text-rose-700">
               {error || 'Unable to load this job posting.'}
             </p>
+            <Link
+              href={backHref}
+              className={`${levvUi.primaryButton} mt-5`}
+            >
+              Back to job postings
+            </Link>
           </section>
         ) : (
           <>
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <SummaryCard
+                icon={ReceiptText}
                 label="Request ID"
                 value={intake.requestId || `INT-${intake.id}`}
+                tone="emerald"
               />
               <SummaryCard
-                label="Approval status"
-                value={toTitleCase(intake.approvalStatus || intake.status)}
-              />
-              <SummaryCard
+                icon={UserRound}
                 label="Current approver"
                 value={currentApproverName || 'Completed'}
+                tone="blue"
               />
               <SummaryCard
+                icon={Clock3}
                 label="Approvals remaining"
                 value={String(approvalsRemaining)}
+                tone="blue"
+              />
+              <SummaryCard
+                icon={CalendarDays}
+                label="Submitted"
+                value={formatDate(intake.submittedAt || intake.createdAt)}
+                tone="blue"
               />
             </section>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_420px]">
-              <div className="space-y-6">
-                <section className="rounded-3xl border bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <ReceiptText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-slate-900">
-                        Posting overview
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Commercial context and staffing details for this request.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+              <div className="space-y-5">
+                <DetailSection
+                  icon={ReceiptText}
+                  title="Request details"
+                  description="Core details for this staffing request."
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <DetailField
+                      icon={Briefcase}
                       label="Role"
                       value={intake.roleDefinitionName || intake.title || '-'}
                     />
                     <DetailField
+                      icon={Users}
+                      label="Engagement type"
+                      value={toTitleCase(intake.engagementType)}
+                    />
+                    <DetailField
+                      icon={Users}
+                      label="Worker count"
+                      value={String(intake.workerCount || 0)}
+                    />
+                    <DetailField
+                      icon={Building2}
                       label="Supplier"
                       value={
                         intake.supplierName ||
@@ -817,14 +890,32 @@ export default function JobPostingDetailClient({
                       }
                     />
                     <DetailField
-                      label="Engagement type"
-                      value={toTitleCase(intake.engagementType)}
+                      icon={CalendarDays}
+                      label="Start date"
+                      value={formatDate(intake.startDate)}
                     />
                     <DetailField
-                      label="Worker count"
-                      value={String(intake.workerCount || 0)}
+                      icon={CalendarDays}
+                      label="End date"
+                      value={formatDate(intake.endDate)}
                     />
                     <DetailField
+                      icon={FileText}
+                      label="Description"
+                      value={intake.description || 'No description provided.'}
+                      wide
+                    />
+                  </div>
+                </DetailSection>
+
+                <DetailSection
+                  icon={DollarSign}
+                  title="Commercials"
+                  description="Financial details for this request."
+                >
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <DetailField
+                      icon={DollarSign}
                       label="Bill rate"
                       value={formatMoney(
                         displayBillRate,
@@ -833,6 +924,7 @@ export default function JobPostingDetailClient({
                       )}
                     />
                     <DetailField
+                      icon={DollarSign}
                       label="Base rate"
                       value={formatMoney(
                         displayBaseRate,
@@ -841,13 +933,12 @@ export default function JobPostingDetailClient({
                       )}
                     />
                     <DetailField
+                      icon={Wallet}
                       label="Budget amount"
-                      value={formatMoney(
-                        intake.budgetAmount,
-                        intake.currency,
-                      )}
+                      value={formatMoney(intake.budgetAmount, intake.currency)}
                     />
                     <DetailField
+                      icon={Percent}
                       label="Markup"
                       value={
                         displayMarkupPercent?.trim()
@@ -856,31 +947,136 @@ export default function JobPostingDetailClient({
                       }
                     />
                     <DetailField
+                      icon={Landmark}
+                      label="Currency"
+                      value={intake.currency || '-'}
+                    />
+                    <DetailField
+                      icon={Clock3}
+                      label="Overtime"
+                      value={
+                        intake.overtimeEnabled
+                          ? `Enabled${
+                              intake.overtimeMultiplier
+                                ? ` • ${intake.overtimeMultiplier}x`
+                                : ''
+                            }`
+                          : 'Disabled'
+                      }
+                    />
+                  </div>
+                </DetailSection>
+
+                <DetailSection
+                  icon={MapPin}
+                  title="Location & entity"
+                  description="Worksite and organizational context."
+                >
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <DetailField
+                      icon={Building2}
+                      label="Site"
+                      value={
+                        intake.siteName ||
+                        (intake.site ? `Site #${String(intake.site)}` : '-')
+                      }
+                    />
+                    <DetailField
+                      icon={MapPin}
                       label="Location"
                       value={workLocationLabel}
                     />
                     <DetailField
-                      label="Start date"
-                      value={formatDate(intake.startDate)}
+                      icon={Landmark}
+                      label="Legal entity"
+                      value={
+                        intake.legalEntityName ||
+                        (intake.legalEntity
+                          ? `Legal entity #${String(intake.legalEntity)}`
+                          : '-')
+                      }
+                    />
+                    <DetailField
+                      icon={Wallet}
+                      label="Cost center"
+                      value={
+                        intake.costCenterName ||
+                        (intake.costCenter
+                          ? `Cost center #${String(intake.costCenter)}`
+                          : '-')
+                      }
                     />
                   </div>
-                </section>
+                </DetailSection>
 
-                <section className="rounded-3xl border bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <CheckCircle2 className="h-5 w-5" />
+                <DetailSection
+                  icon={ShieldCheck}
+                  title="Qualifications"
+                  description="Required and preferred qualifications attached to this request."
+                >
+                  {intake.qualificationsEnabled &&
+                  intake.qualifications &&
+                  intake.qualifications.length > 0 ? (
+                    <div className="space-y-3">
+                      {intake.qualifications.map((qualification, index) => (
+                        <div
+                          key={qualification.id || `${qualification.name}-${index}`}
+                          className="levv-soft-card rounded-[14px] border border-[#e2e8f0] bg-[#f8fafc] p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-[#17213c]">
+                                {qualification.name}
+                              </div>
+                              <div className="mt-1 text-sm text-[#64748b]">
+                                {formatQualificationSummary(
+                                  qualification.responseMode,
+                                  qualification.minYears,
+                                  qualification.proficiency,
+                                  qualification.weight,
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <TinyBadge tone="blue">
+                                {toTitleCase(qualification.type)}
+                              </TinyBadge>
+                              <TinyBadge
+                                tone={qualification.group === 'must_have' ? 'rose' : 'emerald'}
+                              >
+                                {qualification.group === 'must_have' ? 'Must have' : 'Nice to have'}
+                              </TinyBadge>
+                              {qualification.knockout ? (
+                                <TinyBadge tone="rose">Knockout</TinyBadge>
+                              ) : null}
+                              {qualification.mandatory ? (
+                                <TinyBadge tone="amber">Required</TinyBadge>
+                              ) : null}
+                            </div>
+                          </div>
+                          {qualification.description ? (
+                            <p className="mt-3 text-sm leading-6 text-[#52637a]">
+                              {qualification.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-slate-900">
-                        Selected candidates
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Submit the final selected candidate only after the
-                        approval chain is fully complete.
-                      </p>
+                  ) : (
+                    <div className="flex flex-col items-center rounded-[14px] border border-dashed border-[#cbd5e1] bg-[#f8fafc] px-5 py-7 text-center">
+                      <FileText className="h-6 w-6 text-[#94a3b8]" />
+                      <div className="mt-2 text-sm font-medium text-[#64748b]">
+                        No qualifications were added to this request.
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </DetailSection>
+
+                <DetailSection
+                  icon={CheckCircle2}
+                  title="Selected candidates"
+                  description="Submit the final selected candidate only after approval is complete."
+                >
 
                   {!isFullyApproved ? (
                     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -1172,135 +1368,136 @@ export default function JobPostingDetailClient({
                       ) : null}
                     </div>
                   ) : null}
-                </section>
+                </DetailSection>
               </div>
 
-              <aside className="space-y-6">
-                <section className="rounded-3xl border bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <GitBranch className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        Approval routing
-                      </div>
-                      <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                        {chain.name}
-                      </h2>
-                    </div>
-                  </div>
+              <aside className="space-y-5 xl:sticky xl:top-24">
+                <ApprovalStatusCard
+                  approvalComplete={approvalComplete}
+                  approvalsRemaining={approvalsRemaining}
+                  currentApproverName={currentApproverName}
+                  submittedAt={intake.submittedAt || intake.createdAt}
+                />
 
-                  <dl className="mt-6 space-y-4 text-sm">
-                    <InfoRow
-                      label="Match strategy"
-                      value={describeApprovalMatchStrategy(chain.matchStrategy)}
-                    />
-                    <InfoRow
-                      label="Current approver"
-                      value={currentApproverName || 'Completed'}
-                    />
-                    <InfoRow
-                      label="Approvals remaining"
-                      value={String(approvalsRemaining)}
-                    />
-                    <InfoRow
-                      label="Computed at"
-                      value={formatApprovalDateTime(
-                        getApprovalComputedAt(intake),
-                      )}
-                    />
-                  </dl>
-                </section>
+                <section className="levv-detail-panel rounded-[18px] border border-[#e1e8f2] bg-white p-5 shadow-[0_10px_35px_-24px_rgba(15,23,42,0.35)]">
+                  <LevvPanelHeader
+                    icon={GitBranch}
+                    title="Matched chain"
+                    description="This posting matched the approval chain below."
+                    tone="blue"
+                  />
 
-                <section className="rounded-3xl border bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <ShieldCheck className="h-5 w-5" />
+                  <div className="levv-soft-card mt-5 rounded-[14px] border border-[#e6edf6] bg-[#fbfdff] p-4">
+                    <div className="text-sm font-semibold text-[#17213c]">
+                      {chain.name}
                     </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-slate-900">
-                        Approval route
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Current and remaining approval steps for this posting.
+                    {chain.description ? (
+                      <p className="mt-1 text-xs leading-5 text-[#64748b]">
+                        {chain.description}
                       </p>
-                    </div>
+                    ) : null}
+                    <dl className="mt-4 space-y-3 text-xs">
+                      <InfoRow
+                        label="Match strategy"
+                        value={describeApprovalMatchStrategy(chain.matchStrategy)}
+                      />
+                      <InfoRow
+                        label="Computed at"
+                        value={formatApprovalDateTime(getApprovalComputedAt(intake))}
+                      />
+                      <InfoRow
+                        label="Current approver"
+                        value={currentApproverName || 'Completed'}
+                      />
+                      <InfoRow
+                        label="Approvals remaining"
+                        value={String(approvalsRemaining)}
+                      />
+                    </dl>
                   </div>
 
-                  {chain.steps.length > 0 ? (
-                    <div className="mt-6 space-y-5">
-                      {chain.steps.map((step, index) => (
-                        <div
-                          key={`${step.sequence}-${step.approverId || step.approverName}`}
-                        >
-                          <div className="flex gap-4">
-                            <div className="flex w-12 flex-col items-center">
-                              <div
-                                className={cn(
-                                  'flex h-11 w-11 items-center justify-center rounded-2xl border text-sm font-semibold',
-                                  normalizeApprovalStepStatus(
-                                    step.status,
-                                    index,
-                                  ) === 'current'
-                                    ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
-                                    : normalizeApprovalStepStatus(
-                                          step.status,
-                                          index,
-                                        ) === 'approved'
-                                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                      : 'border-slate-200 bg-slate-50 text-slate-600',
-                                )}
-                              >
-                                {step.sequence}
-                              </div>
-                              {index < chain.steps.length - 1 ? (
-                                <div className="mt-2 h-full w-px bg-slate-200" />
-                              ) : null}
-                            </div>
+                  <div className="mt-5 border-t border-[#e8edf5] pt-5">
+                    <h3 className="text-sm font-semibold text-[#17213c]">
+                      Approval route
+                    </h3>
+                    {chain.steps.length > 0 ? (
+                      <div className="mt-4 space-y-3">
+                        {chain.steps.map((step, index) => {
+                          const stepStatus = normalizeApprovalStepStatus(
+                            step.status,
+                            index,
+                          )
 
-                            <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <UserRound className="h-4 w-4 text-slate-500" />
-                                    <h3 className="truncate text-base font-semibold text-slate-900">
-                                      {step.approverName}
-                                    </h3>
-                                  </div>
-                                  <p className="mt-1 text-sm text-slate-500">
-                                    {step.stepType === 'specific_user'
-                                      ? 'Specific user approval'
-                                      : 'Approval step'}
-                                  </p>
-                                </div>
-                                <StepStatusBadge
-                                  status={step.status}
-                                  index={index}
-                                />
-                              </div>
-
-                              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                <DetailMini label="Threshold">
-                                  {formatApprovalStepAmount(
-                                    step.amount,
-                                    step.currency,
+                          return (
+                            <div
+                              key={`${step.sequence}-${step.approverId || step.approverName}`}
+                              className="levv-soft-card rounded-[14px] border border-[#e2e8f0] bg-[#f8fafc] p-4"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className={cn(
+                                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold',
+                                    stepStatus === 'current'
+                                      ? 'border-blue-200 bg-blue-50 text-blue-600'
+                                      : stepStatus === 'approved'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                                        : 'border-slate-200 bg-white text-slate-500',
                                   )}
-                                </DetailMini>
-                                <DetailMini label="Sequence">
-                                  Step {step.sequence}
-                                </DetailMini>
+                                >
+                                  {stepStatus === 'approved' ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    step.sequence
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                      <div className="text-sm font-semibold text-[#17213c]">
+                                        {step.approverName}
+                                      </div>
+                                      <p className="mt-0.5 text-xs text-[#64748b]">
+                                        {step.stepType === 'specific_user'
+                                          ? 'Specific user approval'
+                                          : 'Approval step'}
+                                      </p>
+                                    </div>
+                                    <StepStatusBadge status={step.status} index={index} />
+                                  </div>
+                                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#64748b]">
+                                    <span>
+                                      Threshold:{' '}
+                                      <strong className="font-semibold text-[#334155]">
+                                        {formatApprovalStepAmount(step.amount, step.currency)}
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      Sequence:{' '}
+                                      <strong className="font-semibold text-[#334155]">
+                                        Step {step.sequence}
+                                      </strong>
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                      No approval steps were returned for this request.
-                    </div>
-                  )}
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-[14px] border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-5 text-center text-sm text-[#64748b]">
+                        No approval steps were returned.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="levv-blue-note mt-5 flex gap-3 rounded-[14px] border border-[#dbeafe] bg-[#eff6ff] p-4 text-xs leading-5 text-[#4f6b95]">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#2563eb]" />
+                    <p>
+                      The approval chain is determined by your organization&apos;s
+                      staffing policies and may vary based on request details.
+                    </p>
+                  </div>
                 </section>
               </aside>
             </div>
@@ -1333,41 +1530,110 @@ export default function JobPostingDetailClient({
   )
 }
 
+function StatusPill({
+  icon: Icon,
+  label,
+  tone,
+}: {
+  icon: React.ElementType
+  label: string
+  tone: 'success' | 'warning'
+}) {
+  const tones = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    warning: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+
+  return (
+    <span
+      className={`levv-status-chip inline-flex items-center gap-2 rounded-[12px] border px-4 py-2.5 text-sm font-semibold shadow-sm ${tones[tone]}`}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </span>
+  )
+}
+
 function SummaryCard({
+  icon: Icon,
   label,
   value,
+  tone,
 }: {
+  icon: React.ElementType
   label: string
   value: string
+  tone: 'emerald' | 'blue'
 }) {
+  return <LevvStatCard icon={Icon} label={label} value={value} tone={tone} />
+}
+
+function DetailSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ElementType
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+
   return (
-    <div className="rounded-2xl border bg-white px-5 py-4 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-        {label}
+    <LevvPanel className="levv-detail-panel p-5 sm:p-6">
+      <LevvPanelHeader
+        icon={Icon}
+        title={title}
+        description={description}
+        actions={
+          <button
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-[#64748b] transition hover:scale-105 hover:bg-[#f1f5f9] hover:text-[#2563eb] active:scale-95"
+          >
+            <ChevronUp
+              className={`h-5 w-5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        }
+        className={collapsed ? 'mb-0' : 'mb-5'}
+      />
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+          collapsed
+            ? 'grid-rows-[0fr] opacity-0'
+            : 'grid-rows-[1fr] opacity-100'
+        }`}
+      >
+        <div className="overflow-hidden">{children}</div>
       </div>
-      <div className="mt-2 text-xl font-semibold text-slate-900">
-        {value}
-      </div>
-    </div>
+    </LevvPanel>
   )
 }
 
 function DetailField({
+  icon: Icon,
   label,
   value,
+  wide = false,
 }: {
+  icon?: React.ElementType
   label: string
   value: string
+  wide?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-2 text-sm font-medium text-slate-900">
-        {value}
-      </div>
-    </div>
+    <LevvDetailTile
+      icon={Icon}
+      label={label}
+      value={value}
+      className={wide ? 'sm:col-span-2' : ''}
+    />
   )
 }
 
@@ -1390,6 +1656,112 @@ function DetailMini({
   )
 }
 
+function ApprovalStatusCard({
+  approvalComplete,
+  approvalsRemaining,
+  currentApproverName,
+  submittedAt,
+}: {
+  approvalComplete: boolean
+  approvalsRemaining: number
+  currentApproverName: string
+  submittedAt?: string | null
+}) {
+  return (
+    <section className="levv-detail-panel rounded-[18px] border border-[#e1e8f2] bg-white p-5 shadow-[0_10px_35px_-24px_rgba(15,23,42,0.35)]">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#eaf2ff] text-[#2563eb]">
+          <GitBranch className="h-5 w-5" />
+        </div>
+        <h2 className="text-lg font-bold text-[#101b3c]">Approval status</h2>
+      </div>
+
+      <div className="mt-6 pl-1">
+        <ProgressStep
+          icon={Check}
+          title="Request submitted"
+          detail={formatDate(submittedAt)}
+          state="complete"
+          connector="complete"
+        />
+        <ProgressStep
+          icon={approvalComplete ? Check : Clock3}
+          title={approvalComplete ? 'Approval complete' : 'Approval in progress'}
+          detail={
+            approvalComplete
+              ? 'All required approvals completed'
+              : `Currently with ${currentApproverName || 'assigned approver'}`
+          }
+          state={approvalComplete ? 'complete' : 'current'}
+          connector={approvalComplete ? 'complete' : 'current'}
+        >
+          {!approvalComplete ? (
+            <div className="mt-3 flex items-center gap-2 rounded-[12px] border border-[#dbeafe] bg-[#eff6ff] px-3 py-2.5 text-xs font-medium text-[#2563eb]">
+              <Info className="h-4 w-4" />
+              {approvalsRemaining} approval
+              {approvalsRemaining === 1 ? '' : 's'} remaining
+            </div>
+          ) : null}
+        </ProgressStep>
+        <ProgressStep
+          icon={approvalComplete ? Check : Circle}
+          title="Approved"
+          detail={approvalComplete ? 'Request approved' : 'Pending'}
+          state={approvalComplete ? 'complete' : 'pending'}
+        />
+      </div>
+    </section>
+  )
+}
+
+function ProgressStep({
+  icon: Icon,
+  title,
+  detail,
+  state,
+  connector,
+  children,
+}: {
+  icon: React.ElementType
+  title: string
+  detail: string
+  state: 'complete' | 'current' | 'pending'
+  connector?: 'complete' | 'current'
+  children?: React.ReactNode
+}) {
+  const iconClasses = {
+    complete:
+      'border-emerald-100 bg-emerald-500 text-white shadow-[0_0_0_5px_rgba(16,185,129,0.08)]',
+    current:
+      'border-blue-200 bg-blue-500 text-white shadow-[0_0_0_5px_rgba(59,130,246,0.12)]',
+    pending: 'border-slate-300 bg-white text-slate-400',
+  }
+
+  return (
+    <div className="relative flex gap-4 pb-7 last:pb-0">
+      {connector ? (
+        <div
+          className={`absolute left-[17px] top-9 h-[calc(100%-2.25rem)] w-0.5 ${
+            connector === 'complete'
+              ? 'bg-emerald-400'
+              : 'bg-gradient-to-b from-blue-500 to-slate-200'
+          }`}
+        />
+      ) : null}
+      <div
+        className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${iconClasses[state]}`}
+      >
+        <Icon className={state === 'pending' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      </div>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <div className="text-sm font-semibold text-[#17213c]">{title}</div>
+        <p className="mt-1 text-xs leading-5 text-[#64748b]">{detail}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function InfoRow({
   label,
   value,
@@ -1399,9 +1771,32 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-medium text-slate-900">{value}</dd>
+      <dt className="text-[#64748b]">{label}</dt>
+      <dd className="text-right font-medium text-[#17213c]">{value}</dd>
     </div>
+  )
+}
+
+function TinyBadge({
+  children,
+  tone,
+}: {
+  children: React.ReactNode
+  tone: 'blue' | 'emerald' | 'rose' | 'amber'
+}) {
+  const tones = {
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+
+  return (
+    <span
+      className={`levv-pill inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}
+    >
+      {children}
+    </span>
   )
 }
 

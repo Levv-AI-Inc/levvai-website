@@ -14,6 +14,18 @@ import {
   patchIntake,
   submitIntake,
 } from '@/lib/api/intake'
+import {
+  ArrowLeft,
+  Building2,
+  CheckCircle2,
+  Search,
+  Sparkles,
+} from 'lucide-react'
+import {
+  LevvPanel,
+  LevvRequestHeader,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 function supplierKey(supplier: SupplierRecord) {
   return String(supplier.id ?? supplier.supplier_id)
@@ -261,146 +273,168 @@ export default function CWSuppliersPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-10 space-y-10">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Suppliers</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Nova has identified suppliers that best match your request.
-        </p>
-      </div>
-
-      {/* Recommended */}
-      <div className="border rounded-xl p-6 bg-white space-y-3 shadow-sm">
-        <div className="font-medium">Recommended by Nova</div>
-
-        {recommendedSuppliers.length === 0 && (
-          <div className="text-sm text-gray-500">
-            No strong matches found.
-          </div>
-        )}
-
-        <ul className="text-sm list-disc pl-5">
-          {recommendedSuppliers.map(s => (
-            <li key={supplierKey(s)}>{s.name}</li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Supplier selector */}
-      <div
-        ref={dropdownRef}
-        className="border rounded-xl p-6 bg-white space-y-3 relative shadow-sm"
-      >
-        <label className="block font-medium text-sm">
-          Select supplier
-        </label>
-
-        <input
-          type="text"
-          placeholder="Search suppliers"
-          value={search}
-          onFocus={() => {
-            if (!loadingSuppliers && !suppliersError) {
-              setOpen(true)
-            }
-          }}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-200"
+    <div className="levv-request-page pb-6 font-sans text-[#101b3c]">
+      <div className="w-full space-y-5">
+        <LevvRequestHeader
+          currentStep={5}
+          title="Suppliers"
+          description="Choose the supplier that should receive this request."
+          meta={
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#52637a]">
+              <span className="rounded-full border border-[#dbe3ee] bg-white px-3 py-1.5">
+                {request.role || 'Job request'}
+              </span>
+              <span className="rounded-full border border-[#dbe3ee] bg-white px-3 py-1.5">
+                {suppliers.length} available
+              </span>
+            </div>
+          }
         />
 
-        {loadingSuppliers && (
-          <div className="text-sm text-gray-500">Loading suppliers...</div>
-        )}
-
-        {!loadingSuppliers && suppliersError && (
-          <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {suppliersError}
+        {submitError ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {submitError}
           </div>
-        )}
+        ) : null}
 
-        {open && !loadingSuppliers && !suppliersError && (
-          <div className="absolute left-6 right-6 top-[92px] z-20 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
-            {filteredSuppliers.map(s => (
-              <button
-                key={supplierKey(s)}
-                type="button"
-                onClick={() => chooseSupplier(supplierKey(s))}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-cyan-50"
-              >
-                <div className="font-medium">{s.name}</div>
-                <div className="text-xs text-gray-500">
-                  Type: {s.supplier_type || 'N/A'} - Category: {s.category || 'N/A'}
-                </div>
-              </button>
-            ))}
-
-            {filteredSuppliers.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-400">
-                No suppliers found
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Selected chips */}
-        {selectedSupplierId && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            <div className="flex items-center gap-2 bg-cyan-50 text-sm px-3 py-1.5 rounded-full">
-              <span>
-                {suppliers.find(
-                  (supplier) =>
-                    supplierKey(supplier) === selectedSupplierId,
-                )?.name || selectedSupplierId}
+        <div className="grid gap-4 lg:grid-cols-[minmax(300px,0.7fr)_minmax(0,1.5fr)]">
+          <LevvPanel className="p-5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf2ff] text-[#2563eb]">
+                <Sparkles className="h-5 w-5" />
               </span>
-              <button
-                onClick={clearSupplier}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
+              <div>
+                <h2 className="font-bold text-[#101b3c]">Recommended</h2>
+                <p className="text-xs text-[#64748b]">Matches based on this request.</p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
 
-      {submitError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {submitError}
+            <div className="mt-4 space-y-2">
+              {recommendedSuppliers.map((supplier) => {
+                const id = supplierKey(supplier)
+                const selected = selectedSupplierId === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => chooseSupplier(id)}
+                    className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                      selected
+                        ? 'border-[#93b4f8] bg-[#eef5ff]'
+                        : 'border-[#dbe3ee] bg-[#f8fafc] hover:border-[#b8c8df]'
+                    }`}
+                  >
+                    <span>
+                      <span className="block text-sm font-bold text-[#17213c]">{supplier.name}</span>
+                      <span className="mt-0.5 block text-xs text-[#64748b]">{supplier.category || supplier.supplier_type || 'Supplier'}</span>
+                    </span>
+                    {selected ? <CheckCircle2 className="h-5 w-5 text-[#2563eb]" /> : null}
+                  </button>
+                )
+              })}
+
+              {!loadingSuppliers && recommendedSuppliers.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-5 text-sm text-[#64748b]">
+                  No strong automatic match. Search the supplier directory instead.
+                </div>
+              ) : null}
+            </div>
+          </LevvPanel>
+
+          <LevvPanel className="relative p-5" >
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#dcfce7] text-[#059669]">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold text-[#101b3c]">Supplier directory</h2>
+                <p className="text-xs text-[#64748b]">Search and select one supplier.</p>
+              </div>
+            </div>
+
+            <div ref={dropdownRef} className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+              <input
+                type="text"
+                placeholder="Search suppliers by name"
+                value={search}
+                onFocus={() => {
+                  if (!loadingSuppliers && !suppliersError) setOpen(true)
+                }}
+                onChange={(event) => setSearch(event.target.value)}
+                className={`${levvUi.input} pl-9`}
+              />
+
+              {open && !loadingSuppliers && !suppliersError ? (
+                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 max-h-72 overflow-y-auto rounded-xl border border-[#dbe3ee] bg-white p-1.5 shadow-xl">
+                  {filteredSuppliers.map((supplier) => (
+                    <button
+                      key={supplierKey(supplier)}
+                      type="button"
+                      onClick={() => chooseSupplier(supplierKey(supplier))}
+                      className="w-full rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-[#eef5ff]"
+                    >
+                      <div className="font-semibold text-[#17213c]">{supplier.name}</div>
+                      <div className="mt-0.5 text-xs text-[#64748b]">
+                        {[supplier.supplier_type, supplier.category].filter(Boolean).join(' · ') || 'Supplier'}
+                      </div>
+                    </button>
+                  ))}
+                  {filteredSuppliers.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-sm text-[#64748b]">No suppliers found.</div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            {loadingSuppliers ? (
+              <p className="mt-3 text-sm text-[#64748b]">Loading suppliers…</p>
+            ) : null}
+            {!loadingSuppliers && suppliersError ? (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {suppliersError}
+              </div>
+            ) : null}
+
+            {selectedSupplierId ? (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Selected supplier</div>
+                  <div className="mt-1 font-bold text-[#17213c]">
+                    {suppliers.find((supplier) => supplierKey(supplier) === selectedSupplierId)?.name || selectedSupplierId}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSupplier}
+                  className="rounded-lg px-3 py-2 text-xs font-semibold text-[#52637a] hover:bg-white"
+                >
+                  Change
+                </button>
+              </div>
+            ) : null}
+          </LevvPanel>
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="flex justify-between">
-        <button
-          onClick={() =>
-            router.push('/requests/new/job/create/financials')
-          }
-          className="
-          px-4 py-2 text-sm rounded-full
-          border border-gray-300
-          text-gray-700
-          hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700
-          focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:border-cyan-400
-          active:border-cyan-400
-        "
+        <footer className="sticky bottom-3 z-20 flex items-center justify-between rounded-[15px] border border-[#dce5f1] bg-white/95 px-5 py-3 shadow-[0_16px_42px_-26px_rgba(15,23,42,0.45)] backdrop-blur">
+          <button
+            type="button"
+            onClick={() => router.push('/requests/new/job/create/financials')}
+            className={levvUi.secondaryButton}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
 
-        >
-          Back
-        </button>
-
-        <button
-          disabled={!selectedSupplierId || submitting}
-          onClick={() => void handleContinue()}
-          className={`px-6 py-2.5 rounded-full text-sm font-medium text-white
-           ${
-              !selectedSupplierId || submitting
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-black hover:bg-gray-900'
-            }
-          `}>
-          {submitting ? 'Submitting...' : 'Submit'}
-        </button>
+          <button
+            type="button"
+            disabled={!selectedSupplierId || submitting}
+            onClick={() => void handleContinue()}
+            className={`${levvUi.primaryButton} min-w-[150px]`}
+          >
+            {submitting ? 'Submitting…' : 'Submit request'}
+          </button>
+        </footer>
       </div>
     </div>
   )

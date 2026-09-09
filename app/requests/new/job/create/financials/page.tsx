@@ -27,6 +27,10 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { CURRENT_FINANCIALS_BASE_RATE_VERSION } from '@/lib/cwRequestDraft'
+import {
+  LevvRequestHeader,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 type BillRateMode = 'fixed' | 'range'
 
@@ -723,27 +727,25 @@ export default function CWFinancialsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(to_bottom,_#f8fafc,_#f8fafc,_#eef6ff)] pb-20 font-sans">
-      <div className="max-w-[1500px] mx-auto px-8 py-12">
-        <header className="mb-8">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-700 mb-3">
-            <span className="bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded-full">
-              Step 4 of 5
-            </span>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-500">Financials</span>
-          </div>
+    <div className="levv-request-page pb-6 font-sans text-[#101b3c]">
+      <div className="w-full space-y-5">
+        <LevvRequestHeader
+          currentStep={4}
+          title="Rates & spend"
+          description="Set the target rate and review the estimated engagement cost."
+          meta={
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#52637a]">
+              <span className="rounded-full border border-[#dbe3ee] bg-white px-3 py-1.5">
+                {inferredRole}
+              </span>
+              <span className="rounded-full border border-[#dbe3ee] bg-white px-3 py-1.5">
+                {displayCurrency} / {selectedRateCard?.unit || 'hour'}
+              </span>
+            </div>
+          }
+        />
 
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Rates & Spend
-          </h1>
-          <p className="text-slate-600 mt-2 max-w-3xl">
-            Define the target rate, assess market alignment from configured
-            rate cards, and preview total engagement cost before routing to suppliers.
-          </p>
-        </header>
-
-        <div className="space-y-6">
+        <div className="space-y-4">
           {rateCardsLoading && (
             <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
               Loading configured rate cards...
@@ -1112,10 +1114,10 @@ export default function CWFinancialsPage() {
             </div>
           </section>
 
-          <footer className="flex justify-between items-center pt-8 border-t border-slate-200">
+          <footer className="sticky bottom-3 z-20 flex items-center justify-between rounded-[15px] border border-[#dce5f1] bg-white/95 px-5 py-3 shadow-[0_16px_42px_-26px_rgba(15,23,42,0.45)] backdrop-blur">
             <button
               onClick={() => router.push(previousStepHref)}
-              className="px-8 py-3 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors rounded-full"
+              className={levvUi.secondaryButton}
             >
               Back
             </button>
@@ -1123,10 +1125,10 @@ export default function CWFinancialsPage() {
             <button
               onClick={() => void handleContinue()}
               disabled={!canContinue || savingStep}
-              className={`group flex items-center justify-center gap-2 px-10 py-3.5 rounded-full text-sm font-bold transition-all shadow-lg min-w-[180px] ${
+              className={`group min-w-[150px] ${levvUi.primaryButton} ${
                 !canContinue || savingStep
-                  ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
-                  : 'bg-slate-950 text-white hover:bg-slate-800'
+                  ? 'cursor-not-allowed opacity-60'
+                  : ''
               }`}
             >
               {savingStep ? 'Saving...' : 'Continue'}

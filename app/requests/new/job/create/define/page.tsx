@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCWRequest } from '../../context/CWRequestContext'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
+import { LevvRequestHeader } from '@/components/ui/levv-app'
 import {
   IntakeApiError,
   createIntakeDraft,
@@ -144,11 +145,11 @@ const DEFINE_FIELD_IDS: Record<DefineField, string> = {
 
 function fieldControlClass(hasError = false) {
   return [
-    'mt-2 w-full rounded-lg border bg-white px-3.5 py-2.5 text-[15px] text-[#26312f] shadow-sm outline-none transition',
-    'placeholder:text-[#9aa09d] hover:border-[#aaa191] focus:ring-4',
+    'mt-1.5 w-full rounded-xl border bg-white px-3.5 py-2 text-sm text-[#17213c] outline-none transition',
+    'placeholder:text-[#94a3b8] hover:border-[#b8c6d8] focus:ring-4',
     hasError
       ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100'
-      : 'border-[#cfc7b8] focus:border-[#255345] focus:ring-[#d9efe5]',
+      : 'border-[#dbe3ee] focus:border-[#93b4f8] focus:ring-[#dbeafe]/70',
   ].join(' ')
 }
 
@@ -578,46 +579,40 @@ export default function CWDefinePage() {
 
   return (
     <form
-      className="mx-auto max-w-6xl space-y-6 pb-10"
+      className="levv-request-page w-full space-y-4 pb-6"
       onSubmit={(event) => {
         event.preventDefault()
         void handleContinue()
       }}
       noValidate
     >
-      <header className="relative overflow-hidden rounded-lg border border-[#33413d] bg-[#1e2528] px-6 py-7 text-white shadow-[0_24px_60px_-42px_rgba(31,61,56,0.8)] sm:px-8">
-        <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#89d3bd]/10" />
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#89d3bd]">
-              <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-              Create Job Request
-            </div>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#c8d0cc]">
-              Provide the core details for your contingent worker engagement.
-            </p>
-          </div>
+      <LevvRequestHeader
+        currentStep={1}
+        title="Job setup"
+        description="Define the role, timing, ownership, and work location."
+        meta={
+          <p className="text-xs text-[#64748b]">
+            Required fields are marked <span className="text-rose-500">*</span>
+          </p>
+        }
+      />
 
-        </div>
-      </header>
-
-      <section className="overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_20px_50px_-42px_rgba(31,61,56,0.7)]">
-        <div className="flex items-start gap-4 border-b border-[#e5ded2] px-6 py-5 sm:px-7">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9f5ef] text-xs font-bold text-[#1f3d38]">
+      <section className="overflow-hidden rounded-[16px] border border-[#dce5f1] bg-white shadow-[0_10px_30px_-26px_rgba(15,23,42,0.35)]">
+        <div className="flex items-center gap-3 border-b border-[#e8edf4] px-5 py-3.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eaf7f1] text-xs font-bold text-[#047857]">
             01
           </span>
           <div>
-            <h2 className="text-base font-semibold text-[#26312f]">
+            <h2 className="text-sm font-bold text-[#17213c]">
               Role and defaults
             </h2>
-            <p className="mt-1 text-sm leading-6 text-[#6b746f]">
-              Select a governed role to prefill its description, location,
-              currency, and rate-unit defaults.
+            <p className="mt-0.5 text-xs text-[#64748b]">
+              Select a role to prefill its defaults.
             </p>
           </div>
         </div>
 
-        <div className="px-6 py-6 sm:px-7">
+        <div className="px-5 py-4">
           <label
             htmlFor={DEFINE_FIELD_IDS.role}
             className="block text-sm font-semibold text-[#3d4945]"
@@ -627,7 +622,7 @@ export default function CWDefinePage() {
           </label>
           <select
             id={DEFINE_FIELD_IDS.role}
-            className={`${fieldControlClass(Boolean(fieldErrors.role))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+            className={`${fieldControlClass(Boolean(fieldErrors.role))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
             value={roleSelectValue}
             onChange={(event) => {
               clearFieldError('role')
@@ -656,20 +651,20 @@ export default function CWDefinePage() {
           <FieldError field="role" message={fieldErrors.role} />
 
           {selectedRole && (
-            <dl className="mt-4 flex flex-wrap gap-2 text-xs text-[#52605c]">
-              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+            <dl className="mt-3 flex flex-wrap gap-2 text-xs text-[#52637a]">
+              <div className="rounded-full border border-[#dbe3ee] bg-[#f7f9fc] px-3 py-1">
                 <dt className="inline text-[#8b918e]">Code </dt>
                 <dd className="inline font-semibold text-[#3d4945]">
                   {selectedRole.code}
                 </dd>
               </div>
-              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+              <div className="rounded-full border border-[#dbe3ee] bg-[#f7f9fc] px-3 py-1">
                 <dt className="inline text-[#8b918e]">Location </dt>
                 <dd className="inline font-semibold text-[#3d4945]">
                   {selectedRoleLocation || 'N/A'}
                 </dd>
               </div>
-              <div className="rounded-full border border-[#d8d1c4] bg-[#f4f1ea] px-3 py-1.5">
+              <div className="rounded-full border border-[#dbe3ee] bg-[#f7f9fc] px-3 py-1">
                 <dt className="inline text-[#8b918e]">Default </dt>
                 <dd className="inline font-semibold text-[#3d4945]">
                   {selectedRole.default_currency}/{selectedRole.default_unit}
@@ -687,23 +682,23 @@ export default function CWDefinePage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] shadow-[0_20px_50px_-42px_rgba(31,61,56,0.7)]">
-        <div className="flex items-start gap-4 border-b border-[#e5ded2] px-6 py-5 sm:px-7">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e9f5ef] text-xs font-bold text-[#1f3d38]">
+      <section className="overflow-hidden rounded-[16px] border border-[#dce5f1] bg-white shadow-[0_10px_30px_-26px_rgba(15,23,42,0.35)]">
+        <div className="flex items-center gap-3 border-b border-[#e8edf4] px-5 py-3.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eaf7f1] text-xs font-bold text-[#047857]">
             02
           </span>
           <div>
-            <h2 className="text-base font-semibold text-[#26312f]">
+            <h2 className="text-sm font-bold text-[#17213c]">
               Engagement details
             </h2>
-            <p className="mt-1 text-sm leading-6 text-[#6b746f]">
-              Add the scope, dates, organization ownership, and primary work
-              location.
+            <p className="mt-0.5 text-xs text-[#64748b]">
+              Add scope, dates, ownership, and work location.
             </p>
           </div>
         </div>
 
-        <div className="space-y-7 px-6 py-6 sm:px-7">
+        <div className="grid gap-5 px-5 py-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div className="space-y-4">
           <div>
             <label
               htmlFor={DEFINE_FIELD_IDS.description}
@@ -712,13 +707,10 @@ export default function CWDefinePage() {
               Description
               <RequiredIndicator />
             </label>
-            <p className="mt-1 text-xs text-[#8b918e]">
-              Summarize the outcome, responsibilities, and work to be performed.
-            </p>
             <textarea
               id={DEFINE_FIELD_IDS.description}
-              className={`${fieldControlClass(Boolean(fieldErrors.description))} min-h-[140px] resize-y`}
-              rows={5}
+              className={`${fieldControlClass(Boolean(fieldErrors.description))} min-h-[92px] resize-y`}
+              rows={3}
               value={request.description || ''}
               onChange={(event) => {
                 clearFieldError('description')
@@ -732,7 +724,7 @@ export default function CWDefinePage() {
             <FieldError field="description" message={fieldErrors.description} />
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label
                 htmlFor={DEFINE_FIELD_IDS.startDate}
@@ -744,7 +736,7 @@ export default function CWDefinePage() {
               <input
                 id={DEFINE_FIELD_IDS.startDate}
                 type="date"
-                className={`${fieldControlClass(Boolean(fieldErrors.startDate))} h-12`}
+                className={`${fieldControlClass(Boolean(fieldErrors.startDate))} h-10`}
                 value={request.startDate || ''}
                 onChange={(event) => {
                   clearFieldError('startDate')
@@ -770,7 +762,7 @@ export default function CWDefinePage() {
                 id={DEFINE_FIELD_IDS.endDate}
                 type="date"
                 min={request.startDate || undefined}
-                className={`${fieldControlClass(Boolean(fieldErrors.endDate))} h-12`}
+                className={`${fieldControlClass(Boolean(fieldErrors.endDate))} h-10`}
                 value={request.endDate || ''}
                 onChange={(event) => {
                   clearFieldError('endDate')
@@ -784,9 +776,10 @@ export default function CWDefinePage() {
             </div>
           </div>
 
-          <div className="h-px bg-[#ebe5d8]" />
+          </div>
 
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div>
               <label
                 htmlFor={DEFINE_FIELD_IDS.positions}
@@ -800,7 +793,7 @@ export default function CWDefinePage() {
                 type="number"
                 min={1}
                 step={1}
-                className={`${fieldControlClass(Boolean(fieldErrors.positions))} h-12`}
+                className={`${fieldControlClass(Boolean(fieldErrors.positions))} h-10`}
                 value={request.positions ?? ''}
                 onChange={(event) => {
                   clearFieldError('positions')
@@ -828,7 +821,7 @@ export default function CWDefinePage() {
               </label>
               <select
                 id={DEFINE_FIELD_IDS.costCenter}
-                className={`${fieldControlClass(Boolean(fieldErrors.costCenter))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                className={`${fieldControlClass(Boolean(fieldErrors.costCenter))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
                 value={request.costCenterId ?? ''}
                 onChange={(event) => {
                   clearFieldError('costCenter')
@@ -869,7 +862,7 @@ export default function CWDefinePage() {
               </label>
               <select
                 id={DEFINE_FIELD_IDS.site}
-                className={`${fieldControlClass(Boolean(fieldErrors.site))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                className={`${fieldControlClass(Boolean(fieldErrors.site))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
                 value={request.siteId ?? ''}
                 onChange={(event) => {
                   clearFieldError('site')
@@ -927,7 +920,7 @@ export default function CWDefinePage() {
               </label>
               <select
                 id={DEFINE_FIELD_IDS.legalEntity}
-                className={`${fieldControlClass(Boolean(fieldErrors.legalEntity))} h-12 disabled:cursor-wait disabled:bg-[#f4f1ea]`}
+                className={`${fieldControlClass(Boolean(fieldErrors.legalEntity))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
                 value={legalEntitySelectValue}
                 onChange={(event) => {
                   clearFieldError('legalEntity')
@@ -952,28 +945,26 @@ export default function CWDefinePage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#d8d1c4] bg-[#f4f1ea]/70 p-4 sm:p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="rounded-xl border border-[#e1e8f2] bg-[#f7f9fc] p-3.5">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold text-[#3d4945]">
                   Derived location
                 </h3>
-                <p className="mt-1 text-xs text-[#8b918e]">
-                  These values are filled automatically from the selected site.
-                </p>
+                <p className="mt-0.5 text-[11px] text-[#94a3b8]">Filled from the selected site.</p>
               </div>
               <span className="rounded-full border border-[#cfc7b8] bg-[#fcfbf7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#6b746f]">
                 Read only
               </span>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <div>
                 <label htmlFor="job-country" className="block text-xs font-semibold text-[#6b746f]">
                   Country
                 </label>
                 <input
                   id="job-country"
-                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
                   value={request.country || ''}
                   placeholder="Derived from site"
                   readOnly
@@ -986,7 +977,7 @@ export default function CWDefinePage() {
                 </label>
                 <input
                   id="job-region"
-                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
                   value={request.stateProvince || request.region || ''}
                   placeholder="Derived from site"
                   readOnly
@@ -999,7 +990,7 @@ export default function CWDefinePage() {
                 </label>
                 <input
                   id="job-city"
-                  className="mt-2 w-full rounded-lg border border-[#ded7ca] bg-[#ebe5d8]/70 px-3.5 py-2.5 text-sm font-medium text-[#52605c] outline-none"
+                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
                   value={request.city || ''}
                   placeholder="Derived from site"
                   readOnly
@@ -1013,10 +1004,11 @@ export default function CWDefinePage() {
               {referenceError}
             </div>
           )}
+          </div>
         </div>
       </section>
 
-      <div className="sticky bottom-4 z-20 flex flex-col gap-4 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7]/95 px-5 py-4 shadow-[0_18px_48px_-28px_rgba(31,61,56,0.55)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+      <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-[15px] border border-[#dce5f1] bg-white/95 px-5 py-3 shadow-[0_16px_42px_-26px_rgba(15,23,42,0.45)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div aria-live="polite">
           {saveError ? (
             <p className="text-sm font-semibold text-rose-700">{saveError}</p>
@@ -1025,14 +1017,14 @@ export default function CWDefinePage() {
               Complete this step to continue to qualifications.
             </p>
           )}
-          <p className="mt-1 text-xs text-[#8b918e]">
+          <p className="mt-0.5 text-xs text-[#94a3b8]">
             Your progress is saved as a draft when you continue.
           </p>
         </div>
         <button
           type="submit"
           disabled={savingStep}
-          className="inline-flex h-11 min-w-[132px] items-center justify-center rounded-lg bg-[#1f3d38] px-6 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#255345] hover:shadow-md focus:outline-none focus:ring-4 focus:ring-[#d9efe5] disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex h-10 min-w-[132px] items-center justify-center rounded-xl bg-[#101b3c] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#192a56] focus:outline-none focus:ring-4 focus:ring-[#dbeafe] disabled:cursor-wait disabled:opacity-60"
         >
           {savingStep ? 'Saving…' : 'Continue'}
         </button>

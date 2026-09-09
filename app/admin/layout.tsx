@@ -107,14 +107,14 @@ export default function AdminLayout({
   const shouldShowAccessCheck = checkingAccess && !isAuthorized
 
   return (
-    <div className="flex min-h-full min-w-0 overflow-hidden rounded-lg border border-[#d8d1c4] bg-[#fcfbf7] shadow-[0_1px_2px_rgba(30,37,40,0.04)]">
+    <div className="flex flex-1 bg-[#f4f7fb]">
       {/* =========================
           Admin Tabs (Column 2)
          ========================= */}
-      <aside className="w-60 shrink-0 border-r border-[#ded7ca] bg-white px-3 py-4">
+      <aside className="sticky top-20 h-[calc(100vh-5rem)] w-60 shrink-0 overflow-y-auto border-r border-[#e1e8f2] bg-white px-4 py-6">
         <div className="mb-6">
-          <h2 className="px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a8376]">
-            Settings
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+            Admin settings
           </h2>
           <p className="mt-1 px-3 text-xs leading-5 text-[#6b746f]">
             Tenant controls and access.
@@ -135,10 +135,10 @@ export default function AdminLayout({
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  'block rounded-md px-3 py-2 text-sm font-medium transition',
+                  'block rounded-xl px-3 py-2.5 text-sm font-medium transition',
                   isActive
-                    ? 'bg-[#e7f3ee] text-[#1f3d38]'
-                    : 'text-[#5d665f] hover:bg-[#f4f1ea] hover:text-[#1e2528]'
+                    ? 'bg-blue-50 text-blue-700 shadow-[inset_3px_0_0_#2563eb]'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 )}
               >
                 {item.label}
@@ -151,17 +151,17 @@ export default function AdminLayout({
       {/* =========================
           Admin Content (Column 3)
          ========================= */}
-      <main className="min-w-0 flex-1 overflow-x-hidden bg-[#f7f5ef] p-5 lg:p-6">
+      <main className="min-w-0 flex-1 p-6 lg:p-8">
         {shouldShowAccessCheck ? (
           <div className="flex min-h-[360px] items-center justify-center">
-            <div className="w-full max-w-sm rounded-lg border border-[#ded7ca] bg-white px-5 py-4 shadow-sm">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-[#6b746f]" />
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                 <div>
-                  <p className="text-sm font-semibold text-[#1e2528]">
+                  <p className="text-sm font-semibold text-slate-950">
                     Checking access...
                   </p>
-                  <p className="text-xs text-[#6b746f]">
+                  <p className="text-xs text-slate-500">
                     Verifying your admin session.
                   </p>
                 </div>

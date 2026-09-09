@@ -9,16 +9,20 @@ import {
   BadgeDollarSign,
   BriefcaseBusiness,
   CalendarDays,
+  CheckCircle2,
   FileStack,
   GitBranch,
   Loader2,
   MapPin,
+  MessageSquareWarning,
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
 import { getEngagementStatusLabel } from '@/lib/api/engagements'
 import {
+  acceptWorkOrder,
   getWorkOrderById,
+  requestWorkOrderChanges,
   type WorkOrderRecord,
 } from '@/lib/api/workOrders'
 import {
@@ -33,6 +37,7 @@ import {
   normalizeApprovalStepStatus,
   type ApprovalRouteSubject,
 } from '@/lib/intakeApprovalRoute'
+import { LevvPage } from '@/components/ui/levv-app'
 
 function parseWorkOrderId(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value
@@ -126,6 +131,32 @@ function engagementStatusClasses(status: string | null | undefined) {
   return 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
+function supplierAcceptanceLabel(status: string | undefined) {
+  switch (status?.trim().toLowerCase()) {
+    case 'pending':
+      return 'Pending supplier acceptance'
+    case 'accepted':
+      return 'Accepted'
+    case 'changes_requested':
+      return 'Changes requested'
+    default:
+      return 'Not started'
+  }
+}
+
+function supplierAcceptanceClasses(status: string | undefined) {
+  switch (status?.trim().toLowerCase()) {
+    case 'pending':
+      return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+    case 'accepted':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'changes_requested':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600'
+  }
+}
+
 function StepStatusBadge({
   status,
   index,
@@ -159,6 +190,14 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [workOrder, setWorkOrder] = useState<WorkOrderRecord | null>(null)
+  const [supplierResponseNotes, setSupplierResponseNotes] = useState('')
+  const [supplierAction, setSupplierAction] = useState<
+    'accept' | 'request-change' | null
+  >(null)
+  const [supplierFeedback, setSupplierFeedback] = useState<{
+    tone: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   useEffect(() => {
     if (workOrderId === null) {
@@ -237,6 +276,52 @@ export default function WorkOrderDetailPage() {
     workOrder?.markupPercent ||
     workOrder?.pricing?.totalPercentMarkup ||
     null
+
+  const handleSupplierResponse = async (
+    action: 'accept' | 'request-change',
+  ) => {
+    if (workOrderId === null) return
+
+    const notes = supplierResponseNotes.trim()
+    if (action === 'request-change' && !notes) {
+      setSupplierFeedback({
+        tone: 'error',
+        message: 'Add a note explaining the requested changes.',
+      })
+      return
+    }
+
+    setSupplierAction(action)
+    setSupplierFeedback(null)
+    try {
+      const updated =
+        action === 'accept'
+          ? await acceptWorkOrder(workOrderId, notes)
+          : await requestWorkOrderChanges(workOrderId, notes)
+      setWorkOrder(updated)
+      setSupplierResponseNotes('')
+      setSupplierFeedback({
+        tone: 'success',
+        message:
+          action === 'request-change'
+            ? 'Changes requested successfully.'
+            : updated.registrationRequired
+              ? 'Work order accepted and the worker registration email was sent.'
+              : 'Work order accepted and the existing worker account was activated.',
+      })
+    } catch (actionError) {
+      setSupplierFeedback({
+        tone: 'error',
+        message:
+          actionError instanceof Error
+            ? actionError.message
+            : 'Unable to update supplier acceptance.',
+      })
+    } finally {
+      setSupplierAction(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center gap-3 text-sm text-slate-500">
@@ -264,7 +349,7 @@ export default function WorkOrderDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
+    <LevvPage width="standard">
       <div className="space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -384,6 +469,113 @@ export default function WorkOrderDetailPage() {
                 </div>
               </div>
             </section>
+
+            {workOrder.supplierAcceptanceStatus ? (
+              <section className="rounded-3xl border bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                      <CheckCircle2 className="h-5 w-5 text-slate-500" />
+                      Supplier Acceptance
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      The matching supplier confirms the worker details before
+                      worker access is provisioned.
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${supplierAcceptanceClasses(
+                      workOrder.supplierAcceptanceStatus,
+                    )}`}
+                  >
+                    {supplierAcceptanceLabel(
+                      workOrder.supplierAcceptanceStatus,
+                    )}
+                  </span>
+                </div>
+
+                {workOrder.permissions?.canRespondToWorkOrder ? (
+                  <div className="mt-5 space-y-4">
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">
+                        Supplier response notes
+                      </span>
+                      <textarea
+                        value={supplierResponseNotes}
+                        onChange={(event) =>
+                          setSupplierResponseNotes(event.target.value)
+                        }
+                        rows={4}
+                        maxLength={2000}
+                        disabled={supplierAction !== null}
+                        placeholder="Optional when accepting; required when requesting changes."
+                        className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                      />
+                    </label>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={supplierAction !== null}
+                        onClick={() => void handleSupplierResponse('accept')}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {supplierAction === 'accept' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Accept Work Order
+                      </button>
+                      <button
+                        type="button"
+                        disabled={supplierAction !== null}
+                        onClick={() =>
+                          void handleSupplierResponse('request-change')
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {supplierAction === 'request-change' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MessageSquareWarning className="h-4 w-4" />
+                        )}
+                        Request Changes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                    {workOrder.supplierAcceptanceStatus === 'pending'
+                      ? `Waiting for an authorized ${workOrder.supplierName || 'supplier'} user to respond.`
+                      : workOrder.supplierAcceptanceStatus === 'accepted'
+                        ? 'The supplier accepted this work order and worker provisioning has started.'
+                        : workOrder.supplierAcceptanceStatus ===
+                            'changes_requested'
+                          ? 'The supplier requested changes to this work order.'
+                          : 'Supplier acceptance becomes available after all buyer approvals are complete.'}
+                  </p>
+                )}
+
+                {workOrder.supplierResponseNotes ? (
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                    {workOrder.supplierResponseNotes}
+                  </div>
+                ) : null}
+
+                {supplierFeedback ? (
+                  <div
+                    className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
+                      supplierFeedback.tone === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {supplierFeedback.message}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             <section className="rounded-3xl border bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2 text-lg font-semibold text-slate-900">
@@ -709,7 +901,7 @@ export default function WorkOrderDetailPage() {
           </aside>
         </div>
       </div>
-    </div>
+    </LevvPage>
   )
 }
 

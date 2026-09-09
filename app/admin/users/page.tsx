@@ -24,6 +24,12 @@ import {
   type CostCenterRecord,
 } from '@/lib/api/costCenters'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
+import {
+  LevvPage,
+  LevvPageHeader,
+  LevvPanel,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 type BackendUser = {
   membership_id?: number | string | null
@@ -830,35 +836,32 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="w-full min-w-0 text-slate-900">
-      <div className="mx-auto w-full max-w-[1600px] space-y-6">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Users</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage users, roles, and access across the tenant.
-          </p>
-        </div>
-
+    <LevvPage width="wide" className="p-0 sm:p-0 lg:p-0">
+      <div className="space-y-6">
+      <LevvPageHeader
+        title="Users"
+        description="Manage users, roles, and access across the tenant."
+        actions={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="hidden items-center gap-2 rounded-md border border-slate-200 bg-white p-2 pr-4 text-sm font-medium text-slate-500 shadow-sm md:flex">
-            <span className="rounded-md bg-[#1f3d38] p-2 text-[#89d3bd]">
+          <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 pr-4 text-sm font-semibold text-slate-500 shadow-sm md:flex">
+            <span className="rounded-lg bg-slate-950 p-2 text-blue-400">
               <Sparkles className="h-4 w-4" />
             </span>
             Tenant access control
           </div>
           <button
             onClick={openAddUserModal}
-            className="inline-flex items-center gap-2 rounded-md bg-[#1f3d38] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#244a43]"
+            className={levvUi.primaryButton}
           >
             <Plus className="h-4 w-4" />
             Add User
           </button>
         </div>
-      </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <LevvPanel className="p-6">
           <div className="mb-3 flex items-center gap-2">
             <span className="rounded-md bg-[#1f3d38] p-2 text-[#89d3bd]">
               <Sparkles className="h-4 w-4" />
@@ -892,7 +895,7 @@ export default function AdminUsersPage() {
           >
             {assistantLoading ? 'Generating...' : 'Update via AI'}
           </button>
-        </div>
+        </LevvPanel>
 
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center shadow-sm">
           <div className="mb-3 rounded-md bg-slate-50 p-3">
@@ -1346,8 +1349,8 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.4fr)_repeat(4,minmax(150px,1fr))]">
+      <LevvPanel className="p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div className="group relative">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
             <input
@@ -1426,7 +1429,7 @@ export default function AdminUsersPage() {
             {businessUnitsError}
           </p>
         )}
-      </div>
+      </LevvPanel>
 
       {forbidden && (
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
@@ -1440,7 +1443,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <LevvPanel className="overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
           <thead>
@@ -1522,8 +1525,8 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
         </div>
+      </LevvPanel>
       </div>
-      </div>
-    </div>
+    </LevvPage>
   )
 }

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { Building2, CheckCircle2, ChevronDown, Clock, UserCircle2 } from 'lucide-react'
 import { useWorkerClient } from './workerClient'
+import { LevvBrand } from '@/components/ui/levv-app'
 
 export function WorkerTopNav() {
   const { clients, activeClientId, activeClient, engagementStatuses, switchClient } = useWorkerClient()
@@ -30,10 +31,7 @@ export function WorkerTopNav() {
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center font-bold text-white text-[10px]">
-              L
-            </div>
-            <span className="text-sm font-bold tracking-[0.2em] text-white">LEVV</span>
+            <LevvBrand />
             <span className="text-[10px] font-medium text-[#d9ddd8] border border-[#52605c] rounded px-1.5 py-0.5 ml-1">
               Worker Profile
             </span>

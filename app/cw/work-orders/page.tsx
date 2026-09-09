@@ -20,6 +20,12 @@ import {
   type WorkOrderListPagination,
   type WorkOrderRecord,
 } from '@/lib/api/workOrders'
+import {
+  LevvPage,
+  LevvPageHeader,
+  LevvPanel,
+  LevvStatCard,
+} from '@/components/ui/levv-app'
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
@@ -207,23 +213,15 @@ export default function WorkOrdersPage() {
   }, [page])
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Work Orders
-          </h1>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            Review work orders created from approved job postings and selected
-            candidates.
-          </p>
-        </div>
-
+    <LevvPage width="wide">
+      <div className="space-y-6">
+      <LevvPageHeader
+        title="Work Orders"
+        description="Review work orders created from approved job postings and selected candidates."
+        actions={
         <div className="group relative w-full md:w-96">
-          <div className="absolute inset-0 rounded-3xl bg-cyan-400/10 blur-xl transition-all group-hover:bg-cyan-400/20" />
-          <div className="relative flex items-center overflow-hidden rounded-2xl border border-cyan-100 bg-white p-1 shadow-sm transition-all focus-within:ring-2 focus-within:ring-cyan-400/30">
-            <div className="ml-1 rounded-xl bg-slate-950 p-2.5 text-cyan-400 shadow-lg shadow-cyan-900/10">
+          <div className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm transition-all focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100/70">
+            <div className="ml-1 rounded-lg bg-slate-950 p-2.5 text-blue-400">
               <Sparkles className="h-4 w-4" />
             </div>
             <input
@@ -235,68 +233,43 @@ export default function WorkOrdersPage() {
             />
             <button
               type="button"
-              className="pr-3 text-xs font-bold uppercase text-cyan-600 transition-colors hover:text-cyan-700"
+              className="pr-3 text-xs font-bold uppercase text-blue-600 transition-colors hover:text-blue-700"
             >
               Ask
             </button>
           </div>
         </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <LevvStatCard
+          icon={BarChart3}
+          label="Current view"
+          value={filteredWorkOrders.length}
+          detail={`${pagination.total_count} total`}
+        />
+        <LevvStatCard
+          icon={CheckCircle2}
+          label="Active"
+          value={workOrderStats.active}
+          tone="emerald"
+        />
+        <LevvStatCard
+          icon={Clock3}
+          label="Awaiting approval"
+          value={workOrderStats.awaitingApproval}
+          tone="amber"
+        />
+        <LevvStatCard
+          icon={Users}
+          label="Assigned workers"
+          value={workOrderStats.assignedWorkers}
+          tone="blue"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <div className="flex flex-col justify-center rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Current view
-            </span>
-            <BarChart3 className="h-5 w-5 text-cyan-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {filteredWorkOrders.length}
-          </div>
-          <div className="mt-1 text-xs font-medium text-slate-400">
-            {pagination.total_count} total
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Active
-            </span>
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {workOrderStats.active}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Awaiting approval
-            </span>
-            <Clock3 className="h-5 w-5 text-cyan-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {workOrderStats.awaitingApproval}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Assigned workers
-            </span>
-            <Users className="h-5 w-5 text-slate-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {workOrderStats.assignedWorkers}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-end">
+      <LevvPanel className="flex flex-col gap-4 p-6 md:flex-row md:items-end">
         <div className="group relative flex-1">
           <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
             Search work orders
@@ -317,9 +290,9 @@ export default function WorkOrdersPage() {
           <X className="h-3.5 w-3.5" />
           Reset
         </button>
-      </div>
+      </LevvPanel>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <LevvPanel className="overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center gap-3 px-8 py-16 text-sm font-medium text-slate-500">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -482,8 +455,8 @@ export default function WorkOrdersPage() {
             </div>
           </>
         )}
+      </LevvPanel>
       </div>
-      </div>
-    </div>
+    </LevvPage>
   )
 }
