@@ -173,6 +173,7 @@ export default function RootLayout({
   const [sessionChecking, setSessionChecking] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const hasCheckedSessionRef = useRef(false)
   const isAdmin = (sessionUser?.role || '').trim().toLowerCase() === ROLE_ADMIN
 
   const isStandalone =
@@ -239,11 +240,12 @@ export default function RootLayout({
     if (isStandalone) {
       setSessionUser(null)
       setSessionChecking(false)
+      hasCheckedSessionRef.current = false
       return
     }
 
     const controller = new AbortController()
-    setSessionChecking(true)
+    setSessionChecking(!hasCheckedSessionRef.current)
 
     const loadSessionUser = async () => {
       let redirecting = false
@@ -281,6 +283,7 @@ export default function RootLayout({
         setSessionUser(null)
       } finally {
         if (!controller.signal.aborted && !redirecting) {
+          hasCheckedSessionRef.current = true
           setSessionChecking(false)
         }
       }
@@ -445,14 +448,13 @@ export default function RootLayout({
                   { label: 'Payments', href: '/payments/payments' },
                 ]}
               />
-              {sessionChecking ? (
-                <NavItemPlaceholder collapsed={sidebarCollapsed} />
-              ) : isAdmin ? (
+              {isAdmin ? (
                 <NavItem
                   label="Settings"
                   href="/admin"
                   icon={Settings}
                   collapsed={sidebarCollapsed}
+                  activeHrefs={['/compliance/policies']}
                 />
               ) : null}
             </NavSection>
@@ -764,20 +766,6 @@ function NavSection({
   )
 }
 
-function NavItemPlaceholder({ collapsed }: { collapsed: boolean }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium text-transparent ${
-        collapsed ? 'justify-center' : 'gap-3'
-      }`}
-    >
-      <div className="h-4 w-4 rounded bg-white/10" />
-      {!collapsed ? <div className="h-3 w-16 rounded bg-white/10" /> : null}
-    </div>
-  )
-}
-
 /* =========================
    Nav Item
 ========================= */
@@ -786,14 +774,19 @@ function NavItem({
   href,
   icon: Icon,
   collapsed,
+  activeHrefs = [],
 }: {
   label: string
   href: string
   icon: React.ElementType
   collapsed: boolean
+  activeHrefs?: string[]
 }) {
   const pathname = usePathname()
-  const isActive = pathname === href || pathname.startsWith(href + '/')
+  const activeRoutes = [href, ...activeHrefs]
+  const isActive = activeRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + '/'),
+  )
 
   return (
     <Link
