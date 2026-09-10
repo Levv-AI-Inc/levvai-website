@@ -21,13 +21,13 @@ import {
   Users,
   Fingerprint
 } from "lucide-react";
-import { MOCK_WORKERS } from "@/lib/mockWorkers";
+import { DEFAULT_WORKER_STATUS, MOCK_WORKERS } from "@/lib/mockWorkers";
 
 const workers = MOCK_WORKERS;
 
 export default function WorkersIndexPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("Active");
+  const [selectedStatus, setSelectedStatus] = useState<string>(DEFAULT_WORKER_STATUS);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [aiInput, setAiInput] = useState("");
 
@@ -120,7 +120,7 @@ export default function WorkersIndexPage() {
             </div>
 
             <button
-              onClick={() => {setSearchTerm(""); setSelectedStatus("Active");}}
+              onClick={() => {setSearchTerm(""); setSelectedStatus(DEFAULT_WORKER_STATUS);}}
               className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
             >
               <X size={14} /> Reset

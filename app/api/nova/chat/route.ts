@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { callGPT } from '@/lib/intelligence/gpt/callGPT'
-import { formatMockWorkersForNova } from '@/lib/mockWorkers'
+import {
+  DEFAULT_WORKER_STATUS,
+  MOCK_WORKERS,
+  formatMockWorkersForNova,
+  getDefaultMockWorkers,
+} from '@/lib/mockWorkers'
 
 export const runtime = 'nodejs'
 
@@ -72,6 +77,7 @@ ${MOCK_WORKER_CONTEXT}
 WORKER DATA RULES:
 • These are the only mock worker records available. Never use a worker name from an example, prior demo, or general knowledge if it is absent from this directory.
 • Treat each record's status, dates, supplier, compliance state, IDs, role, owner, location, and department as authoritative.
+• The Workers page defaults to the ${DEFAULT_WORKER_STATUS} filter. For broad requests such as "my workers," "workforce actions," or "what needs attention," discuss only ${DEFAULT_WORKER_STATUS} workers so the answer matches the visible table. Include Onboarding or Offboarded workers only when the user explicitly requests those statuses or asks for all workers.
 • If a status conflicts with a historical end date, call out the data-quality issue instead of inventing a renewal, extension, or corrected date.
 • The directory does not contain bill rates, work-order IDs, SOW assignments, or tenure-ceiling dates. Say that those details are unavailable instead of inventing them.
 
@@ -722,6 +728,57 @@ function getSmallTalkReply(message: string) {
   return null
 }
 
+function getDefaultWorkerActionsReply(message: string) {
+  const normalized = message.toLowerCase()
+  const hasWorkerScope = /\b(workers?|workforce)\b/.test(normalized)
+  const hasActionIntent =
+    /\b(immediate|urgent|priorit(?:y|ies|ize)|actions?|actionable|attention|focus)\b/.test(
+      normalized,
+    )
+  const namesSpecificWorker = MOCK_WORKERS.some((worker) =>
+    normalized.includes(worker.name.toLowerCase()),
+  )
+
+  if (!hasWorkerScope || !hasActionIntent || namesSpecificWorker) return null
+
+  const visibleWorkers = getDefaultMockWorkers()
+  const workerLines = visibleWorkers.map(
+    (worker) =>
+      `• ${worker.name} — ${worker.role}; ${worker.compliance}; recorded end date ${worker.end}.`,
+  )
+  const priorities = visibleWorkers
+    .map((worker) => {
+      if (worker.compliance !== 'Compliant') {
+        return `${worker.name}'s ${worker.compliance.toLowerCase()} status needs attention.`
+      }
+      return `${worker.name}'s ${worker.status} status should be reconciled with the historical end date.`
+    })
+    .join(' ')
+  const railTiles = visibleWorkers.map((worker) => {
+    const complianceAction = worker.compliance !== 'Compliant'
+    return [
+      'warn',
+      complianceAction ? 'COMPLIANCE REVIEW' : 'RECORD REVIEW',
+      worker.name,
+      `${worker.status} · ${worker.compliance} · ends ${worker.end}`,
+      complianceAction ? 'Review compliance' : 'Review record',
+      '/workers/workers',
+      complianceAction ? 'ACTION' : 'VERIFY',
+    ].join('|')
+  })
+  const actions = visibleWorkers
+    .map((worker) => `Review ${worker.name.split(' ')[0]}|/workers/workers`)
+    .join('; ')
+
+  return [
+    `The Workers tab defaults to ${DEFAULT_WORKER_STATUS}, so the current view contains ${visibleWorkers.length} workers:`,
+    ...workerLines,
+    `Immediate priorities: ${priorities}`,
+    `[NOVA_RAIL: Active workforce actions :: ${railTiles.join(' ; ')}]`,
+    `[NOVA_ACTIONS: ${actions}]`,
+  ].join('\n')
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -736,9 +793,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ reply: 'No message received. Please try again.' }, { status: 400 })
     }
 
-    const smallTalkReply = getSmallTalkReply(getLastUserMessage(messages))
+    const lastUserMessage = getLastUserMessage(messages)
+    const smallTalkReply = getSmallTalkReply(lastUserMessage)
     if (smallTalkReply) {
       return NextResponse.json({ reply: smallTalkReply })
+    }
+
+    const workerActionsReply = getDefaultWorkerActionsReply(lastUserMessage)
+    if (workerActionsReply) {
+      return NextResponse.json({ reply: workerActionsReply })
     }
 
     const fullMessages = [

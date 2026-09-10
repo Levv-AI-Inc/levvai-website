@@ -88,6 +88,14 @@ export const MOCK_WORKERS: MockWorker[] = [
   },
 ]
 
+export const DEFAULT_WORKER_STATUS: MockWorker['status'] = 'Active'
+
+export function getDefaultMockWorkers() {
+  return MOCK_WORKERS.filter(
+    (worker) => worker.status === DEFAULT_WORKER_STATUS,
+  )
+}
+
 export function formatMockWorkersForNova() {
   return MOCK_WORKERS.map(
     (worker) =>
