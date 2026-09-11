@@ -24,14 +24,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
 import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 import { LevvBrand } from './components/ui/levv-app'
-
-type SessionUser = {
-  first_name?: string
-  last_name?: string
-  email?: string
-  username?: string
-  role?: string
-}
+import { SessionProvider, type SessionUser } from './session-context'
 
 const ROLE_ADMIN = 'admin'
 
@@ -451,10 +444,10 @@ export default function RootLayout({
               {isAdmin ? (
                 <NavItem
                   label="Settings"
-                  href="/admin"
+                  href="/admin/users"
                   icon={Settings}
                   collapsed={sidebarCollapsed}
-                  activeHrefs={['/compliance/policies']}
+                  activeHrefs={['/admin', '/compliance/policies']}
                 />
               ) : null}
             </NavSection>
@@ -507,7 +500,11 @@ export default function RootLayout({
           </header>
 
           <main className="levv-auth-main min-w-0 flex-1 bg-[#f4f7fb] p-5 sm:p-6 lg:p-8">
-            <CWRequestProvider>{children}</CWRequestProvider>
+            <SessionProvider
+              value={{ user: sessionUser, checking: sessionChecking }}
+            >
+              <CWRequestProvider>{children}</CWRequestProvider>
+            </SessionProvider>
           </main>
         </div>
       </body>

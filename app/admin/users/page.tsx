@@ -10,7 +10,6 @@ import {
 } from 'react'
 import { FileSpreadsheet, Plus, Search, Sparkles, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import * as XLSX from 'xlsx'
 import { parseUser } from '@/lib/intelligence'
 import {
   BusinessUnitsApiError,
@@ -804,9 +803,10 @@ export default function AdminUsersPage() {
     setUploadError('')
 
     const reader = new FileReader()
-    reader.onload = (readerEvent) => {
+    reader.onload = async (readerEvent) => {
       try {
         const data = readerEvent.target?.result
+        const XLSX = await import('xlsx')
         const workbook = XLSX.read(data, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)

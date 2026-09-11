@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useSession } from '../session-context'
 
 const ROLE_ADMIN = 'admin'
 
@@ -52,11 +53,28 @@ export default function AdminLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const session = useSession()
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [checkingAccess, setCheckingAccess] = useState(true)
   const hasAuthorizedRef = useRef(false)
 
   useEffect(() => {
+    if (session.checking) {
+      setCheckingAccess(true)
+      return
+    }
+
+    if (session.user) {
+      if ((session.user.role || '').trim().toLowerCase() === ROLE_ADMIN) {
+        hasAuthorizedRef.current = true
+        setIsAuthorized(true)
+        setCheckingAccess(false)
+      } else {
+        router.replace('/home')
+      }
+      return
+    }
+
     const controller = new AbortController()
 
     const verifyAccess = async () => {
@@ -102,7 +120,7 @@ export default function AdminLayout({
 
     void verifyAccess()
     return () => controller.abort()
-  }, [pathname, router])
+  }, [pathname, router, session.checking, session.user])
 
   const shouldShowAccessCheck = checkingAccess && !isAuthorized
 
