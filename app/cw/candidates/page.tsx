@@ -1,377 +1,257 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  User,
-  MapPin,
-  Clock,
-  X,
-  ChevronRight,
-  FileText,
-  Calendar,
-  Sparkles,
-  ChevronDown,
-  Filter,
-  ArrowRight,
-  Eye,
-  DollarSign,
-  UserCheck,
-  Briefcase,
-  AlertCircle,
-  Timer
+  AlertCircle, CalendarDays, Check, ChevronDown,
+  ChevronRight, CircleDashed, FileCheck2, Mail, MapPin, Phone,
+  Search, ShieldCheck, Sparkles, UserRound, UsersRound, X,
 } from "lucide-react";
 
-// --- Data ---
-const candidates = [
+type StepStatus = "Complete" | "In progress" | "Blocked" | "Not started";
+type OnboardingStatus = "Not started" | "In progress" | "Blocked" | "Complete";
+type Lifecycle = "Submitted" | "Interview" | "Offer" | "Pre-boarding" | "Ready to start";
+type OnboardingStep = { label: string; owner: string; status: StepStatus; dueDate: string };
+type CandidateRecord = {
+  id: string; name: string; initials: string; role: string; jobId: string;
+  supplier: string; location: string; rate: string; availability: string;
+  lifecycle: Lifecycle; daysInStage: number; manager: string; onboarding: number;
+  onboardingStatus: OnboardingStatus; startDate: string; email: string; phone: string;
+  skills: string[]; summary: string; nextAction: string; onboardingSteps: OnboardingStep[];
+};
+
+const candidates: CandidateRecord[] = [
   {
-    name: "James Carter",
-    role: "Senior Backend Engineer",
-    jobId: "JP-2024-041",
-    supplier: "TEKsystems",
-    location: "Remote – US",
-    rate: "$108/hr",
-    availability: "2 weeks",
-    stage: "Interview",
-    daysInStage: 6,
-    manager: "Alex Morgan",
-    status: "Active",
-    email: "j.carter@example.com",
-    skills: ["Golang", "Kubernetes", "AWS"],
-    description: "James has 10+ years of experience in distributed systems. Strong performance in technical screen."
+    id: "CAN-1048", name: "James Carter", initials: "JC", role: "Senior Backend Engineer",
+    jobId: "JP-2024-041", supplier: "TEKsystems", location: "Remote – US", rate: "$108/hr",
+    availability: "2 weeks", lifecycle: "Interview", daysInStage: 6, manager: "Alex Morgan",
+    onboarding: 0, onboardingStatus: "Not started", startDate: "TBD",
+    email: "j.carter@example.com", phone: "+1 (312) 555-0148", skills: ["Golang", "Kubernetes", "AWS"],
+    summary: "10+ years of experience in distributed systems with a strong technical screen result.",
+    nextAction: "Complete final architecture interview",
+    onboardingSteps: [
+      { label: "Personal information", owner: "Candidate", status: "Not started", dueDate: "After offer" },
+      { label: "Right-to-work verification", owner: "People Ops", status: "Not started", dueDate: "After offer" },
+      { label: "Contract and policies", owner: "Candidate", status: "Not started", dueDate: "After offer" },
+      { label: "System access", owner: "IT", status: "Not started", dueDate: "Before start" },
+    ],
   },
   {
-    name: "Priya Shah",
-    role: "Business Analyst",
-    jobId: "JP-2024-036",
-    supplier: "Randstad",
-    location: "Chicago, IL",
-    rate: "$88/hr",
-    availability: "Immediate",
-    stage: "Submitted",
-    daysInStage: 3,
-    manager: "Rachel Adams",
-    status: "Active",
-    email: "p.shah@example.com",
-    skills: ["SQL", "Agile", "Tableau"],
-    description: "Strong background in retail banking transformation. Previous experience with Randstad was highly rated."
+    id: "CAN-1041", name: "Priya Shah", initials: "PS", role: "Business Analyst",
+    jobId: "JP-2024-036", supplier: "Randstad", location: "Chicago, IL", rate: "$88/hr",
+    availability: "Immediate", lifecycle: "Pre-boarding", daysInStage: 3, manager: "Rachel Adams",
+    onboarding: 68, onboardingStatus: "In progress", startDate: "Oct 12, 2026",
+    email: "p.shah@example.com", phone: "+1 (773) 555-0192", skills: ["SQL", "Agile", "Tableau"],
+    summary: "Retail banking transformation specialist with consistently strong supplier feedback.",
+    nextAction: "Candidate to sign confidentiality agreement",
+    onboardingSteps: [
+      { label: "Personal information", owner: "Candidate", status: "Complete", dueDate: "Sep 24" },
+      { label: "Right-to-work verification", owner: "People Ops", status: "Complete", dueDate: "Sep 25" },
+      { label: "Contract and policies", owner: "Candidate", status: "In progress", dueDate: "Sep 29" },
+      { label: "System access", owner: "IT", status: "Not started", dueDate: "Oct 8" },
+    ],
   },
   {
-    name: "Daniel Wong",
-    role: "QA Automation Engineer",
-    jobId: "JP-2024-028",
-    supplier: "Insight Global",
-    location: "New York, NY",
-    rate: "$80/hr",
-    availability: "1 week",
-    stage: "Offer",
-    daysInStage: 4,
-    manager: "Daniel Lee",
-    status: "Pending Decision",
-    email: "d.wong@example.com",
-    skills: ["Selenium", "Python", "Jenkins"],
-    description: "Top-tier candidate. Successfully completed all interview rounds. Offer pending internal sign-off."
+    id: "CAN-1035", name: "Daniel Wong", initials: "DW", role: "QA Automation Engineer",
+    jobId: "JP-2024-028", supplier: "Insight Global", location: "New York, NY", rate: "$80/hr",
+    availability: "1 week", lifecycle: "Ready to start", daysInStage: 2, manager: "Daniel Lee",
+    onboarding: 100, onboardingStatus: "Complete", startDate: "Oct 1, 2026",
+    email: "d.wong@example.com", phone: "+1 (646) 555-0131", skills: ["Selenium", "Python", "Jenkins"],
+    summary: "Completed all interview rounds and pre-employment requirements ahead of schedule.",
+    nextAction: "Ready for day-one welcome",
+    onboardingSteps: [
+      { label: "Personal information", owner: "Candidate", status: "Complete", dueDate: "Sep 18" },
+      { label: "Right-to-work verification", owner: "People Ops", status: "Complete", dueDate: "Sep 19" },
+      { label: "Contract and policies", owner: "Candidate", status: "Complete", dueDate: "Sep 21" },
+      { label: "System access", owner: "IT", status: "Complete", dueDate: "Sep 25" },
+    ],
   },
   {
-    name: "Elena Rossi",
-    role: "UX Designer",
-    jobId: "JP-2024-012",
-    supplier: "Aquent",
-    location: "Remote",
-    rate: "$95/hr",
-    availability: "Immediate",
-    stage: "Interview",
-    daysInStage: 9,
-    manager: "Sarah Jenkins",
-    status: "Active",
-    email: "e.rossi@example.com",
-    skills: ["Figma", "User Research", "Prototyping"],
-    description: "Stalled in interview stage due to manager travel. High risk of drop-off."
-  }
+    id: "CAN-1029", name: "Elena Rossi", initials: "ER", role: "UX Designer",
+    jobId: "JP-2024-012", supplier: "Aquent", location: "Remote – Canada", rate: "$95/hr",
+    availability: "Immediate", lifecycle: "Pre-boarding", daysInStage: 9, manager: "Sarah Jenkins",
+    onboarding: 45, onboardingStatus: "Blocked", startDate: "Oct 5, 2026",
+    email: "e.rossi@example.com", phone: "+1 (416) 555-0187", skills: ["Figma", "User Research", "Prototyping"],
+    summary: "Senior product designer with deep research and design-system experience.",
+    nextAction: "People Ops to review identity document",
+    onboardingSteps: [
+      { label: "Personal information", owner: "Candidate", status: "Complete", dueDate: "Sep 20" },
+      { label: "Right-to-work verification", owner: "People Ops", status: "Blocked", dueDate: "Sep 26" },
+      { label: "Contract and policies", owner: "Candidate", status: "In progress", dueDate: "Sep 29" },
+      { label: "System access", owner: "IT", status: "Not started", dueDate: "Oct 2" },
+    ],
+  },
 ];
 
-type CandidateRecord = (typeof candidates)[number];
+const lifecycleStages: Lifecycle[] = ["Submitted", "Interview", "Offer", "Pre-boarding", "Ready to start"];
+
+function statusTone(status: OnboardingStatus | StepStatus) {
+  if (status === "Complete") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "Blocked") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (status === "In progress") return "border-blue-200 bg-blue-50 text-blue-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
 
 export default function CandidatesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStage, setSelectedStage] = useState("All");
   const [selectedRecord, setSelectedRecord] = useState<CandidateRecord | null>(null);
+  const [activeTab, setActiveTab] = useState<"profile" | "onboarding">("profile");
   const [aiInput, setAiInput] = useState("");
 
-  const stages = ["All", "Submitted", "Interview", "Offer", "Hired"];
-
-  // --- Logic: Filtering ---
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.jobId.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStage = selectedStage === "All" || c.stage === selectedStage;
-
-      return matchesSearch && matchesStage;
+    const query = searchTerm.trim().toLowerCase();
+    return candidates.filter((candidate) => {
+      const searchMatch = !query || [candidate.name, candidate.role, candidate.jobId, candidate.supplier]
+        .some((value) => value.toLowerCase().includes(query));
+      return searchMatch && (selectedStage === "All" || candidate.lifecycle === selectedStage);
     });
   }, [searchTerm, selectedStage]);
 
-  const stalledCandidates = candidates.filter(c => c.daysInStage > 7).length;
+  useEffect(() => {
+    if (!selectedRecord) return;
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && setSelectedRecord(null);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedRecord]);
+
+  const openRecord = (candidate: CandidateRecord) => {
+    setSelectedRecord(candidate);
+    setActiveTab("profile");
+  };
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-
-        {/* Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="min-h-screen bg-slate-50 p-5 text-slate-900 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Candidates</h1>
-            <p className="text-slate-500 font-medium mt-1">Track candidate progression and pipeline velocity.</p>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Contingent workforce</p>
+            <h1 className="text-3xl font-extrabold tracking-tight">Candidate lifecycle</h1>
+            <p className="mt-1 text-base font-medium text-slate-500">Track every candidate from submission through day-one readiness.</p>
           </div>
+          <div className="relative flex w-full items-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100/70 md:w-96">
+            <div className="ml-1 rounded-xl bg-slate-950 p-2.5 text-cyan-400"><Sparkles size={18} /></div>
+            <input value={aiInput} onChange={(event) => setAiInput(event.target.value)} placeholder="Ask Nova about onboarding risk..." aria-label="Ask Nova about candidates" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm font-semibold outline-none placeholder:text-slate-400" />
+            <button type="button" className="pr-3 text-xs font-bold uppercase text-blue-600">Ask</button>
+          </div>
+        </header>
 
-          {/* Nova AI Command Bar - Custom Cyan/Teal & Dark Navy Theme */}
-          <div className="relative w-full md:w-96 group">
-            <div className="absolute inset-0 bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-all rounded-3xl" />
-            <div className="relative flex items-center bg-white border border-cyan-100 rounded-2xl shadow-sm overflow-hidden p-1 focus-within:ring-2 focus-within:ring-cyan-400/30 transition-all">
-              <div className="bg-slate-950 p-2.5 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
-                <Sparkles size={18} />
-              </div>
-              <input
-                type="text"
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="Ask Nova about stalled candidates..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold px-3 py-2 placeholder:text-slate-400"
-              />
-              <button className="pr-3 text-cyan-500 font-bold text-xs uppercase hover:text-cyan-600 transition-colors">
-                Ask
-              </button>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Metric icon={UsersRound} label="Candidates" value={candidates.length} detail="Across 4 active roles" />
+          <Metric icon={CircleDashed} label="Onboarding" value={candidates.filter((c) => c.onboarding > 0 && c.onboarding < 100).length} detail="Currently in progress" tone="blue" />
+          <Metric icon={AlertCircle} label="Needs attention" value={candidates.filter((c) => c.onboardingStatus === "Blocked").length} detail="Blocked requirement" tone="rose" />
         </div>
 
-        {/* METRICS & FILTERS */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stalled {'>'} 7 Days</span>
-            <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              <Timer size={24} className={stalledCandidates > 0 ? "text-rose-500" : "text-emerald-500"} />
-              {stalledCandidates}
-            </div>
-          </div>
-
-          <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Pipeline Stage</label>
-              <div className="relative">
-                <select
-                  value={selectedStage}
-                  onChange={(e) => setSelectedStage(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                >
-                  {stages.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-[300px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Search Candidates</label>
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="Name, role, or Job ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {setSearchTerm(""); setSelectedStage("All");}}
-              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
-            >
-              <X size={14} /> Reset
-            </button>
-          </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-end">
+          <label className="block flex-1">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Lifecycle stage</span>
+            <span className="relative block">
+              <select value={selectedStage} onChange={(event) => setSelectedStage(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-10 text-sm font-semibold outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                <option value="All">All stages</option>
+                {lifecycleStages.map((stage) => <option key={stage}>{stage}</option>)}
+              </select>
+              <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            </span>
+          </label>
+          <label className="block flex-[2]">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Search candidates</span>
+            <span className="relative block">
+              <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Name, role, supplier, or job ID" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+            </span>
+          </label>
+          <button type="button" onClick={() => { setSearchTerm(""); setSelectedStage("All"); }} className="flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900"><X size={16} /> Reset</button>
         </div>
 
-        {/* CANDIDATE TABLE */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Candidate Info</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Rate & Availability</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pipeline Progress</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Manager / Status</th>
-                  <th className="px-8 py-5"></th>
-                </tr>
-              </thead>
+            <table className="w-full min-w-[1000px] text-left">
+              <thead className="border-b border-slate-200 bg-slate-50/80"><tr>
+                {['Candidate', 'Assignment', 'Lifecycle', 'Onboarding', 'Next action'].map((label) => <th key={label} className="px-5 py-4 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{label}</th>)}
+                <th className="w-12 px-5 py-4"><span className="sr-only">Open record</span></th>
+              </tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredCandidates.map((c) => (
-                  <tr
-                    key={`${c.name}-${c.jobId}`}
-                    className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
-                    onClick={() => setSelectedRecord(c)}
-                  >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 font-bold text-sm">
-                          {c.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 leading-tight mb-1">{c.name}</div>
-                          <div className="text-[10px] font-black text-cyan-600 uppercase tracking-tighter">
-                            {c.role} • {c.jobId}
-                          </div>
-                        </div>
-                      </div>
+                {filteredCandidates.map((candidate) => (
+                  <tr key={candidate.id} tabIndex={0} onClick={() => openRecord(candidate)} onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && openRecord(candidate)} className="group cursor-pointer outline-none transition-colors hover:bg-blue-50/50 focus:bg-blue-50/70">
+                    <td className="px-5 py-5"><div className="flex items-center gap-3"><Avatar candidate={candidate} /><div><p className="font-bold">{candidate.name}</p><p className="mt-0.5 text-xs font-semibold text-slate-500">{candidate.id} · {candidate.supplier}</p></div></div></td>
+                    <td className="px-5 py-5"><p className="text-sm font-bold text-slate-800">{candidate.role}</p><p className="mt-1 text-xs font-semibold text-blue-600">{candidate.jobId} · {candidate.manager}</p></td>
+                    <td className="px-5 py-5">
+                      <div className="mb-2 flex items-center gap-2"><span className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{candidate.lifecycle}</span><span className="text-xs text-slate-400">{candidate.daysInStage}d</span></div>
+                      <div className="flex w-40 gap-1" aria-label={`${candidate.lifecycle} lifecycle progress`}>{lifecycleStages.map((stage, index) => <span key={stage} className={`h-1.5 flex-1 rounded-full ${index <= lifecycleStages.indexOf(candidate.lifecycle) ? "bg-blue-500" : "bg-slate-200"}`} />)}</div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="text-sm font-black text-slate-900 leading-none">{c.rate}</div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 block italic">
-                        Start: {c.availability}
-                      </span>
+                    <td className="px-5 py-5">
+                      <div className="mb-2 flex items-center justify-between gap-3"><StatusBadge status={candidate.onboardingStatus} /><span className="text-sm font-extrabold">{candidate.onboarding}%</span></div>
+                      <Progress candidate={candidate} className="w-44" />
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-                          c.stage === 'Interview' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
-                          c.stage === 'Offer' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          'bg-slate-50 text-slate-500 border-slate-100'
-                        }`}>
-                          {c.stage}
-                        </span>
-                        <span className={`text-[10px] font-bold ${c.daysInStage > 7 ? 'text-rose-500' : 'text-slate-400'}`}>
-                          ({c.daysInStage} days)
-                        </span>
-                      </div>
-                      <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
-                        <div className={`h-full rounded-full transition-all duration-500 ${
-                          c.stage === 'Submitted' ? 'w-1/4 bg-slate-400' :
-                          c.stage === 'Interview' ? 'w-2/4 bg-cyan-400' :
-                          c.stage === 'Offer' ? 'w-3/4 bg-cyan-600' : 'w-full bg-emerald-500'
-                        }`} />
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="text-xs font-bold text-slate-800">{c.manager}</div>
-                      <div className={`text-[10px] font-black uppercase mt-1 ${c.status === 'Active' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                        • {c.status}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-100/50 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                          <Eye size={12} /> View Preview
-                        </span>
-                      </div>
-                    </td>
+                    <td className="max-w-[220px] px-5 py-5"><p className="text-sm font-semibold leading-5 text-slate-700">{candidate.nextAction}</p><p className="mt-1 text-xs text-slate-400">Start: {candidate.startDate}</p></td>
+                    <td className="px-5 py-5"><ChevronRight size={20} className="text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-blue-600" /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {filteredCandidates.length === 0 && <div className="px-6 py-14 text-center"><Search className="mx-auto mb-3 text-slate-300" /><p className="font-bold text-slate-700">No candidates match this view</p><p className="mt-1 text-sm text-slate-500">Try a different search or lifecycle stage.</p></div>}
         </div>
       </div>
 
-      {/* PREVIEW DRAWER */}
-      {selectedRecord && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={() => setSelectedRecord(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-slate-200 flex flex-col">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center text-cyan-400 font-black text-2xl shadow-lg shadow-cyan-900/10">
-                  {selectedRecord.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{selectedRecord.name}</h2>
-                  <p className="text-sm font-bold text-cyan-600">{selectedRecord.role}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {selectedRecord.daysInStage > 7 && (
-                  <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">
-                    <AlertCircle className="text-rose-600 shrink-0" size={20} />
-                    <div>
-                        <p className="text-sm font-bold text-rose-900">Pipeline Alert</p>
-                        <p className="text-xs text-rose-700 font-medium">Candidate has been in {selectedRecord.stage} for {selectedRecord.daysInStage} days. High risk of candidate withdrawal.</p>
-                    </div>
-                  </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><DollarSign size={10}/> Proposed Rate</p>
-                  <p className="text-lg font-black text-slate-900">{selectedRecord.rate}</p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Clock size={10}/> Current Stage</p>
-                  <p className="text-lg font-black text-cyan-600 uppercase">{selectedRecord.stage}</p>
-                </div>
-              </div>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Core Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedRecord.skills.map(skill => (
-                    <span key={skill} className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 hover:border-cyan-300 transition-colors">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">Submission Notes</h3>
-                <p className="text-slate-600 leading-relaxed font-medium italic">"{selectedRecord.description}"</p>
-              </section>
-
-              <section className="grid grid-cols-2 gap-6 pt-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Briefcase size={14} /> Requisition</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Supplier</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.supplier}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Hiring Manager</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.manager}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><User size={14} /> Details</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Location</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.location}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Availability</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.availability}</p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="pt-6 border-t border-slate-100">
-                <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-xl shadow-slate-200">
-                    View Full Candidate Profile <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:border-cyan-200 transition-all flex items-center justify-center gap-2">
-                    <Calendar size={14} /> Schedule Interview
-                  </button>
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:border-cyan-200 transition-all flex items-center justify-center gap-2">
-                    <UserCheck size={14} /> Initiate Offer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {selectedRecord && <CandidateDrawer candidate={selectedRecord} activeTab={activeTab} onTabChange={setActiveTab} onClose={() => setSelectedRecord(null)} />}
     </div>
   );
 }
+
+function CandidateDrawer({ candidate, activeTab, onTabChange, onClose }: { candidate: CandidateRecord; activeTab: "profile" | "onboarding"; onTabChange: (tab: "profile" | "onboarding") => void; onClose: () => void }) {
+  return <>
+    <button type="button" aria-label="Close candidate record" className="fixed inset-0 z-40 cursor-default bg-slate-950/45 backdrop-blur-sm" onClick={onClose} />
+    <aside role="dialog" aria-modal="true" aria-labelledby="candidate-record-title" className="fixed inset-y-0 right-0 z-50 flex w-full max-w-3xl flex-col border-l border-slate-200 bg-white shadow-2xl">
+      <div className="border-b border-slate-200 bg-slate-50/70 px-5 pt-5 md:px-8 md:pt-7">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-4"><Avatar candidate={candidate} large /><div className="min-w-0"><p className="mb-1 text-xs font-bold uppercase tracking-wider text-blue-600">Candidate record · {candidate.id}</p><h2 id="candidate-record-title" className="truncate text-2xl font-extrabold tracking-tight">{candidate.name}</h2><p className="truncate text-sm font-semibold text-slate-500">{candidate.role} · {candidate.jobId}</p></div></div>
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm" aria-label="Close candidate record"><X size={20} /></button>
+        </div>
+        <div className="mt-6 flex gap-6" role="tablist" aria-label="Candidate record sections">
+          <Tab selected={activeTab === "profile"} onClick={() => onTabChange("profile")} icon={UserRound}>Profile</Tab>
+          <Tab selected={activeTab === "onboarding"} onClick={() => onTabChange("onboarding")} icon={ShieldCheck} badge={`${candidate.onboarding}%`}>Onboarding</Tab>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-5 md:p-8">{activeTab === "profile" ? <Profile candidate={candidate} /> : <Onboarding candidate={candidate} />}</div>
+    </aside>
+  </>;
+}
+
+function Profile({ candidate }: { candidate: CandidateRecord }) {
+  return <div className="space-y-7">
+    {candidate.daysInStage > 7 && <Alert tone="amber" title="Action is overdue">This candidate has spent {candidate.daysInStage} days in {candidate.lifecycle}. {candidate.nextAction}.</Alert>}
+    <section><Heading>Contact information</Heading><div className="grid gap-3 sm:grid-cols-2"><Info icon={Mail} label="Email" value={candidate.email} /><Info icon={Phone} label="Phone" value={candidate.phone} /><Info icon={MapPin} label="Location" value={candidate.location} /><Info icon={CalendarDays} label="Availability" value={candidate.availability} /></div></section>
+    <section><Heading>Candidate summary</Heading><div className="rounded-2xl border border-slate-200 p-5"><p className="text-sm font-medium leading-6 text-slate-600">{candidate.summary}</p><div className="mt-4 flex flex-wrap gap-2">{candidate.skills.map((skill) => <span key={skill} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700">{skill}</span>)}</div></div></section>
+    <section><Heading>Assignment</Heading><div className="grid gap-x-8 gap-y-5 rounded-2xl border border-slate-200 p-5 sm:grid-cols-2"><Detail label="Job posting" value={`${candidate.role} · ${candidate.jobId}`} /><Detail label="Hiring manager" value={candidate.manager} /><Detail label="Supplier" value={candidate.supplier} /><Detail label="Proposed rate" value={candidate.rate} /><Detail label="Lifecycle stage" value={candidate.lifecycle} /><Detail label="Target start" value={candidate.startDate} /></div></section>
+  </div>;
+}
+
+function Onboarding({ candidate }: { candidate: CandidateRecord }) {
+  const completed = candidate.onboardingSteps.filter((step) => step.status === "Complete").length;
+  return <div className="space-y-7">
+    <section className="rounded-2xl bg-slate-950 p-6 text-white">
+      <div className="flex items-start justify-between gap-5"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Onboarding completion</p><p className="mt-2 text-4xl font-black">{candidate.onboarding}%</p><p className="mt-1 text-sm text-slate-300">{completed} of {candidate.onboardingSteps.length} requirement groups complete</p></div><StatusBadge status={candidate.onboardingStatus} dark /></div>
+      <Progress candidate={candidate} dark className="mt-5 w-full" />
+    </section>
+    {candidate.onboardingStatus === "Blocked" && <Alert tone="rose" title="Identity verification is blocking progress">People Ops needs to review the candidate&apos;s resubmitted identity document before downstream access can begin.</Alert>}
+    <section>
+      <div className="mb-4 flex items-end justify-between gap-3"><div><Heading>Requirements</Heading><p className="-mt-2 text-sm text-slate-500">Owners and deadlines for this candidate&apos;s onboarding plan.</p></div><p className="shrink-0 text-xs font-bold text-slate-500">Start {candidate.startDate}</p></div>
+      <div className="space-y-3">{candidate.onboardingSteps.map((step) => <div key={step.label} className="flex items-center gap-4 rounded-2xl border border-slate-200 p-4"><div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${step.status === "Complete" ? "bg-emerald-100 text-emerald-700" : step.status === "Blocked" ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"}`}>{step.status === "Complete" ? <Check size={19} /> : <FileCheck2 size={19} />}</div><div className="min-w-0 flex-1"><p className="font-bold text-slate-800">{step.label}</p><p className="mt-0.5 text-xs text-slate-500">Owner: {step.owner} · Due {step.dueDate}</p></div><StatusBadge status={step.status} /></div>)}</div>
+    </section>
+    <div className="grid gap-3 sm:grid-cols-2"><DetailCard label="Next action" value={candidate.nextAction} /><DetailCard label="Hiring manager" value={candidate.manager} /></div>
+  </div>;
+}
+
+function Metric({ icon: Icon, label, value, detail, tone = "slate" }: { icon: React.ElementType; label: string; value: number; detail: string; tone?: "slate" | "blue" | "rose" }) {
+  const iconTone = tone === "rose" ? "bg-rose-50 text-rose-600" : tone === "blue" ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-600";
+  return <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`rounded-xl p-3 ${iconTone}`}><Icon size={21} /></div><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p><div className="mt-0.5 flex items-baseline gap-2"><span className="text-2xl font-extrabold">{value}</span><span className="text-xs text-slate-400">{detail}</span></div></div></div>;
+}
+function Avatar({ candidate, large = false }: { candidate: CandidateRecord; large?: boolean }) { return <div className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-950 font-extrabold text-cyan-300 ${large ? "h-14 w-14 text-lg" : "h-11 w-11 text-sm"}`}>{candidate.initials}</div>; }
+function Progress({ candidate, className, dark = false }: { candidate: CandidateRecord; className: string; dark?: boolean }) { return <div className={`h-2 overflow-hidden rounded-full ${dark ? "bg-white/15" : "bg-slate-100"} ${className}`}><div className={`h-full rounded-full ${candidate.onboardingStatus === "Blocked" ? "bg-rose-500" : candidate.onboarding === 100 ? "bg-emerald-500" : "bg-cyan-500"}`} style={{ width: `${candidate.onboarding}%` }} /></div>; }
+function StatusBadge({ status, dark = false }: { status: OnboardingStatus | StepStatus; dark?: boolean }) { return <span className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${dark ? "border-cyan-700 bg-cyan-500/15 text-cyan-300" : statusTone(status)}`}>{status}</span>; }
+function Tab({ children, selected, onClick, icon: Icon, badge }: { children: React.ReactNode; selected: boolean; onClick: () => void; icon: React.ElementType; badge?: string }) { return <button type="button" role="tab" aria-selected={selected} onClick={onClick} className={`relative flex items-center gap-2 pb-4 text-sm font-bold ${selected ? "text-blue-700" : "text-slate-500"}`}><Icon size={17} />{children}{badge && <span className="rounded-md bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">{badge}</span>}{selected && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-blue-600" />}</button>; }
+function Heading({ children }: { children: React.ReactNode }) { return <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{children}</h3>; }
+function Info({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) { return <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-4"><Icon size={18} className="shrink-0 text-blue-600" /><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="truncate text-sm font-semibold text-slate-800">{value}</p></div></div>; }
+function Detail({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-800">{value}</p></div>; }
+function DetailCard({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-2 text-sm font-bold text-slate-800">{value}</p></div>; }
+function Alert({ title, children, tone }: { title: string; children: React.ReactNode; tone: "amber" | "rose" }) { const colors = tone === "rose" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-900"; return <div className={`flex gap-3 rounded-2xl border p-4 ${colors}`}><AlertCircle className="shrink-0" size={20} /><div><p className="text-sm font-bold">{title}</p><p className="mt-0.5 text-sm opacity-80">{children}</p></div></div>; }
