@@ -8,7 +8,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
-import { FileSpreadsheet, Plus, Search, Sparkles, Upload, X } from 'lucide-react'
+import { FileSpreadsheet, Pencil, Plus, Search, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { parseUser } from '@/lib/intelligence'
 import {
@@ -23,6 +23,12 @@ import {
   type CostCenterRecord,
 } from '@/lib/api/costCenters'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
+import {
+  ACCESS_ROLES,
+  getAccessRole,
+  isInternalAccessUser,
+  normalizeAccessRole,
+} from '@/lib/accessControlRoles'
 import {
   LevvPage,
   LevvPageHeader,
@@ -44,6 +50,8 @@ type BackendUser = {
   cost_center_name?: string | null
   sso_enabled?: boolean | null
   is_active?: boolean | null
+  user_type?: string | null
+  account_type?: string | null
 }
 
 type BackendUsersResponse = {
@@ -76,6 +84,8 @@ type AddUserFormState = {
   status: string
 }
 
+type EditUserFormState = AddUserFormState
+
 type AddBusinessUnitFormState = {
   code: string
   name: string
@@ -87,14 +97,7 @@ type AddBusinessUnitFormState = {
   company: string
 }
 
-const ROLE_OPTIONS = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'business', label: 'Business' },
-  { value: 'supplier', label: 'Supplier' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'viewer', label: 'Viewer' },
-]
+const ROLE_OPTIONS = ACCESS_ROLES.map(({ value, label }) => ({ value, label }))
 
 const STATUS_OPTIONS = [
   { value: 'invited', label: 'Invited' },
@@ -148,9 +151,19 @@ function normalizeStatus(value: unknown): string {
 }
 
 function normalizeRole(value: unknown): string {
-  const raw = readOptionalString(value)
-  if (!raw) return 'viewer'
-  return raw.toLowerCase()
+  return normalizeAccessRole(value)
+}
+
+function getCookie(name: string) {
+  if (typeof document === 'undefined') return ''
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  return parts.length === 2 ? parts.pop()?.split(';').shift() || '' : ''
+}
+
+function csrfHeaders() {
+  const token = getCookie('csrftoken')
+  return token ? { 'X-CSRFToken': token } : {}
 }
 
 function mapBackendUser(row: BackendUser): UserRow {
@@ -299,6 +312,7 @@ export default function AdminUsersPage() {
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
   const [addUserError, setAddUserError] = useState('')
+  const [addingUser, setAddingUser] = useState(false)
   const [addUserForm, setAddUserForm] = useState<AddUserFormState>({
     name: '',
     email: '',
@@ -308,6 +322,18 @@ export default function AdminUsersPage() {
     role: 'viewer',
     status: 'invited',
   })
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null)
+  const [editUserForm, setEditUserForm] = useState<EditUserFormState>({
+    name: '',
+    email: '',
+    businessUnit: '',
+    costCenter: '',
+    ssoEnabled: false,
+    role: 'viewer',
+    status: 'invited',
+  })
+  const [editUserError, setEditUserError] = useState('')
+  const [savingUser, setSavingUser] = useState(false)
   const [isAddBusinessUnitModalOpen, setIsAddBusinessUnitModalOpen] =
     useState(false)
   const [addBusinessUnitError, setAddBusinessUnitError] = useState('')
@@ -470,7 +496,14 @@ export default function AdminUsersPage() {
 
         const payload = (await response.json().catch(() => ({}))) as BackendUsersResponse
         const results = Array.isArray(payload.results) ? payload.results : []
-        const mapped = results.map(mapBackendUser)
+        const mapped = results
+          .filter((row) =>
+            isInternalAccessUser(
+              row.role,
+              row.user_type || row.account_type,
+            ),
+          )
+          .map(mapBackendUser)
 
         setUsers(mapped)
         setForbidden(false)
@@ -559,6 +592,20 @@ export default function AdminUsersPage() {
     return options
   }, [addUserForm.businessUnit, businessUnitOptions, costCenters])
 
+  const allCostCenterOptions = useMemo(
+    () =>
+      costCenters
+        .map((center) => ({
+          value: String(center.id),
+          label: center.code
+            ? `${center.name} (${center.code})`
+            : center.name,
+          center,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [costCenters],
+  )
+
   const usersForTable = useMemo(() => {
     const selected = businessUnitFilter.trim().toLowerCase()
     if (!selected) return users
@@ -624,8 +671,40 @@ export default function AdminUsersPage() {
   }
 
   const closeAddUserModal = () => {
+    if (addingUser) return
     setIsAddUserModalOpen(false)
     setAddUserError('')
+  }
+
+  const openEditUserModal = (user: UserRow) => {
+    const businessUnit = businessUnitOptions.find(
+      (option) =>
+        String(option.unit.id) === user.businessUnitId ||
+        option.unit.code === user.businessUnitId ||
+        option.unit.name === user.businessUnit,
+    )
+    const costCenter = allCostCenterOptions.find(
+      (option) =>
+        String(option.center.id) === user.costCenterId ||
+        option.center.code === user.costCenter,
+    )
+    setEditUserError('')
+    setEditingUser(user)
+    setEditUserForm({
+      name: user.name,
+      email: user.email,
+      businessUnit: businessUnit?.value || '',
+      costCenter: costCenter?.value || '',
+      ssoEnabled: user.ssoEnabled,
+      role: normalizeRole(user.role),
+      status: normalizeStatus(user.status),
+    })
+  }
+
+  const closeEditUserModal = () => {
+    if (savingUser) return
+    setEditingUser(null)
+    setEditUserError('')
   }
 
   const openAddBusinessUnitModal = () => {
@@ -713,7 +792,7 @@ export default function AdminUsersPage() {
     }
   }
 
-  const submitAddUser = () => {
+  const submitAddUser = async () => {
     const name = addUserForm.name.trim()
     const email = addUserForm.email.trim()
 
@@ -740,7 +819,7 @@ export default function AdminUsersPage() {
       (option) => option.value === addUserForm.costCenter,
     )
 
-    const localUser: UserRow = {
+    const pendingUser: UserRow = {
       membershipId: `local-${Date.now()}`,
       userId: '',
       name,
@@ -765,8 +844,163 @@ export default function AdminUsersPage() {
       isActive: normalizeStatus(addUserForm.status) === 'active',
     }
 
-    setUsers((current) => upsertUser(current, localUser))
-    closeAddUserModal()
+    setAddingUser(true)
+    setAddUserError('')
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...csrfHeaders(),
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          role: pendingUser.role,
+          status: pendingUser.status,
+          business_unit_id: selectedBusinessUnit?.unit.id || null,
+          cost_center_id: selectedCostCenter?.center.id || null,
+          sso_enabled: pendingUser.ssoEnabled,
+          is_active: pendingUser.status === 'active',
+        }),
+      })
+
+      if (response.status === 401) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+
+      const body = (await response.json().catch(() => ({}))) as BackendUser
+      if (!response.ok) {
+        const message =
+          body && typeof body === 'object' && 'detail' in body
+            ? String((body as { detail?: unknown }).detail)
+            : `Unable to add user (${response.status}).`
+        throw new Error(message)
+      }
+
+      const created = body.membership_id || body.user_id
+        ? mapBackendUser(body)
+        : pendingUser
+      setUsers((current) => upsertUser(current, created))
+      setIsAddUserModalOpen(false)
+    } catch (requestError) {
+      setAddUserError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to add user.',
+      )
+    } finally {
+      setAddingUser(false)
+    }
+  }
+
+  const submitEditUser = async () => {
+    if (!editingUser) return
+
+    const name = editUserForm.name.trim()
+    const email = editUserForm.email.trim()
+    if (!name || !email) {
+      setEditUserError('Name and email are required.')
+      return
+    }
+
+    const selectedBusinessUnit = businessUnitOptions.find(
+      (option) => option.value === editUserForm.businessUnit,
+    )
+    const selectedCostCenter = allCostCenterOptions.find(
+      (option) => option.value === editUserForm.costCenter,
+    )
+    const updatedUser: UserRow = {
+      ...editingUser,
+      name,
+      email,
+      role: normalizeRole(editUserForm.role),
+      status: normalizeStatus(editUserForm.status),
+      businessUnitId:
+        selectedBusinessUnit?.unit.code || editUserForm.businessUnit,
+      businessUnit:
+        selectedBusinessUnit?.unit.name || editingUser.businessUnit,
+      costCenterId: selectedCostCenter
+        ? String(selectedCostCenter.center.id)
+        : editUserForm.costCenter,
+      costCenter: selectedCostCenter?.center.code || editingUser.costCenter,
+      costCenterName:
+        selectedCostCenter?.center.name || editingUser.costCenterName,
+      ssoEnabled: editUserForm.ssoEnabled,
+      isActive: editUserForm.status === 'active',
+    }
+
+    if (editingUser.membershipId.startsWith('local-')) {
+      setUsers((current) => upsertUser(current, updatedUser))
+      closeEditUserModal()
+      return
+    }
+
+    const recordId = editingUser.membershipId || editingUser.userId
+    if (!recordId) {
+      setEditUserError('This user does not have an editable membership ID.')
+      return
+    }
+
+    setSavingUser(true)
+    setEditUserError('')
+
+    try {
+      const response = await fetch(
+        `/api/admin/users/${encodeURIComponent(recordId)}`,
+        {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            ...csrfHeaders(),
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            role: updatedUser.role,
+            status: updatedUser.status,
+            business_unit_id: selectedBusinessUnit?.unit.id || null,
+            cost_center_id: selectedCostCenter?.center.id || null,
+            sso_enabled: updatedUser.ssoEnabled,
+            is_active: updatedUser.isActive,
+          }),
+        },
+      )
+
+      if (response.status === 401) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+
+      const body = (await response.json().catch(() => ({}))) as BackendUser
+      if (!response.ok) {
+        const message =
+          body && typeof body === 'object' && 'detail' in body
+            ? String((body as { detail?: unknown }).detail)
+            : `Unable to update user (${response.status}).`
+        throw new Error(message)
+      }
+
+      const saved = body.membership_id || body.user_id
+        ? mapBackendUser(body)
+        : updatedUser
+      setUsers((current) => upsertUser(current, saved))
+      setEditingUser(null)
+    } catch (requestError) {
+      setEditUserError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Unable to update user.',
+      )
+    } finally {
+      setSavingUser(false)
+    }
   }
 
   const handleAssistantGenerate = async () => {
@@ -779,6 +1013,17 @@ export default function AdminUsersPage() {
       const result = await parseUser(assistantPrompt)
       if (result?.error) {
         throw new Error(String(result.error))
+      }
+
+      if (
+        !isInternalAccessUser(
+          (result as { role?: unknown })?.role,
+          (result as { user_type?: unknown })?.user_type,
+        )
+      ) {
+        throw new Error(
+          'Suppliers and workers are managed in their dedicated directories, not Users.',
+        )
       }
 
       setUsers((current) =>
@@ -812,7 +1057,14 @@ export default function AdminUsersPage() {
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
 
         setUsers((current) =>
-          rows.reduce(
+          rows
+            .filter((row) =>
+              isInternalAccessUser(
+                row.role || row.Role,
+                row.user_type || row.account_type || row.Type,
+              ),
+            )
+            .reduce(
             (acc, row) => upsertUser(acc, normalizeAssistantUser(row, 'upload')),
             current,
           ),
@@ -1072,6 +1324,9 @@ export default function AdminUsersPage() {
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  {getAccessRole(addUserForm.role).description}
+                </p>
               </div>
 
               <div>
@@ -1128,10 +1383,219 @@ export default function AdminUsersPage() {
                 Cancel
               </button>
               <button
-                onClick={submitAddUser}
-                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
+                onClick={() => void submitAddUser()}
+                disabled={addingUser}
+                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:bg-gray-400"
               >
-                Add User
+                {addingUser ? 'Adding...' : 'Add User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-black text-slate-900">Edit user access</h2>
+                </div>
+                <p className="mt-1 text-sm font-medium text-slate-500">
+                  Update the user record and assign a preconfigured access role.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditUserModal}
+                disabled={savingUser}
+                className="rounded-xl p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                aria-label="Close edit user modal"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 px-6 py-5 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Name <RequiredIndicator />
+                </label>
+                <input
+                  value={editUserForm.name}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">
+                  Email <RequiredIndicator />
+                </label>
+                <input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Access role</label>
+                <select
+                  value={editUserForm.role}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      role: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Status</label>
+                <select
+                  value={editUserForm.status}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Business unit</label>
+                <select
+                  value={editUserForm.businessUnit}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      businessUnit: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <option value="">No business unit</option>
+                  {businessUnitOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-bold text-slate-800">Cost center</label>
+                <select
+                  value={editUserForm.costCenter}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      costCenter: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <option value="">No cost center</option>
+                  {allCostCenterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                  <div>
+                    <p className="font-bold text-slate-900">
+                      {getAccessRole(editUserForm.role).label} permissions
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {getAccessRole(editUserForm.role).description}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {getAccessRole(editUserForm.role).permissions.map((permission) => (
+                        <span
+                          key={permission}
+                          className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-800"
+                        >
+                          {permission}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <label className="md:col-span-2 flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+                <span className="text-sm font-bold text-slate-800">SSO enabled</span>
+                <input
+                  type="checkbox"
+                  checked={editUserForm.ssoEnabled}
+                  onChange={(event) =>
+                    setEditUserForm((current) => ({
+                      ...current,
+                      ssoEnabled: event.target.checked,
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                />
+              </label>
+
+              {editUserError ? (
+                <p className="md:col-span-2 text-sm font-medium text-rose-600">
+                  {editUserError}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeEditUserModal}
+                disabled={savingUser}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitEditUser()}
+                disabled={savingUser}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {savingUser ? 'Saving...' : 'Save changes'}
               </button>
             </div>
           </div>
@@ -1494,7 +1958,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-5 py-4">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-                      {toTitleCase(user.role)}
+                      {getAccessRole(user.role).label}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-slate-700">
@@ -1514,10 +1978,12 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button
-                      disabled
-                      className="cursor-not-allowed rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400"
+                      type="button"
+                      onClick={() => openEditUserModal(user)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                     >
-                      Details pending
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit access
                     </button>
                   </td>
                 </tr>

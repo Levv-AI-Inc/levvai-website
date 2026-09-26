@@ -30,7 +30,7 @@ Terminology mapping:
 
 Allowed roles and their permissions:
 
-Admin:
+Administrator:
 - Manage Users
 - Assign Roles
 - Configure Approval Chains
@@ -57,22 +57,18 @@ Hiring Manager:
 - View Team Analytics
 - Reassign Work
 
-Finance:
+Accounts Payable Supervisor:
 - Approve Invoices
 - View Spend Summaries
-- Edit Financial Policies
+- Review Payment Exceptions
+- Export Financial Reports
 - View Audit Logs
 
-Procurement:
+Procurement Manager:
 - Edit SOWs
 - Manage Suppliers
 - Configure Approval Chains
 - Escalate Issues
-
-HR:
-- Manage Workers
-- Trigger Auto-Terminations
-- View Worker Profiles
 
 Viewer:
 - View Requests
@@ -91,7 +87,7 @@ Return EXACTLY this JSON shape:
 {
   "name": string,
   "email"?: string,
-  "role": "Admin" | "Hiring Manager" | "Finance" | "Procurement" | "HR" | "Viewer",
+  "role": "Administrator" | "Hiring Manager" | "Accounts Payable Supervisor" | "Procurement Manager" | "Viewer",
   "status": "Active" | "Inactive",
   "businessUnit"?: string,
   "costCenter"?: string
