@@ -51,6 +51,11 @@ import {
   type SupplierRecord,
 } from '@/lib/api/suppliers'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
+import {
+  SearchableMultiSelect,
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/ui/searchable-select'
 import { COUNTRY_OPTIONS } from '@/lib/constants/countries'
 
 type LookupOption = {
@@ -189,6 +194,15 @@ function uniqueOptions(options: LookupOption[]) {
 
   rows.sort((left, right) => left.label.localeCompare(right.label))
   return rows
+}
+
+function toSearchableOptions(
+  options: LookupOption[],
+): SearchableSelectOption[] {
+  return options.map((option) => ({
+    value: option.value,
+    label: option.label,
+  }))
 }
 
 function valueToScalarString(value: unknown) {
@@ -712,6 +726,17 @@ export default function ApprovalChainEditorPage({
     rows.sort((left, right) => left.label.localeCompare(right.label))
     return rows
   }, [catalog.fields])
+
+  const fieldOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      sortedFields.map((field) => ({
+        value: field.key,
+        label: field.label,
+        description: field.description || field.key,
+        keywords: [field.key, field.resolver_path].filter(Boolean),
+      })),
+    [sortedFields],
+  )
 
   const loadLookup = useCallback(
     async (lookupKey: LookupResourceKey) => {
@@ -1419,6 +1444,13 @@ export default function ApprovalChainEditorPage({
                   actualFieldKey,
                   lookupData,
                 )
+                const searchableLookupOptions =
+                  toSearchableOptions(lookupOptions)
+                const operatorOptions: SearchableSelectOption[] =
+                  operators.map((operator) => ({
+                    value: operator.key,
+                    label: operator.label,
+                  }))
                 const lookupResource = getLookupResourceForField(
                   condition.selected_field_key,
                 )
@@ -1484,10 +1516,11 @@ export default function ApprovalChainEditorPage({
                           Field
                           <RequiredIndicator />
                         </label>
-                        <select
+                        <SearchableSelect
                           value={condition.selected_field_key}
-                          onChange={(event) => {
-                            const nextFieldKey = event.target.value
+                          options={fieldOptions}
+                          onChange={(value) => {
+                            const nextFieldKey = value
                             const nextOperator =
                               getDefaultOperatorForSelection(
                                 catalog,
@@ -1507,14 +1540,12 @@ export default function ApprovalChainEditorPage({
                               }),
                             )
                           }}
-                          className="w-full rounded-md border px-3 py-2 text-sm"
-                        >
-                          {sortedFields.map((entry) => (
-                            <option key={entry.key} value={entry.key}>
-                              {entry.label}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="Select field"
+                          searchPlaceholder="Search fields"
+                          emptyMessage="No fields found."
+                          required
+                          className="rounded-md"
+                        />
                         {field?.description && (
                           <p className="mt-1 text-xs text-gray-500">
                             {field.description}
@@ -1527,10 +1558,11 @@ export default function ApprovalChainEditorPage({
                           Operator
                           <RequiredIndicator />
                         </label>
-                        <select
+                        <SearchableSelect
                           value={condition.operator}
-                          onChange={(event) => {
-                            const nextOperator = event.target.value
+                          options={operatorOptions}
+                          onChange={(value) => {
+                            const nextOperator = value
                             updateCondition(
                               condition.client_id,
                               (current) => ({
@@ -1540,14 +1572,12 @@ export default function ApprovalChainEditorPage({
                               }),
                             )
                           }}
-                          className="w-full rounded-md border px-3 py-2 text-sm"
-                        >
-                          {operators.map((operator) => (
-                            <option key={operator.key} value={operator.key}>
-                              {operator.label}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="Select operator"
+                          searchPlaceholder="Search operators"
+                          emptyMessage="No operators found."
+                          required
+                          className="rounded-md"
+                        />
                       </div>
 
                       <div>
@@ -1611,31 +1641,24 @@ export default function ApprovalChainEditorPage({
                         {requiresValue &&
                           MULTI_VALUE_OPERATORS.has(condition.operator) &&
                           lookupOptions.length > 0 && (
-                            <select
-                              multiple
+                            <SearchableMultiSelect
                               value={valueToStringArray(condition.value)}
-                              onChange={(event) =>
+                              options={searchableLookupOptions}
+                              onChange={(value) =>
                                 updateCondition(
                                   condition.client_id,
                                   (current) => ({
                                     ...current,
-                                    value: Array.from(
-                                      event.target.selectedOptions,
-                                    ).map((option) => option.value),
+                                    value,
                                   }),
                                 )
                               }
-                              className="h-32 w-full rounded-md border px-3 py-2 text-sm"
-                            >
-                              {lookupOptions.map((option) => (
-                                <option
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                              placeholder="Select values"
+                              searchPlaceholder="Search values"
+                              emptyMessage="No values found."
+                              required={requiresValue}
+                              className="rounded-md"
+                            />
                           )}
 
                         {requiresValue &&
@@ -1665,29 +1688,30 @@ export default function ApprovalChainEditorPage({
                           !MULTI_VALUE_OPERATORS.has(condition.operator) &&
                           !RANGE_VALUE_OPERATORS.has(condition.operator) &&
                           lookupOptions.length > 0 && (
-                            <select
+                            <SearchableSelect
                               value={scalarValue}
-                              onChange={(event) =>
+                              options={[
+                                {
+                                  value: '',
+                                  label: 'Select value',
+                                },
+                                ...searchableLookupOptions,
+                              ]}
+                              onChange={(value) =>
                                 updateCondition(
                                   condition.client_id,
                                   (current) => ({
                                     ...current,
-                                    value: event.target.value,
+                                    value,
                                   }),
                                 )
                               }
-                              className="w-full rounded-md border px-3 py-2 text-sm"
-                            >
-                              <option value="">Select value</option>
-                              {lookupOptions.map((option) => (
-                                <option
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                              placeholder="Select value"
+                              searchPlaceholder="Search values"
+                              emptyMessage="No values found."
+                              required={requiresValue}
+                              className="rounded-md"
+                            />
                           )}
 
                         {requiresValue &&
