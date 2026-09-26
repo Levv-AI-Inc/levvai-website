@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCWRequest } from '../../context/CWRequestContext'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import { LevvRequestHeader } from '@/components/ui/levv-app'
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/ui/searchable-select'
 import {
   IntakeApiError,
   createIntakeDraft,
@@ -205,6 +209,78 @@ export default function CWDefinePage() {
         ? '__legacy__'
         : ''
   const legalEntitySelectValue = request.legalEntityId || ''
+
+  const roleOptions = useMemo<SearchableSelectOption[]>(() => {
+    const options: SearchableSelectOption[] = []
+
+    if (request.role && request.roleId === undefined) {
+      options.push({
+        value: '__legacy__',
+        label: `${request.role} (legacy selection)`,
+        disabled: true,
+      })
+    }
+
+    return [
+      ...options,
+      ...roles.map((role) => {
+        const location = readRoleLocation(role)
+        return {
+          value: String(role.id),
+          label: role.name,
+          description: location || role.code || undefined,
+          keywords: [
+            role.code,
+            location,
+            role.default_currency,
+            role.default_unit,
+          ].filter(Boolean),
+        }
+      }),
+    ]
+  }, [request.role, request.roleId, roles])
+
+  const costCenterOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      costCenters.map((option) => ({
+        value: String(option.id),
+        label: option.label,
+      })),
+    [costCenters],
+  )
+
+  const siteOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      sites.map((option) => {
+        const city = readOptionalString(option.raw.city)
+        const country = readOptionalString(option.raw.country)
+        return {
+          value: String(option.id),
+          label: option.label,
+          description: [city, country].filter(Boolean).join(', ') || undefined,
+          keywords: [
+            readOptionalString(option.raw.name),
+            readOptionalString(option.raw.site_city),
+            readOptionalString(option.raw.state_province),
+            readOptionalString(option.raw.region),
+            city,
+            country,
+          ].filter(Boolean),
+        }
+      }),
+    [sites],
+  )
+
+  const legalEntityOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      legalEntities.map((entity) => ({
+        value: String(entity.id),
+        label: entity.name,
+        description: entity.country || entity.erp_code || undefined,
+        keywords: [entity.id, entity.erp_code, entity.country].filter(Boolean),
+      })),
+    [legalEntities],
+  )
 
   const clearFieldError = (field: DefineField) => {
     setFieldErrors((current) => {
@@ -620,34 +696,22 @@ export default function CWDefinePage() {
             Role
             <RequiredIndicator />
           </label>
-          <select
+          <SearchableSelect
             id={DEFINE_FIELD_IDS.role}
-            className={`${fieldControlClass(Boolean(fieldErrors.role))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
             value={roleSelectValue}
-            onChange={(event) => {
+            options={roleOptions}
+            onChange={(value) => {
               clearFieldError('role')
-              handleRoleChange(event.target.value)
+              handleRoleChange(value)
             }}
+            placeholder="Select a role"
+            searchPlaceholder="Search roles"
+            emptyMessage="No roles found."
             disabled={referenceLoading}
             required
-            aria-invalid={Boolean(fieldErrors.role)}
-            aria-describedby={fieldErrors.role ? `${DEFINE_FIELD_IDS.role}-error` : undefined}
-          >
-            <option value="">Select a role</option>
-            {request.role && request.roleId === undefined && (
-              <option value="__legacy__">
-                {request.role} (legacy selection)
-              </option>
-            )}
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-                {readRoleLocation(role)
-                  ? ` · ${readRoleLocation(role)}`
-                  : ''}
-              </option>
-            ))}
-          </select>
+            invalid={Boolean(fieldErrors.role)}
+            describedBy={fieldErrors.role ? `${DEFINE_FIELD_IDS.role}-error` : undefined}
+          />
           <FieldError field="role" message={fieldErrors.role} />
 
           {selectedRole && (
@@ -819,36 +883,36 @@ export default function CWDefinePage() {
                 Cost center
                 <RequiredIndicator />
               </label>
-              <select
+              <SearchableSelect
                 id={DEFINE_FIELD_IDS.costCenter}
-                className={`${fieldControlClass(Boolean(fieldErrors.costCenter))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
-                value={request.costCenterId ?? ''}
-                onChange={(event) => {
+                value={
+                  request.costCenterId !== undefined
+                    ? String(request.costCenterId)
+                    : ''
+                }
+                options={costCenterOptions}
+                onChange={(value) => {
                   clearFieldError('costCenter')
                   update({
-                    costCenterId: event.target.value
-                      ? Number(event.target.value)
+                    costCenterId: value
+                      ? Number(value)
                       : undefined,
-                    costCenter: event.target.value
+                    costCenter: value
                       ? costCenters.find(
                         (option) =>
-                          option.id === Number(event.target.value),
+                          option.id === Number(value),
                       )?.label
                       : undefined,
                   })
                 }}
+                placeholder="Select a cost center"
+                searchPlaceholder="Search cost centers"
+                emptyMessage="No cost centers found."
                 disabled={referenceLoading}
                 required
-                aria-invalid={Boolean(fieldErrors.costCenter)}
-                aria-describedby={fieldErrors.costCenter ? `${DEFINE_FIELD_IDS.costCenter}-error` : undefined}
-              >
-                <option value="">Select a cost center</option>
-                {costCenters.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                invalid={Boolean(fieldErrors.costCenter)}
+                describedBy={fieldErrors.costCenter ? `${DEFINE_FIELD_IDS.costCenter}-error` : undefined}
+              />
               <FieldError field="costCenter" message={fieldErrors.costCenter} />
             </div>
 
@@ -860,13 +924,13 @@ export default function CWDefinePage() {
                 Site
                 <RequiredIndicator />
               </label>
-              <select
+              <SearchableSelect
                 id={DEFINE_FIELD_IDS.site}
-                className={`${fieldControlClass(Boolean(fieldErrors.site))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
-                value={request.siteId ?? ''}
-                onChange={(event) => {
+                value={request.siteId !== undefined ? String(request.siteId) : ''}
+                options={siteOptions}
+                onChange={(value) => {
                   clearFieldError('site')
-                  if (!event.target.value) {
+                  if (!value) {
                     update({
                       siteId: undefined,
                       city: undefined,
@@ -876,7 +940,7 @@ export default function CWDefinePage() {
                     return
                   }
 
-                  const nextSiteId = Number(event.target.value)
+                  const nextSiteId = Number(value)
                   const selectedSite =
                     sites.find((option) => option.id === nextSiteId) ||
                     null
@@ -895,18 +959,14 @@ export default function CWDefinePage() {
                       derived.legalEntityId ?? request.legalEntityId,
                   })
                 }}
+                placeholder="Select a site"
+                searchPlaceholder="Search sites"
+                emptyMessage="No sites found."
                 disabled={referenceLoading}
                 required
-                aria-invalid={Boolean(fieldErrors.site)}
-                aria-describedby={fieldErrors.site ? `${DEFINE_FIELD_IDS.site}-error` : undefined}
-              >
-                <option value="">Select a site</option>
-                {sites.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                invalid={Boolean(fieldErrors.site)}
+                describedBy={fieldErrors.site ? `${DEFINE_FIELD_IDS.site}-error` : undefined}
+              />
               <FieldError field="site" message={fieldErrors.site} />
             </div>
 
@@ -918,29 +978,24 @@ export default function CWDefinePage() {
                 Legal entity
                 <RequiredIndicator />
               </label>
-              <select
+              <SearchableSelect
                 id={DEFINE_FIELD_IDS.legalEntity}
-                className={`${fieldControlClass(Boolean(fieldErrors.legalEntity))} h-10 disabled:cursor-wait disabled:bg-[#f4f7fb]`}
                 value={legalEntitySelectValue}
-                onChange={(event) => {
+                options={legalEntityOptions}
+                onChange={(value) => {
                   clearFieldError('legalEntity')
                   update({
-                    legalEntityId: event.target.value || undefined,
+                    legalEntityId: value || undefined,
                   })
                 }}
+                placeholder="Select a legal entity"
+                searchPlaceholder="Search legal entities"
+                emptyMessage="No legal entities found."
                 disabled={referenceLoading}
                 required
-                aria-invalid={Boolean(fieldErrors.legalEntity)}
-                aria-describedby={fieldErrors.legalEntity ? `${DEFINE_FIELD_IDS.legalEntity}-error` : undefined}
-              >
-                <option value="">Select a legal entity</option>
-                {legalEntities.map((entity) => (
-                  <option key={entity.id} value={entity.id}>
-                    {entity.name}
-                    {entity.country ? ` · ${entity.country}` : ''}
-                  </option>
-                ))}
-              </select>
+                invalid={Boolean(fieldErrors.legalEntity)}
+                describedBy={fieldErrors.legalEntity ? `${DEFINE_FIELD_IDS.legalEntity}-error` : undefined}
+              />
               <FieldError field="legalEntity" message={fieldErrors.legalEntity} />
             </div>
           </div>
