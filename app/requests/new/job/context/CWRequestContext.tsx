@@ -48,6 +48,7 @@ export type CWRequest = {
   costCenterId?: number
   siteId?: number
   site?: string
+  siteUnavailable?: boolean
   legalEntityId?: string
   legalEntity?: string
   supplierId?: number

@@ -372,7 +372,7 @@ export function SearchableSelect({
           invalid
             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100'
             : 'border-[#dbe3ee] focus:border-[#93b4f8] focus:ring-[#dbeafe]/70',
-          'disabled:cursor-wait disabled:bg-[#f4f7fb] disabled:text-[#94a3b8]',
+          'disabled:cursor-not-allowed disabled:bg-[#f4f7fb] disabled:text-[#94a3b8]',
           className,
         )}
       >
@@ -657,7 +657,7 @@ export function SearchableMultiSelect({
           invalid
             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-100'
             : 'border-[#dbe3ee] focus:border-[#93b4f8] focus:ring-[#dbeafe]/70',
-          'disabled:cursor-wait disabled:bg-[#f4f7fb] disabled:text-[#94a3b8]',
+          'disabled:cursor-not-allowed disabled:bg-[#f4f7fb] disabled:text-[#94a3b8]',
           className,
         )}
       >

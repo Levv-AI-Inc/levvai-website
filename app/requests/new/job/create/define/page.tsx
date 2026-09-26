@@ -100,7 +100,6 @@ function readSiteDerivedFields(siteOption: ReferenceOption | null) {
       city: undefined,
       stateProvince: undefined,
       country: undefined,
-      legalEntityId: undefined,
     }
   }
 
@@ -117,19 +116,10 @@ function readSiteDerivedFields(siteOption: ReferenceOption | null) {
   )
   const stateProvince = normalizeSubdivision(country, rawStateProvince)
 
-  const legalEntityIdRaw = raw.legal_entity_id ?? raw.legal_entity
-  const legalEntityId =
-    typeof legalEntityIdRaw === 'string'
-      ? legalEntityIdRaw.trim() || undefined
-      : typeof legalEntityIdRaw === 'number' && Number.isFinite(legalEntityIdRaw)
-        ? String(legalEntityIdRaw)
-        : undefined
-
   return {
     city,
     stateProvince,
     country,
-    legalEntityId,
   }
 }
 
@@ -141,6 +131,9 @@ type DefineField =
   | 'positions'
   | 'costCenter'
   | 'site'
+  | 'country'
+  | 'stateProvince'
+  | 'city'
   | 'legalEntity'
 
 type DefineErrors = Partial<Record<DefineField, string>>
@@ -153,6 +146,9 @@ const DEFINE_FIELD_IDS: Record<DefineField, string> = {
   positions: 'job-positions',
   costCenter: 'job-cost-center',
   site: 'job-site',
+  country: 'job-country',
+  stateProvince: 'job-region',
+  city: 'job-city',
   legalEntity: 'job-legal-entity',
 }
 
@@ -226,6 +222,24 @@ export default function CWDefinePage() {
     selectedCountry,
     request.stateProvince || request.region,
   )
+  const selectedSite =
+    request.siteId !== undefined
+      ? sites.find((site) => site.id === request.siteId) || null
+      : null
+  const selectedSiteHasLocation = Boolean(
+    selectedCountry && selectedSubdivision && request.city?.trim(),
+  )
+  const selectedSiteLocation = [
+    request.city?.trim(),
+    subdivisionOptions.find(
+      (option) => option.value === selectedSubdivision,
+    )?.label,
+    SUPPORTED_COUNTRY_OPTIONS.find(
+      (option) => option.value === selectedCountry,
+    )?.label,
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   const roleOptions = useMemo<SearchableSelectOption[]>(() => {
     const options: SearchableSelectOption[] = []
@@ -269,18 +283,27 @@ export default function CWDefinePage() {
   const siteOptions = useMemo<SearchableSelectOption[]>(
     () =>
       sites.map((option) => {
-        const city = readOptionalString(option.raw.city)
-        const country = readOptionalString(option.raw.country)
+        const derived = readSiteDerivedFields(option)
+        const stateProvince = derived.country && derived.stateProvince
+          ? SUBDIVISION_OPTIONS[derived.country].find(
+              (entry) => entry.value === derived.stateProvince,
+            )?.label
+          : undefined
+        const country = SUPPORTED_COUNTRY_OPTIONS.find(
+          (entry) => entry.value === derived.country,
+        )?.label || readOptionalString(option.raw.country)
         return {
           value: String(option.id),
           label: option.label,
-          description: [city, country].filter(Boolean).join(', ') || undefined,
+          description:
+            [derived.city, stateProvince, country].filter(Boolean).join(', ') ||
+            undefined,
           keywords: [
             readOptionalString(option.raw.name),
             readOptionalString(option.raw.site_city),
             readOptionalString(option.raw.state_province),
             readOptionalString(option.raw.region),
-            city,
+            derived.city,
             country,
           ].filter(Boolean),
         }
@@ -336,8 +359,19 @@ export default function CWDefinePage() {
     if (request.costCenterId === undefined) {
       errors.costCenter = 'Select a cost center.'
     }
-    if (request.siteId === undefined) {
+    if (!request.siteUnavailable && request.siteId === undefined) {
       errors.site = 'Select a site.'
+    }
+    if (request.siteUnavailable) {
+      if (!selectedCountry) {
+        errors.country = 'Select a supported country.'
+      }
+      if (!selectedSubdivision) {
+        errors.stateProvince = 'Select a state or province.'
+      }
+      if (!request.city?.trim()) {
+        errors.city = 'Enter a city.'
+      }
     }
     if (!request.legalEntityId) {
       errors.legalEntity = 'Select a legal entity.'
@@ -358,18 +392,12 @@ export default function CWDefinePage() {
 
     const nextRole = roles.find((role) => role.id === Number(value))
     if (!nextRole) return
-    const country = normalizeSupportedCountry(nextRole.country)
-    const stateProvince = normalizeSubdivision(country, nextRole.region)
 
     update({
       roleId: nextRole.id,
       jobTemplateId: undefined,
       role: nextRole.name,
       description: nextRole.description || '',
-      country,
-      stateProvince,
-      city: nextRole.city || '',
-      region: stateProvince,
       currency: nextRole.default_currency || undefined,
       rateUnit: mapRoleUnitToRateUnit(nextRole.default_unit),
     })
@@ -596,17 +624,6 @@ export default function CWDefinePage() {
         next.roleId = matchedRole.id
         next.role = matchedRole.name
         next.description = request.description || matchedRole.description || ''
-        const country = normalizeSupportedCountry(
-          request.country || matchedRole.country,
-        )
-        const stateProvince = normalizeSubdivision(
-          country,
-          request.stateProvince || request.region || matchedRole.region,
-        )
-        next.country = country
-        next.stateProvince = stateProvince
-        next.city = request.city || matchedRole.city || ''
-        next.region = stateProvince
         next.currency = request.currency || matchedRole.default_currency || undefined
         next.rateUnit =
           request.rateUnit || mapRoleUnitToRateUnit(matchedRole.default_unit)
@@ -628,18 +645,26 @@ export default function CWDefinePage() {
       }
     }
 
-    if (request.siteId === undefined && sites.length > 0) {
+    if (request.site && request.siteId === undefined && sites.length > 0) {
       const matchedSite = sites.find((option) =>
         includesMatch(option.label, request.site) ||
-        includesMatch(option.label, request.city) ||
-        includesMatch(readOptionalString(option.raw.name), request.city) ||
-        includesMatch(readOptionalString(option.raw.city), request.city),
+        includesMatch(readOptionalString(option.raw.name), request.site),
       )
 
       if (matchedSite) {
         next.siteId = matchedSite.id
+        next.site = matchedSite.label
+        next.siteUnavailable = false
         Object.assign(next, readSiteDerivedFields(matchedSite))
+      } else if (request.siteUnavailable === undefined) {
+        next.siteUnavailable = true
       }
+    } else if (
+      request.siteUnavailable === undefined &&
+      request.siteId === undefined &&
+      (request.country || request.stateProvince || request.region || request.city)
+    ) {
+      next.siteUnavailable = true
     }
 
     if (!request.legalEntityId && legalEntities.length > 0) {
@@ -673,6 +698,7 @@ export default function CWDefinePage() {
     request.roleId,
     request.site,
     request.siteId,
+    request.siteUnavailable,
     request.stateProvince,
     request.currency,
     request.legalEntity,
@@ -948,61 +974,6 @@ export default function CWDefinePage() {
 
             <div>
               <label
-                htmlFor={DEFINE_FIELD_IDS.site}
-                className="block text-sm font-semibold text-[#3d4945]"
-              >
-                Site
-                <RequiredIndicator />
-              </label>
-              <SearchableSelect
-                id={DEFINE_FIELD_IDS.site}
-                className="mt-1.5"
-                value={request.siteId !== undefined ? String(request.siteId) : ''}
-                options={siteOptions}
-                onChange={(value) => {
-                  clearFieldError('site')
-                  if (!value) {
-                    update({
-                      siteId: undefined,
-                      city: undefined,
-                      stateProvince: undefined,
-                      region: undefined,
-                    })
-                    return
-                  }
-
-                  const nextSiteId = Number(value)
-                  const selectedSite =
-                    sites.find((option) => option.id === nextSiteId) ||
-                    null
-                  const derived = readSiteDerivedFields(selectedSite)
-
-                  if (derived.legalEntityId) {
-                    clearFieldError('legalEntity')
-                  }
-                  update({
-                    siteId: nextSiteId,
-                    city: derived.city ?? undefined,
-                    stateProvince: derived.stateProvince ?? undefined,
-                    region: derived.stateProvince ?? undefined,
-                    country: derived.country,
-                    legalEntityId:
-                      derived.legalEntityId ?? request.legalEntityId,
-                  })
-                }}
-                placeholder="Select a site"
-                searchPlaceholder="Search sites"
-                emptyMessage="No sites found."
-                disabled={referenceLoading}
-                required
-                invalid={Boolean(fieldErrors.site)}
-                describedBy={fieldErrors.site ? `${DEFINE_FIELD_IDS.site}-error` : undefined}
-              />
-              <FieldError field="site" message={fieldErrors.site} />
-            </div>
-
-            <div>
-              <label
                 htmlFor={DEFINE_FIELD_IDS.legalEntity}
                 className="block text-sm font-semibold text-[#3d4945]"
               >
@@ -1033,76 +1004,211 @@ export default function CWDefinePage() {
           </div>
 
           <div className="border-t border-[#e8edf4] pt-4">
-            <div>
-              <h3 className="text-sm font-semibold text-[#3d4945]">
-                Location
-              </h3>
-              <p className="mt-0.5 text-xs text-[#64748b]">
-                Filled from the selected site and available to adjust.
-              </p>
-            </div>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <label htmlFor="job-country" className="block text-sm font-semibold text-[#3d4945]">
-                  Country
+                <h3 className="text-sm font-semibold text-[#3d4945]">
+                  Location
+                </h3>
+                <p className="mt-0.5 text-xs text-[#64748b]">
+                  {request.siteUnavailable
+                    ? 'Enter a location manually.'
+                    : 'Choose a site to use its configured location.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="w-fit text-xs font-semibold text-[#2563eb] hover:text-[#1d4ed8] hover:underline focus:outline-none focus:ring-2 focus:ring-[#93b4f8]"
+                onClick={() => {
+                  const siteUnavailable = !request.siteUnavailable
+                  clearFieldError('site')
+                  setFieldErrors((current) => {
+                    const next = { ...current }
+                    delete next.country
+                    delete next.stateProvince
+                    delete next.city
+                    return next
+                  })
+                  update({
+                    siteUnavailable,
+                    siteId: undefined,
+                    site: undefined,
+                    country: undefined,
+                    stateProvince: undefined,
+                    region: undefined,
+                    city: undefined,
+                  })
+                }}
+              >
+                {request.siteUnavailable
+                  ? 'Choose a site instead'
+                  : 'Enter location manually'}
+              </button>
+            </div>
+
+            {!request.siteUnavailable && (
+              <div className="mt-3 max-w-xl">
+                <label
+                  htmlFor={DEFINE_FIELD_IDS.site}
+                  className="block text-sm font-semibold text-[#3d4945]"
+                >
+                  Site
+                  <RequiredIndicator />
                 </label>
                 <SearchableSelect
-                  id="job-country"
+                  id={DEFINE_FIELD_IDS.site}
                   className="mt-1.5"
-                  value={selectedCountry || ''}
-                  options={SUPPORTED_COUNTRY_OPTIONS}
-                  placeholder="Select a country"
-                  searchPlaceholder="Search countries"
-                  emptyMessage="No countries found."
+                  value={request.siteId !== undefined ? String(request.siteId) : ''}
+                  options={siteOptions}
                   onChange={(value) => {
+                    clearFieldError('site')
+                    if (!value) {
+                      update({
+                        siteId: undefined,
+                        site: undefined,
+                        country: undefined,
+                        city: undefined,
+                        stateProvince: undefined,
+                        region: undefined,
+                      })
+                      return
+                    }
+
+                    const nextSiteId = Number(value)
+                    const nextSite =
+                      sites.find((option) => option.id === nextSiteId) ||
+                      null
+                    const derived = readSiteDerivedFields(nextSite)
+
                     update({
-                      country: normalizeSupportedCountry(value),
-                      stateProvince: undefined,
-                      region: undefined,
+                      siteId: nextSiteId,
+                      site: nextSite?.label,
+                      siteUnavailable: false,
+                      city: derived.city ?? undefined,
+                      stateProvince: derived.stateProvince ?? undefined,
+                      region: derived.stateProvince ?? undefined,
+                      country: derived.country,
                     })
                   }}
+                  placeholder="Select a site"
+                  searchPlaceholder="Search by site, city, or code"
+                  emptyMessage="No sites found."
+                  disabled={referenceLoading}
+                  required
+                  invalid={Boolean(fieldErrors.site)}
+                  describedBy={fieldErrors.site ? `${DEFINE_FIELD_IDS.site}-error` : undefined}
                 />
+                <FieldError field="site" message={fieldErrors.site} />
               </div>
+            )}
 
-              <div>
-                <label htmlFor="job-region" className="block text-sm font-semibold text-[#3d4945]">
-                  State / Province
-                </label>
-                <SearchableSelect
-                  id="job-region"
-                  className="mt-1.5"
-                  value={selectedSubdivision || ''}
-                  options={subdivisionOptions}
-                  placeholder={
-                    selectedCountry
-                      ? 'Select a state or province'
-                      : 'Select a country first'
-                  }
-                  searchPlaceholder="Search states and provinces"
-                  emptyMessage="No states or provinces found."
-                  disabled={!selectedCountry}
-                  onChange={(value) =>
-                    update({
-                      stateProvince: value || undefined,
-                      region: value || undefined,
-                    })
-                  }
-                />
-              </div>
+            {request.siteUnavailable ? (
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div>
+                  <label htmlFor={DEFINE_FIELD_IDS.country} className="block text-sm font-semibold text-[#3d4945]">
+                    Country
+                    <RequiredIndicator />
+                  </label>
+                  <SearchableSelect
+                    id={DEFINE_FIELD_IDS.country}
+                    className="mt-1.5"
+                    value={selectedCountry || ''}
+                    options={SUPPORTED_COUNTRY_OPTIONS}
+                    placeholder="Select a country"
+                    searchPlaceholder="Search countries"
+                    emptyMessage="No countries found."
+                    required
+                    invalid={Boolean(fieldErrors.country)}
+                    describedBy={fieldErrors.country ? `${DEFINE_FIELD_IDS.country}-error` : undefined}
+                    onChange={(value) => {
+                      clearFieldError('country')
+                      clearFieldError('stateProvince')
+                      update({
+                        country: normalizeSupportedCountry(value),
+                        stateProvince: undefined,
+                        region: undefined,
+                      })
+                    }}
+                  />
+                  <FieldError field="country" message={fieldErrors.country} />
+                </div>
 
-              <div>
-                <label htmlFor="job-city" className="block text-sm font-semibold text-[#3d4945]">
-                  City
-                </label>
-                <input
-                  id="job-city"
-                  className={`${fieldControlClass()} h-10`}
-                  value={request.city || ''}
-                  placeholder="Enter city"
-                  onChange={(event) => update({ city: event.target.value })}
-                />
+                <div>
+                  <label htmlFor={DEFINE_FIELD_IDS.stateProvince} className="block text-sm font-semibold text-[#3d4945]">
+                    State / Province
+                    <RequiredIndicator />
+                  </label>
+                  <SearchableSelect
+                    id={DEFINE_FIELD_IDS.stateProvince}
+                    className="mt-1.5"
+                    value={selectedSubdivision || ''}
+                    options={subdivisionOptions}
+                    placeholder={
+                      selectedCountry
+                        ? 'Select a state or province'
+                        : 'Select a country first'
+                    }
+                    searchPlaceholder="Search states and provinces"
+                    emptyMessage="No states or provinces found."
+                    disabled={!selectedCountry}
+                    required
+                    invalid={Boolean(fieldErrors.stateProvince)}
+                    describedBy={fieldErrors.stateProvince ? `${DEFINE_FIELD_IDS.stateProvince}-error` : undefined}
+                    onChange={(value) => {
+                      clearFieldError('stateProvince')
+                      update({
+                        stateProvince: value || undefined,
+                        region: value || undefined,
+                      })
+                    }}
+                  />
+                  <FieldError field="stateProvince" message={fieldErrors.stateProvince} />
+                </div>
+
+                <div>
+                  <label htmlFor={DEFINE_FIELD_IDS.city} className="block text-sm font-semibold text-[#3d4945]">
+                    City
+                    <RequiredIndicator />
+                  </label>
+                  <input
+                    id={DEFINE_FIELD_IDS.city}
+                    className={`${fieldControlClass(Boolean(fieldErrors.city))} h-10`}
+                    value={request.city || ''}
+                    placeholder="Enter city"
+                    required
+                    aria-invalid={Boolean(fieldErrors.city)}
+                    aria-describedby={fieldErrors.city ? `${DEFINE_FIELD_IDS.city}-error` : undefined}
+                    onChange={(event) => {
+                      clearFieldError('city')
+                      update({ city: event.target.value })
+                    }}
+                  />
+                  <FieldError field="city" message={fieldErrors.city} />
+                </div>
               </div>
-            </div>
+            ) : selectedSite ? (
+              <div className="mt-3 rounded-xl border border-[#dbe3ee] bg-[#f7f9fc] px-4 py-3">
+                {selectedSiteHasLocation ? (
+                  <>
+                    <p className="text-sm font-semibold text-[#26334d]">
+                      {selectedSiteLocation}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#64748b]">
+                      From {selectedSite.label}
+                    </p>
+                  </>
+                ) : (
+                  <p role="status" className="text-sm font-medium text-amber-800">
+                    Location details aren&apos;t available for this site. Choose
+                    another site or select “The site isn&apos;t available” to enter
+                    a location manually.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-[#64748b]">
+                Select a site to view its location.
+              </p>
+            )}
           </div>
 
           {referenceError && (
