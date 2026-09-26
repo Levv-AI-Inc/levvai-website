@@ -49,6 +49,7 @@ export type IntakeRecord = {
   siteName?: string
   supplier?: number
   supplierName?: string
+  requestedBy?: string
   roleDefinition?: number
   roleDefinitionName?: string
   legalEntity?: number | string
@@ -587,6 +588,7 @@ function normalizeIntakeRecord(row: Record<string, unknown>): IntakeRecord {
     siteName: readOptionalString(row.site_name),
     supplier: readOptionalNumber(row.supplier),
     supplierName: readOptionalString(row.supplier_name),
+    requestedBy: readOptionalString(row.requested_by),
     roleDefinition: readOptionalNumber(row.role_definition),
     roleDefinitionName:
       readOptionalString(row.role_definition_name) ||

@@ -68,7 +68,11 @@ function statusClasses(status: string | undefined) {
   if (normalized === 'approved') {
     return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   }
-  if (normalized === 'submitted' || normalized === 'processing') {
+  if (
+    normalized === 'submitted' ||
+    normalized === 'processing' ||
+    normalized === 'in_approval'
+  ) {
     return 'border-cyan-200 bg-cyan-50 text-cyan-700'
   }
   if (normalized === 'rejected') {
@@ -80,10 +84,24 @@ function statusClasses(status: string | undefined) {
   return 'border-slate-200 bg-slate-50 text-slate-700'
 }
 
+function getWorkflowStatus(request: IntakeRecord) {
+  const status = request.status?.trim().toLowerCase()
+  const approvalStatus = request.approvalStatus?.trim().toLowerCase()
+
+  if (status === 'draft' || status === 'approved' || status === 'rejected') {
+    return status
+  }
+  if (approvalStatus === 'processing') return 'in_approval'
+  if (approvalStatus === 'approved' || approvalStatus === 'rejected') {
+    return approvalStatus
+  }
+  return status || approvalStatus
+}
+
 function StatusBadge({ value }: { value?: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
+      className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
         value,
       )}`}
     >
@@ -96,7 +114,7 @@ export default function ContingentJobPostingsPage() {
   const [requests, setRequests] = useState<IntakeRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [statusFilter, setStatusFilter] = useState('approved')
+  const [statusFilter, setStatusFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [supplierFilter, setSupplierFilter] = useState('All')
   const [aiInput, setAiInput] = useState('')
@@ -130,6 +148,7 @@ export default function ContingentJobPostingsPage() {
         request.requestId,
         request.roleDefinitionName,
         request.supplierName,
+        request.requestedBy,
         request.workLocationLabel,
         request.city,
         request.stateProvince,
@@ -334,7 +353,7 @@ export default function ContingentJobPostingsPage() {
             onClick={() => {
               setSearchTerm('')
               setSupplierFilter('All')
-              setStatusFilter('approved')
+              setStatusFilter('')
             }}
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-rose-500"
           >
@@ -380,11 +399,12 @@ export default function ContingentJobPostingsPage() {
                 <tr className="border-b border-slate-200 bg-slate-50/80">
                   <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Request</th>
                   <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Role</th>
+                  <th className="min-w-[140px] px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
                   <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Supplier</th>
+                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">JP Owner</th>
                   <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Location</th>
                   <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Rate / Budget</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Approval</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Updated</th>
+                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Created</th>
                   <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Action</th>
                 </tr>
               </thead>
@@ -405,8 +425,14 @@ export default function ContingentJobPostingsPage() {
                     <td className="px-8 py-6 align-top font-semibold text-slate-700">
                       {request.roleDefinitionName || '-'}
                     </td>
+                    <td className="px-8 py-6 align-top">
+                      <StatusBadge value={getWorkflowStatus(request)} />
+                    </td>
                     <td className="px-8 py-6 align-top font-semibold text-slate-700">
                       {request.supplierName || '-'}
+                    </td>
+                    <td className="px-8 py-6 align-top font-semibold text-slate-700">
+                      {request.requestedBy || '-'}
                     </td>
                     <td className="px-8 py-6 align-top text-slate-600">
                       {request.workLocationLabel ||
@@ -431,14 +457,8 @@ export default function ContingentJobPostingsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-8 py-6 align-top">
-                      <div className="flex flex-col gap-2">
-                        <StatusBadge value={request.status} />
-                        <StatusBadge value={request.approvalStatus} />
-                      </div>
-                    </td>
                     <td className="px-8 py-6 align-top text-slate-700">
-                      {formatDate(request.updatedAt || request.createdAt)}
+                      {formatDate(request.createdAt)}
                     </td>
                     <td className="px-8 py-6 text-right align-top">
                       <Link
