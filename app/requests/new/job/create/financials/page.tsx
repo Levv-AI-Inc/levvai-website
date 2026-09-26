@@ -753,7 +753,7 @@ export default function CWFinancialsPage() {
             <div className="px-7 py-6 border-b border-slate-200 bg-slate-50/70">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <DollarSign className="w-4 h-4 text-cyan-600" />
-                Target Rate Builder
+                Rates
               </div>
               <p className="text-sm text-slate-600 mt-1">
                 Set the target standard rate (base pay) for this request. Market alignment and cost impact update immediately.
@@ -971,9 +971,6 @@ export default function CWFinancialsPage() {
                 <BarChart3 className="w-4 h-4 text-cyan-600" />
                 Cost Breakdown
               </div>
-              <p className="text-sm text-slate-600 mt-1">
-                Transparent view of modeled hourly rate and total commitment.
-              </p>
             </div>
 
             <div className="p-7 space-y-7">
