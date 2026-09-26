@@ -19,11 +19,22 @@ export function getTableConfig(activeTab: Tab): TableConfig {
         addLabel: 'Add cost center',
         columns: [
           { key: 'costCenter', label: 'Cost center' },
+          { key: 'businessUnit', label: 'Business unit' },
           { key: 'erpId', label: 'ERP ID' },
         ],
         rows: [
-          { costCenter: 'IT-1001', erpId: 'CC-7781', status: 'Active' },
-          { costCenter: 'OPS-2003', erpId: 'CC-8820', status: 'Inactive' },
+          {
+            costCenter: 'IT-1001',
+            businessUnit: 'Technology',
+            erpId: 'CC-7781',
+            status: 'Active',
+          },
+          {
+            costCenter: 'OPS-2003',
+            businessUnit: 'Operations',
+            erpId: 'CC-8820',
+            status: 'Inactive',
+          },
         ],
       }
 

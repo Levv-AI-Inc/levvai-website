@@ -38,6 +38,7 @@ import {
   getCostCenters,
   type CostCenterCreatePayload,
   type CostCenterRecord,
+  updateCostCenter,
 } from '@/lib/api/costCenters'
 import {
   LegalEntitiesApiError,
@@ -81,11 +82,14 @@ function mapBusinessUnitsToRows(rows: BusinessUnitRecord[]) {
 
 function mapCostCentersToRows(rows: CostCenterRecord[]) {
   return rows.map((center) => ({
+    id: center.id,
     costCenter: center.code
       ? `${center.name} (${center.code})`
       : center.name,
+    businessUnit: center.business_unit || '-',
     erpId: center.erp_code || '-',
     status: toRowStatus(center.status),
+    costCenterRecord: center,
   }))
 }
 
@@ -166,6 +170,25 @@ function toCreateCostCenterPayload(
     gl_account_id: values.glAccountId.trim() || undefined,
     erp_code: values.erpCode.trim() || undefined,
     legal_entity_id: values.legalEntityId.trim() || undefined,
+  }
+}
+
+function toCostCenterFormValues(
+  costCenter: CostCenterRecord,
+): AddCostCenterFormValues {
+  return {
+    code: costCenter.code || '',
+    name: costCenter.name || '',
+    ownerEmail: costCenter.owner_email || '',
+    description: costCenter.description || '',
+    businessUnit: costCenter.business_unit || '',
+    currency: costCenter.currency || '',
+    status: costCenter.status || 'active',
+    budgetAmount: costCenter.budget_amount || '',
+    budgetPeriod: costCenter.budget_period || '',
+    glAccountId: costCenter.gl_account_id || '',
+    erpCode: costCenter.erp_code || '',
+    legalEntityId: costCenter.legal_entity_id || '',
   }
 }
 
@@ -333,6 +356,8 @@ export default function CompanyPage() {
   const [showAddCostCenterModal, setShowAddCostCenterModal] = useState(false)
   const [creatingCostCenter, setCreatingCostCenter] = useState(false)
   const [addCostCenterError, setAddCostCenterError] = useState('')
+  const [editingCostCenter, setEditingCostCenter] =
+    useState<CostCenterRecord | null>(null)
   const [showAddLocationModal, setShowAddLocationModal] = useState(false)
   const [creatingLocation, setCreatingLocation] = useState(false)
   const [addLocationError, setAddLocationError] = useState('')
@@ -618,6 +643,7 @@ export default function CompanyPage() {
 
     if (activeTab === 'Cost Centers') {
       setAddCostCenterError('')
+      setEditingCostCenter(null)
       setShowAddCostCenterModal(true)
       return
     }
@@ -797,8 +823,15 @@ export default function CompanyPage() {
 
   const handleCloseCostCenterModal = () => {
     if (creatingCostCenter) return
+    setEditingCostCenter(null)
     setShowAddCostCenterModal(false)
     setAddCostCenterError('')
+  }
+
+  const handleEditCostCenter = (costCenter: CostCenterRecord) => {
+    setAddCostCenterError('')
+    setEditingCostCenter(costCenter)
+    setShowAddCostCenterModal(true)
   }
 
   const handleSubmitCostCenter = async (
@@ -833,7 +866,15 @@ export default function CompanyPage() {
     setAddCostCenterError('')
 
     try {
-      await createCostCenter(toCreateCostCenterPayload(values))
+      if (editingCostCenter) {
+        await updateCostCenter(
+          editingCostCenter.id,
+          toCreateCostCenterPayload(values),
+        )
+      } else {
+        await createCostCenter(toCreateCostCenterPayload(values))
+      }
+      setEditingCostCenter(null)
       setShowAddCostCenterModal(false)
       await refreshCostCenters()
     } catch (error) {
@@ -844,7 +885,9 @@ export default function CompanyPage() {
 
       if (error instanceof CostCentersApiError && error.status === 403) {
         setAddCostCenterError(
-          'You do not have permission to add cost centers.',
+          editingCostCenter
+            ? 'You do not have permission to edit cost centers.'
+            : 'You do not have permission to add cost centers.',
         )
         return
       }
@@ -852,7 +895,9 @@ export default function CompanyPage() {
       setAddCostCenterError(
         error instanceof Error
           ? error.message
-          : 'Unable to create cost center.',
+          : editingCostCenter
+            ? 'Unable to update cost center.'
+            : 'Unable to create cost center.',
       )
     } finally {
       setCreatingCostCenter(false)
@@ -1276,7 +1321,23 @@ export default function CompanyPage() {
         config={config}
         onAdd={handleAddClick}
         renderActions={
-          activeTab === 'Locations'
+          activeTab === 'Cost Centers'
+            ? (row) =>
+                row.costCenterRecord ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleEditCostCenter(
+                        row.costCenterRecord as CostCenterRecord,
+                      )
+                    }
+                    className="inline-flex items-center justify-center rounded-xl p-2 transition hover:bg-cyan-50"
+                    aria-label={`Edit ${row.costCenter}`}
+                  >
+                    <Pencil className="h-4 w-4 text-slate-600" />
+                  </button>
+                ) : null
+            : activeTab === 'Locations'
             ? (row) =>
                 row.locationRecord ? (
                   <div className="inline-flex items-center gap-2">
@@ -1333,6 +1394,12 @@ export default function CompanyPage() {
         isSubmitting={creatingCostCenter}
         error={addCostCenterError}
         businessUnits={businessUnits}
+        mode={editingCostCenter ? 'edit' : 'create'}
+        initialValues={
+          editingCostCenter
+            ? toCostCenterFormValues(editingCostCenter)
+            : null
+        }
         onClose={handleCloseCostCenterModal}
         onSubmit={handleSubmitCostCenter}
       />

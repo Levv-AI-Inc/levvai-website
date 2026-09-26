@@ -39,6 +39,8 @@ export default function AddCostCenterModal({
   isSubmitting,
   error,
   businessUnits,
+  mode = 'create',
+  initialValues,
   onClose,
   onSubmit,
 }: {
@@ -46,6 +48,8 @@ export default function AddCostCenterModal({
   isSubmitting: boolean
   error: string
   businessUnits: BusinessUnitRecord[]
+  mode?: 'create' | 'edit'
+  initialValues?: AddCostCenterFormValues | null
   onClose: () => void
   onSubmit: (values: AddCostCenterFormValues) => Promise<void>
 }) {
@@ -53,12 +57,12 @@ export default function AddCostCenterModal({
 
   useEffect(() => {
     if (!isOpen) return
-    setForm(EMPTY_FORM)
-  }, [isOpen])
+    setForm(initialValues ?? EMPTY_FORM)
+  }, [initialValues, isOpen])
 
   if (!isOpen) return null
 
-  const isCreateDisabled =
+  const isSubmitDisabled =
     isSubmitting ||
     !form.code.trim() ||
     !form.name.trim() ||
@@ -69,16 +73,20 @@ export default function AddCostCenterModal({
       <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Add cost center</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {mode === 'edit' ? 'Edit cost center' : 'Add cost center'}
+            </h3>
             <p className="mt-1 text-sm text-gray-600">
-              Create a cost center for this tenant.
+              {mode === 'edit'
+                ? 'Update an existing cost center for this tenant.'
+                : 'Create a cost center for this tenant.'}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close add cost center modal"
+            aria-label="Close cost center modal"
             className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-60"
           >
             <X className="h-4 w-4" />
@@ -147,6 +155,10 @@ export default function AddCostCenterModal({
               className="w-full rounded-md border px-3 py-2 text-sm"
             >
               <option value="">None</option>
+              {form.businessUnit &&
+                !businessUnits.some((unit) => unit.code === form.businessUnit) && (
+                  <option value={form.businessUnit}>{form.businessUnit}</option>
+                )}
               {businessUnits
                 .filter((unit) => unit.code)
                 .map((unit) => (
@@ -308,14 +320,20 @@ export default function AddCostCenterModal({
           <button
             type="button"
             onClick={() => void onSubmit(form)}
-            disabled={isCreateDisabled}
+            disabled={isSubmitDisabled}
             className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-              isCreateDisabled
+              isSubmitDisabled
                 ? 'cursor-not-allowed bg-gray-400'
                 : 'bg-black hover:bg-gray-900'
             }`}
           >
-            {isSubmitting ? 'Creating...' : 'Create cost center'}
+            {isSubmitting
+              ? mode === 'edit'
+                ? 'Saving...'
+                : 'Creating...'
+              : mode === 'edit'
+                ? 'Save changes'
+                : 'Create cost center'}
           </button>
         </div>
       </div>

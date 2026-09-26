@@ -44,6 +44,8 @@ export type CostCenterCreatePayload = {
   legal_entity_id?: string
 }
 
+export type CostCenterUpdatePayload = CostCenterCreatePayload
+
 export class CostCentersApiError extends Error {
   status: number
   body: unknown
@@ -247,6 +249,43 @@ export async function createCostCenter(
       toErrorMessage(
         body,
         `Failed to create cost center (${response.status})`,
+      ),
+      response.status,
+      body,
+    )
+  }
+
+  if (!body || typeof body !== 'object') {
+    return normalizeCostCenter({})
+  }
+
+  return normalizeCostCenter(body as Record<string, unknown>)
+}
+
+export async function updateCostCenter(
+  id: number | string,
+  payload: CostCenterUpdatePayload,
+): Promise<CostCenterRecord> {
+  const response = await fetch(
+    `/api/cost-centers/${encodeURIComponent(String(id))}/`,
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify(sanitizePayload(payload)),
+    },
+  )
+
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throw new CostCentersApiError(
+      toErrorMessage(
+        body,
+        `Failed to update cost center (${response.status})`,
       ),
       response.status,
       body,
