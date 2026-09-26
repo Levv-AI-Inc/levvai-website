@@ -19,7 +19,6 @@ import {
 import {
   AlertTriangle,
   BarChart3,
-  BriefcaseBusiness,
   CheckCircle2,
   ChevronRight,
   DollarSign,
@@ -110,18 +109,6 @@ function formatCurrencyAmount(
   } catch {
     return `${currency} ${amount.toFixed(fractionDigits)}`
   }
-}
-
-function buildRateName(
-  card: RateCard | null,
-  baseComponent: RateStructureComponent | null,
-): string {
-  if (baseComponent?.code?.trim()) {
-    return baseComponent.code.trim().toUpperCase()
-  }
-
-  if (!card) return 'USD_ST_HR'
-  return `${card.currency || 'USD'}_ST_${card.unit === 'day' ? 'DAY' : 'HR'}`
 }
 
 function selectedFallbackRoleFromRequest(
@@ -581,9 +568,7 @@ export default function CWFinancialsPage() {
       : null
 
   const canContinue = targetRateForCalc !== null && targetRateForCalc >= 0
-  const rateName = buildRateName(selectedRateCard, baseComponent)
   const rateDescription = baseComponent?.label || 'Standard time'
-  const rateCategory = `ST / ${selectedRateCard?.unit === 'day' ? 'Day' : 'Hour'}`
 
   const handleFixedRateChange = (value: string) => {
     const next = parseNonNegativeNumber(value)
@@ -763,39 +748,6 @@ export default function CWFinancialsPage() {
               {saveError}
             </div>
           )}
-
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-7">
-            <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_1fr] gap-6 items-start">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400 mb-2">
-                  Role
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Role and baseline pricing</h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  Using active rate card data for {inferredRole}.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-                    <BriefcaseBusiness className="w-4 h-4 text-slate-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 mb-1">
-                      Selected rate card
-                    </div>
-                    <div className="text-lg font-bold text-slate-900 truncate">
-                      {selectedRateCard?.name || inferredRole} — {selectedRateCard?.role_name || request.role || 'Role'}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {displayCurrency} · {rateCategory} · {rateName}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
 
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-7 py-6 border-b border-slate-200 bg-slate-50/70">
