@@ -26,9 +26,12 @@ export type ApprovalChainCondition = {
 export type ApprovalChainStep = {
   id?: number
   sequence: number
-  step_type: 'specific_user'
-  approver: number
+  step_type: 'specific_user' | 'approval_group'
+  approver?: number | null
   approver_name?: string
+  approval_group_id?: string
+  approval_group_name?: string
+  decision_rule?: 'all' | 'any'
   amount: string
   currency: string
 }
@@ -338,12 +341,19 @@ function normalizeCondition(
 function normalizeStep(
   row: Record<string, unknown>,
 ): ApprovalChainStep {
+  const stepType = readOptionalString(row.step_type) === 'approval_group'
+    ? 'approval_group'
+    : 'specific_user'
   return {
     id: readOptionalNumber(row.id),
     sequence: readOptionalNumber(row.sequence) || 1,
-    step_type: 'specific_user',
-    approver: readOptionalNumber(row.approver) || 0,
+    step_type: stepType,
+    approver: readOptionalNumber(row.approver) || null,
     approver_name: readOptionalString(row.approver_name),
+    approval_group_id: readOptionalString(row.approval_group_id),
+    approval_group_name: readOptionalString(row.approval_group_name),
+    decision_rule:
+      readOptionalString(row.decision_rule) === 'all' ? 'all' : 'any',
     amount: readOptionalString(row.amount) || '',
     currency: readOptionalString(row.currency) || '',
   }
@@ -485,8 +495,13 @@ function toConditionPayload(condition: ApprovalChainCondition) {
 function toStepPayload(step: ApprovalChainStep) {
   return sanitizePayload({
     sequence: step.sequence,
-    step_type: 'specific_user',
-    approver: step.approver,
+    step_type: step.step_type,
+    approver:
+      step.step_type === 'specific_user' ? step.approver : undefined,
+    approval_group_id:
+      step.step_type === 'approval_group' ? step.approval_group_id : undefined,
+    decision_rule:
+      step.step_type === 'approval_group' ? step.decision_rule : undefined,
     amount: step.amount,
     currency: step.currency,
   })

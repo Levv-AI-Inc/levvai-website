@@ -1,5 +1,7 @@
 'use client'
 
+import { getApprovalGroup } from '@/lib/approvalGroups'
+
 /* ─────────────────────────────────────────────
    REQUIREMENT CATALOG — the atom of the system.
    Enhancement: every requirement now carries how it
@@ -8,7 +10,7 @@
 ───────────────────────────────────────────── */
 
 export type ValidationStrategy = 'manual' | 'third_party'
-export type ApproverGroup = 'HR' | 'LEGAL' | 'IT' | 'FINANCE' | 'SECURITY' | 'PROCUREMENT'
+export type ApproverGroup = string
 export type OwnerRole = 'Worker' | 'Supplier' | 'Hiring Manager' | 'IT' | 'System'
 
 /* ── Nova's role inside validation is narrow ──
@@ -179,11 +181,21 @@ export const DIRECTORY: Record<ApproverGroup, { role: string; people: Person[] }
 }
 
 export function resolvePeople(a: Approver): Person[] {
-  return a === 'Integration' ? [] : (DIRECTORY[a]?.people ?? [])
+  if (a === 'Integration') return []
+  const configured = getApprovalGroup(a)
+  if (configured) {
+    return configured.members.map((member) => ({
+      id: member.id,
+      name: member.name,
+      title: member.title || member.email,
+    }))
+  }
+  return DIRECTORY[a]?.people ?? []
 }
 
 export function roleLabel(a: Approver): string {
-  return a === 'Integration' ? 'Integration' : (DIRECTORY[a]?.role ?? a)
+  if (a === 'Integration') return 'Integration'
+  return getApprovalGroup(a)?.name ?? DIRECTORY[a]?.role ?? a
 }
 
 /* Owner → which approvers are coherent. System is automated (Integration

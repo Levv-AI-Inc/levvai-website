@@ -57,6 +57,11 @@ import {
   type SearchableSelectOption,
 } from '@/components/ui/searchable-select'
 import { COUNTRY_OPTIONS } from '@/lib/constants/countries'
+import {
+  APPROVAL_GROUPS_CHANGED_EVENT,
+  getApprovalGroups,
+  type ApprovalGroup,
+} from '@/lib/approvalGroups'
 
 type LookupOption = {
   value: string
@@ -96,8 +101,10 @@ type ConditionDraft = {
 type StepDraft = {
   client_id: string
   id?: number
+  step_type: 'specific_user' | 'approval_group'
   approver: number | null
   approver_name: string
+  approval_group_id: string
   amount: string
   currency: string
 }
@@ -348,8 +355,10 @@ function createConditionDraft(
 function createStepDraft(): StepDraft {
   return {
     client_id: createClientId(),
+    step_type: 'specific_user',
     approver: null,
     approver_name: '',
+    approval_group_id: '',
     amount: '',
     currency: 'USD',
   }
@@ -422,8 +431,10 @@ function mapChainToForm(
         ? chain.steps.map((step) => ({
             client_id: createClientId(),
             id: step.id,
+            step_type: step.step_type,
             approver: step.approver || null,
             approver_name: step.approver_name || '',
+            approval_group_id: step.approval_group_id || '',
             amount: step.amount || '',
             currency: step.currency || 'USD',
           }))
@@ -488,8 +499,25 @@ function mapFormToPayload(
     steps: form.steps.map(
       (step, index): ApprovalChainStep => ({
         sequence: index + 1,
-        step_type: 'specific_user',
-        approver: step.approver || 0,
+        step_type: step.step_type,
+        approver:
+          step.step_type === 'specific_user' ? step.approver : null,
+        approval_group_id:
+          step.step_type === 'approval_group'
+            ? step.approval_group_id
+            : undefined,
+        approval_group_name:
+          step.step_type === 'approval_group'
+            ? getApprovalGroups().find(
+                (group) => group.id === step.approval_group_id,
+              )?.name
+            : undefined,
+        decision_rule:
+          step.step_type === 'approval_group'
+            ? getApprovalGroups().find(
+                (group) => group.id === step.approval_group_id,
+              )?.decisionRule
+            : undefined,
         amount: step.amount.trim(),
         currency: step.currency.trim().toUpperCase(),
       }),
@@ -720,6 +748,18 @@ export default function ApprovalChainEditorPage({
   const [simulationError, setSimulationError] = useState('')
   const [simulationResponse, setSimulationResponse] =
     useState<ApprovalChainSimulationResponse | null>(null)
+  const [approvalGroups, setApprovalGroups] = useState<ApprovalGroup[]>([])
+
+  useEffect(() => {
+    const refresh = () => setApprovalGroups(getApprovalGroups())
+    refresh()
+    window.addEventListener(APPROVAL_GROUPS_CHANGED_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener(APPROVAL_GROUPS_CHANGED_EVENT, refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
 
   const sortedFields = useMemo(() => {
     const rows = [...catalog.fields]
@@ -1046,7 +1086,10 @@ export default function ApprovalChainEditorPage({
 
     for (let index = 0; index < form.steps.length; index += 1) {
       const step = form.steps[index]
-      if (step.approver === null) {
+      if (
+        (step.step_type === 'specific_user' && step.approver === null) ||
+        (step.step_type === 'approval_group' && !step.approval_group_id)
+      ) {
         return `Step ${index + 1} needs an approver.`
       }
       if (!step.amount.trim()) {
@@ -1784,7 +1827,7 @@ export default function ApprovalChainEditorPage({
                   Approver steps
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  Each row maps to one specific-user approval step in order.
+                  Route each step to a specific user or a reusable approval group.
                 </p>
               </div>
 
@@ -1850,33 +1893,73 @@ export default function ApprovalChainEditorPage({
                       <label className="mb-1 block text-sm font-medium text-gray-800">
                         Approver
                       </label>
-                      <ApproverAutocomplete
-                        value={step.approver}
-                        label={step.approver_name}
-                        onSelect={(approver) =>
-                          updateStep(step.client_id, (current) => ({
-                            ...current,
-                            approver: approver.user_id,
-                            approver_name: approver.name,
-                          }))
-                        }
-                        onClear={() =>
-                          updateStep(step.client_id, (current) => ({
-                            ...current,
-                            approver: null,
-                            approver_name: '',
-                          }))
-                        }
-                      />
+                      {step.step_type === 'specific_user' ? (
+                        <ApproverAutocomplete
+                          value={step.approver}
+                          label={step.approver_name}
+                          onSelect={(approver) =>
+                            updateStep(step.client_id, (current) => ({
+                              ...current,
+                              approver: approver.user_id,
+                              approver_name: approver.name,
+                            }))
+                          }
+                          onClear={() =>
+                            updateStep(step.client_id, (current) => ({
+                              ...current,
+                              approver: null,
+                              approver_name: '',
+                            }))
+                          }
+                        />
+                      ) : (
+                        <div>
+                          <select
+                            value={step.approval_group_id}
+                            onChange={(event) =>
+                              updateStep(step.client_id, (current) => ({
+                                ...current,
+                                approval_group_id: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded-md border px-3 py-2 text-sm"
+                          >
+                            <option value="">Select approval group</option>
+                            {approvalGroups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                {group.name} · {group.members.length} member{group.members.length === 1 ? '' : 's'} · {group.decisionRule === 'all' ? 'all approve' : 'any one approves'}
+                              </option>
+                            ))}
+                          </select>
+                          {approvalGroups.length === 0 && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              <Link href="/admin/approval-groups" className="font-medium text-blue-600 hover:underline">Create an approval group</Link> first.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <label className="mb-1 block text-sm font-medium text-gray-800">
                         Step type
                       </label>
-                      <div className="rounded-md border bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                        Specific user
-                      </div>
+                      <select
+                        value={step.step_type}
+                        onChange={(event) =>
+                          updateStep(step.client_id, (current) => ({
+                            ...current,
+                            step_type: event.target.value as StepDraft['step_type'],
+                            approver: null,
+                            approver_name: '',
+                            approval_group_id: '',
+                          }))
+                        }
+                        className="w-full rounded-md border px-3 py-2 text-sm"
+                      >
+                        <option value="specific_user">Specific user</option>
+                        <option value="approval_group">Approval group</option>
+                      </select>
                     </div>
 
                     <div>

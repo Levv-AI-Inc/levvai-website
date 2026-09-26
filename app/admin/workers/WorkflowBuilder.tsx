@@ -36,13 +36,17 @@ import {
 } from 'lucide-react'
 import {
   getRequirements,
-  HUMAN_APPROVERS,
   resolvePeople,
   roleLabel,
   type ApproverGroup,
   type OwnerRole as CatalogOwnerRole,
   type Requirement as CatalogRequirement,
 } from './requirements/requirementsStore'
+import {
+  APPROVAL_GROUPS_CHANGED_EVENT,
+  getApprovalGroups,
+  type ApprovalGroup,
+} from '@/lib/approvalGroups'
 import {
   createComplianceWorkflow,
   getComplianceWorkflow,
@@ -570,9 +574,11 @@ function PeopleStack({ names, max = 2 }: { names: string[]; max?: number }) {
 function AccountableField({
   value,
   onChange,
+  groups,
 }: {
   value: ApproverGroup
   onChange: (group: ApproverGroup) => void
+  groups: ApprovalGroup[]
 }) {
   const [open, setOpen] = useState(false)
   const people = resolvePeople(value)
@@ -600,15 +606,15 @@ function AccountableField({
       {open && (
         <div className="acctf-panel">
           <div className="acctf-cap">Who is accountable?</div>
-          {HUMAN_APPROVERS.map((group) => {
-            const groupPeople = resolvePeople(group)
+          {groups.map((group) => {
+            const groupPeople = resolvePeople(group.id)
             return (
               <button
-                key={group}
+                key={group.id}
                 type="button"
-                className={`acctf-opt ${group === value ? 'on' : ''}`}
+                className={`acctf-opt ${group.id === value ? 'on' : ''}`}
                 onClick={() => {
-                  onChange(group)
+                  onChange(group.id)
                   setOpen(false)
                 }}
               >
@@ -617,12 +623,12 @@ function AccountableField({
                   max={3}
                 />
                 <span className="acctf-opt-main">
-                  <span className="acctf-opt-role">{roleLabel(group)}</span>
+                  <span className="acctf-opt-role">{group.name}</span>
                   <span className="acctf-opt-people">
                     {groupPeople.map((person) => person.name).join(', ')}
                   </span>
                 </span>
-                {group === value && (
+                {group.id === value && (
                   <Check className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
                 )}
               </button>
@@ -1640,6 +1646,18 @@ export default function WorkflowBuilder({
   const [saveError, setSaveError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [approvalGroups, setApprovalGroups] = useState<ApprovalGroup[]>([])
+
+  useEffect(() => {
+    const refresh = () => setApprovalGroups(getApprovalGroups())
+    refresh()
+    window.addEventListener(APPROVAL_GROUPS_CHANGED_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener(APPROVAL_GROUPS_CHANGED_EVENT, refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
 
   const workerTypeOptions = FALLBACK_WORKER_TYPE_OPTIONS
   const scopeFieldOptions = useMemo(
@@ -3067,6 +3085,7 @@ export default function WorkflowBuilder({
                   </label>
                   <AccountableField
                     value={modalAccountableOwner}
+                    groups={approvalGroups}
                     onChange={(group) => {
                       setModalAccountableOwner(group)
                       setModalAccountableTouched(true)
@@ -3195,6 +3214,7 @@ export default function WorkflowBuilder({
                   </label>
                   <AccountableField
                     value={modalAccountableOwner}
+                    groups={approvalGroups}
                     onChange={(group) => {
                       setModalAccountableOwner(group)
                       setModalAccountableTouched(true)
