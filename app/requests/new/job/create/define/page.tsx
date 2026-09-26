@@ -27,6 +27,12 @@ import {
   getLegalEntities,
   type LegalEntityRecord,
 } from '@/lib/api/legalEntities'
+import {
+  normalizeSubdivision,
+  normalizeSupportedCountry,
+  SUBDIVISION_OPTIONS,
+  SUPPORTED_COUNTRY_OPTIONS,
+} from '@/lib/constants/supportedLocations'
 
 function readErrorMessage(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
@@ -100,13 +106,16 @@ function readSiteDerivedFields(siteOption: ReferenceOption | null) {
 
   const raw = siteOption.raw || {}
   const city = readFirstDefinedString(raw, ['city', 'site_city'])
-  const stateProvince = readFirstDefinedString(raw, [
+  const rawStateProvince = readFirstDefinedString(raw, [
     'state_province',
     'state',
     'province',
     'region',
   ])
-  const country = readFirstDefinedString(raw, ['country', 'site_country'])
+  const country = normalizeSupportedCountry(
+    readFirstDefinedString(raw, ['country', 'site_country']),
+  )
+  const stateProvince = normalizeSubdivision(country, rawStateProvince)
 
   const legalEntityIdRaw = raw.legal_entity_id ?? raw.legal_entity
   const legalEntityId =
@@ -209,6 +218,14 @@ export default function CWDefinePage() {
         ? '__legacy__'
         : ''
   const legalEntitySelectValue = request.legalEntityId || ''
+  const selectedCountry = normalizeSupportedCountry(request.country)
+  const subdivisionOptions = selectedCountry
+    ? SUBDIVISION_OPTIONS[selectedCountry]
+    : []
+  const selectedSubdivision = normalizeSubdivision(
+    selectedCountry,
+    request.stateProvince || request.region,
+  )
 
   const roleOptions = useMemo<SearchableSelectOption[]>(() => {
     const options: SearchableSelectOption[] = []
@@ -341,16 +358,18 @@ export default function CWDefinePage() {
 
     const nextRole = roles.find((role) => role.id === Number(value))
     if (!nextRole) return
+    const country = normalizeSupportedCountry(nextRole.country)
+    const stateProvince = normalizeSubdivision(country, nextRole.region)
 
     update({
       roleId: nextRole.id,
       jobTemplateId: undefined,
       role: nextRole.name,
       description: nextRole.description || '',
-      country: nextRole.country || '',
-      stateProvince: nextRole.region || '',
+      country,
+      stateProvince,
       city: nextRole.city || '',
-      region: nextRole.region || nextRole.city || '',
+      region: stateProvince,
       currency: nextRole.default_currency || undefined,
       rateUnit: mapRoleUnitToRateUnit(nextRole.default_unit),
     })
@@ -378,6 +397,11 @@ export default function CWDefinePage() {
     setFieldErrors({})
 
     const customFields = request.customFields || {}
+    const country = normalizeSupportedCountry(request.country)
+    const stateProvince = normalizeSubdivision(
+      country,
+      request.stateProvince || request.region,
+    )
 
     const definePayload = {
       title: role,
@@ -393,9 +417,8 @@ export default function CWDefinePage() {
       site: request.siteId,
       roleDefinition: request.roleId,
       legalEntity: request.legalEntityId,
-      country: request.country || undefined,
-      stateProvince:
-        request.stateProvince || request.region || undefined,
+      country,
+      stateProvince,
       city: request.city || undefined,
       customFields,
     }
@@ -573,12 +596,17 @@ export default function CWDefinePage() {
         next.roleId = matchedRole.id
         next.role = matchedRole.name
         next.description = request.description || matchedRole.description || ''
-        next.country = request.country || matchedRole.country || ''
-        next.stateProvince =
-          request.stateProvince || matchedRole.region || ''
+        const country = normalizeSupportedCountry(
+          request.country || matchedRole.country,
+        )
+        const stateProvince = normalizeSubdivision(
+          country,
+          request.stateProvince || request.region || matchedRole.region,
+        )
+        next.country = country
+        next.stateProvince = stateProvince
         next.city = request.city || matchedRole.city || ''
-        next.region =
-          request.region || matchedRole.region || matchedRole.city || ''
+        next.region = stateProvince
         next.currency = request.currency || matchedRole.default_currency || undefined
         next.rateUnit =
           request.rateUnit || mapRoleUnitToRateUnit(matchedRole.default_unit)
@@ -698,6 +726,7 @@ export default function CWDefinePage() {
           </label>
           <SearchableSelect
             id={DEFINE_FIELD_IDS.role}
+            className="mt-1.5"
             value={roleSelectValue}
             options={roleOptions}
             onChange={(value) => {
@@ -885,6 +914,7 @@ export default function CWDefinePage() {
               </label>
               <SearchableSelect
                 id={DEFINE_FIELD_IDS.costCenter}
+                className="mt-1.5"
                 value={
                   request.costCenterId !== undefined
                     ? String(request.costCenterId)
@@ -926,6 +956,7 @@ export default function CWDefinePage() {
               </label>
               <SearchableSelect
                 id={DEFINE_FIELD_IDS.site}
+                className="mt-1.5"
                 value={request.siteId !== undefined ? String(request.siteId) : ''}
                 options={siteOptions}
                 onChange={(value) => {
@@ -954,7 +985,7 @@ export default function CWDefinePage() {
                     city: derived.city ?? undefined,
                     stateProvince: derived.stateProvince ?? undefined,
                     region: derived.stateProvince ?? undefined,
-                    country: derived.country ?? request.country,
+                    country: derived.country,
                     legalEntityId:
                       derived.legalEntityId ?? request.legalEntityId,
                   })
@@ -980,6 +1011,7 @@ export default function CWDefinePage() {
               </label>
               <SearchableSelect
                 id={DEFINE_FIELD_IDS.legalEntity}
+                className="mt-1.5"
                 value={legalEntitySelectValue}
                 options={legalEntityOptions}
                 onChange={(value) => {
@@ -1000,55 +1032,74 @@ export default function CWDefinePage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#e1e8f2] bg-[#f7f9fc] p-3.5">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-[#3d4945]">
-                  Derived location
-                </h3>
-                <p className="mt-0.5 text-[11px] text-[#94a3b8]">Filled from the selected site.</p>
-              </div>
-              <span className="rounded-full border border-[#cfc7b8] bg-[#fcfbf7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#6b746f]">
-                Read only
-              </span>
+          <div className="border-t border-[#e8edf4] pt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-[#3d4945]">
+                Location
+              </h3>
+              <p className="mt-0.5 text-xs text-[#64748b]">
+                Filled from the selected site and available to adjust.
+              </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <div>
-                <label htmlFor="job-country" className="block text-xs font-semibold text-[#6b746f]">
+                <label htmlFor="job-country" className="block text-sm font-semibold text-[#3d4945]">
                   Country
                 </label>
-                <input
+                <SearchableSelect
                   id="job-country"
-                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
-                  value={request.country || ''}
-                  placeholder="Derived from site"
-                  readOnly
+                  className="mt-1.5"
+                  value={selectedCountry || ''}
+                  options={SUPPORTED_COUNTRY_OPTIONS}
+                  placeholder="Select a country"
+                  searchPlaceholder="Search countries"
+                  emptyMessage="No countries found."
+                  onChange={(value) => {
+                    update({
+                      country: normalizeSupportedCountry(value),
+                      stateProvince: undefined,
+                      region: undefined,
+                    })
+                  }}
                 />
               </div>
 
               <div>
-                <label htmlFor="job-region" className="block text-xs font-semibold text-[#6b746f]">
+                <label htmlFor="job-region" className="block text-sm font-semibold text-[#3d4945]">
                   State / Province
                 </label>
-                <input
+                <SearchableSelect
                   id="job-region"
-                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
-                  value={request.stateProvince || request.region || ''}
-                  placeholder="Derived from site"
-                  readOnly
+                  className="mt-1.5"
+                  value={selectedSubdivision || ''}
+                  options={subdivisionOptions}
+                  placeholder={
+                    selectedCountry
+                      ? 'Select a state or province'
+                      : 'Select a country first'
+                  }
+                  searchPlaceholder="Search states and provinces"
+                  emptyMessage="No states or provinces found."
+                  disabled={!selectedCountry}
+                  onChange={(value) =>
+                    update({
+                      stateProvince: value || undefined,
+                      region: value || undefined,
+                    })
+                  }
                 />
               </div>
 
               <div>
-                <label htmlFor="job-city" className="block text-xs font-semibold text-[#6b746f]">
+                <label htmlFor="job-city" className="block text-sm font-semibold text-[#3d4945]">
                   City
                 </label>
                 <input
                   id="job-city"
-                  className="levv-readonly-input mt-1.5 h-9 w-full rounded-lg border border-[#dbe3ee] bg-[#edf2f7] px-3 text-sm font-medium text-[#52637a] outline-none"
+                  className={`${fieldControlClass()} h-10`}
                   value={request.city || ''}
-                  placeholder="Derived from site"
-                  readOnly
+                  placeholder="Enter city"
+                  onChange={(event) => update({ city: event.target.value })}
                 />
               </div>
             </div>
