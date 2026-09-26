@@ -35,6 +35,7 @@ const ADMIN_NAV = [
   { label: 'Users', href: '/admin/users' },
   { label: 'Company', href: '/admin/company' },
   { label: 'Roles', href: '/admin/roles' },
+  { label: 'Supplier Network', href: '/admin/supplier-network' },
   { label: 'Approval Chains', href: '/admin/approval-chains' },
   { label: 'Financial', href: '/admin/financial' },
   { label: 'Rates', href: '/admin/rates' },
