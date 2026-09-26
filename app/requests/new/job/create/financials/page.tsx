@@ -19,9 +19,11 @@ import {
 import {
   AlertTriangle,
   BarChart3,
+  Building2,
   CheckCircle2,
   ChevronRight,
   DollarSign,
+  MapPin,
   Minus,
   Sparkles,
 } from 'lucide-react'
@@ -373,6 +375,14 @@ export default function CWFinancialsPage() {
   const baseHours = durationDays !== null ? durationDays * hoursPerDay : null
   const otHoursPct = 0.2
   const inferredRole = inferRole(request) || selectedRateCard?.role_name || selectedRateCard?.name || 'Role'
+  const resolvedLine = selectedRateCard?.lines?.[0]
+  const resolvedSupplier = resolvedLine?.supplier_name || 'Contracted supplier'
+  const resolvedLocation =
+    resolvedLine?.location_label ||
+    [request.city, request.stateProvince || request.region, request.country]
+      .filter(Boolean)
+      .join(', ') ||
+    'All locations'
 
   const rangeMid =
     typeof stMin === 'number' && typeof stMax === 'number'
@@ -747,6 +757,41 @@ export default function CWFinancialsPage() {
             <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {saveError}
             </div>
+          )}
+
+          {selectedRateCard && (
+            <section className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base font-bold text-slate-950">Contracted rate found</h2>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active agreement</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Levv matched this job to the most specific published supplier rate.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-700">
+                      <span className="inline-flex items-center gap-1.5 font-semibold"><Building2 className="h-4 w-4 text-slate-400" />{resolvedSupplier}</span>
+                      <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-slate-400" />{inferredRole} · {resolvedLocation}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-xl bg-blue-50 px-5 py-3 lg:text-right">
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-blue-600">Approved range</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">
+                    {formatCurrencyAmount(marketStats.marketMin, displayCurrency, 0)}–{formatCurrencyAmount(marketStats.marketMax, displayCurrency, 0)}
+                  </div>
+                  <div className="text-xs text-slate-500">per {selectedRateCard.unit} · overtime {otFactor}×</div>
+                </div>
+              </div>
+              <div className="border-t border-blue-100 bg-blue-50/60 px-6 py-3 text-sm text-blue-900">
+                <strong>Why this rate:</strong> Supplier + role + {resolvedLocation} match for the job start date. A location-specific rate takes priority over country-wide rates.
+              </div>
+            </section>
           )}
 
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
