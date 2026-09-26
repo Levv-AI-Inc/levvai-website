@@ -78,7 +78,8 @@ function normalizeStepRow(
   const row = asRecord(value)
   if (!row) return null
 
-  const sequence = readNumber(row.sequence) || index + 1
+  const sequence =
+    readNumber(row.sequence) || readNumber(row.step) || index + 1
   const approverId =
     readNumber(row.approver_id) ||
     readNumber(row.approver) ||
@@ -86,6 +87,7 @@ function normalizeStepRow(
   const approverName =
     readString(row.approver_name) ||
     readString(row.approver_label) ||
+    readString(row.approver_group) ||
     readString(row.user_name) ||
     readString(row.name) ||
     (approverId ? `Approver ${approverId}` : `Approval step ${sequence}`)
@@ -147,16 +149,20 @@ export function extractApprovalChainView(
     snapshot?.approval_steps,
     snapshot?.resolved_steps,
     chain?.steps,
+    preview.approval_preview,
+    previewResult?.approval_preview,
   )
 
   return {
     id:
       readNumber(chain?.id) ||
+      readNumber(snapshot?.approval_chain_id) ||
       subject?.approvalRuntime?.matchedChainId ||
       subject?.approvalChain ||
       undefined,
     name:
       readString(chain?.name) ||
+      readString(snapshot?.approval_chain_name) ||
       subject?.approvalRuntime?.matchedChainName ||
       (readNumber(chain?.id) || subject?.approvalChain
         ? `Approval chain #${

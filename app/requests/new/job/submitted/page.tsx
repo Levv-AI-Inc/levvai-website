@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   GitBranch,
   Loader2,
-  ShieldCheck,
   UserRound,
 } from 'lucide-react'
 import {
@@ -20,10 +19,8 @@ import {
   countApprovalsRemaining,
   describeApprovalMatchStrategy,
   extractApprovalChainView,
-  getApprovalComputedAt,
   getCurrentApproverName,
   formatApprovalDateTime,
-  formatApprovalStepAmount,
   getCurrentApprovalStep,
   labelApprovalStepStatus,
   normalizeApprovalStepStatus,
@@ -38,6 +35,13 @@ function parseIntakeId(value: string | null): number | null {
   if (!value) return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function formatRequestStatus(value: string) {
+  const normalized = value.replace(/_/g, ' ').trim()
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : value
 }
 
 function badgeClasses(status: string | undefined, index: number) {
@@ -56,6 +60,18 @@ function badgeClasses(status: string | undefined, index: number) {
   }
 
   return 'border-slate-200 bg-slate-50 text-slate-600'
+}
+
+function getDisplayedStepStatus(
+  status: string | undefined,
+  index: number,
+  isCurrent: boolean,
+) {
+  const normalized = normalizeApprovalStepStatus(status, index)
+  if (normalized === 'approved' || normalized === 'rejected') {
+    return normalized
+  }
+  return isCurrent ? 'current' : 'queued'
 }
 
 function StepStatusBadge({
@@ -285,43 +301,18 @@ export default function CWRequestSubmittedPage() {
                     value={describeApprovalMatchStrategy(chain.matchStrategy)}
                   />
                   <InfoRow
-                    label="Computed at"
+                    label="Submission date"
                     value={formatApprovalDateTime(
-                      getApprovalComputedAt(intake),
+                      intake?.submittedAt || intake?.createdAt,
                     )}
                   />
                   <InfoRow
                     label="Submission status"
-                    value={requestStatus.replace(/_/g, ' ')}
+                    value={formatRequestStatus(requestStatus)}
                   />
                 </dl>
               </div>
 
-              <div className="rounded-3xl border bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      What happens next
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {currentApproverName
-                        ? `${currentApproverName} is the current approver. ${
-                            approvalsRemaining > 1
-                              ? `${approvalsRemaining - 1} more step${
-                                  approvalsRemaining - 1 === 1 ? '' : 's'
-                                } remain after this decision.`
-                              : approvalsRemaining === 1
-                                ? 'This is the last remaining approval step.'
-                                : 'No further approval steps remain after the current decision.'
-                          }`
-                        : 'The request is moving through the matched approval chain. Remaining steps stay queued until earlier approvals complete.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </section>
 
             <section className="rounded-3xl border bg-white p-6 shadow-sm">
@@ -344,69 +335,64 @@ export default function CWRequestSubmittedPage() {
               </div>
 
               {chainSteps.length > 0 ? (
-                <div className="mt-6 space-y-5">
-                  {chainSteps.map((step, index) => (
-                    <div key={`${step.sequence}-${step.approverId || step.approverName}`}>
-                      <div className="flex gap-4">
-                        <div className="flex w-12 flex-col items-center">
-                          <div
-                            className={cn(
-                              'flex h-11 w-11 items-center justify-center rounded-2xl border text-sm font-semibold',
-                              index === 0
-                                ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
-                                : 'border-slate-200 bg-slate-50 text-slate-600',
-                            )}
-                          >
-                            {step.sequence}
-                          </div>
-                          {index < chainSteps.length - 1 ? (
-                            <div className="mt-2 h-full w-px bg-slate-200" />
-                          ) : null}
-                        </div>
+                <ol className="mt-6 space-y-3">
+                  {chainSteps.map((step, index) => {
+                    const isCurrent = currentStep?.sequence === step.sequence
+                    const displayedStatus = getDisplayedStepStatus(
+                      step.status,
+                      index,
+                      isCurrent,
+                    )
 
-                        <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <UserRound className="h-4 w-4 text-slate-500" />
-                                <h3 className="truncate text-base font-semibold text-slate-900">
-                                  {step.approverName}
-                                </h3>
-                              </div>
-                              <p className="mt-1 text-sm text-slate-500">
-                                {currentStep?.sequence === step.sequence &&
-                                normalizeApprovalStepStatus(
-                                  step.status,
-                                  index,
-                                ) === 'current'
-                                  ? 'Current approval step'
-                                  : step.stepType === 'specific_user'
-                                  ? 'Specific user approval'
-                                  : 'Approval step'}
-                              </p>
-                            </div>
-                            <StepStatusBadge
-                              status={step.status}
-                              index={index}
-                            />
-                          </div>
-
-                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <StepMeta label="Threshold">
-                              {formatApprovalStepAmount(
-                                step.amount,
-                                step.currency,
+                    return (
+                      <li
+                        key={`${step.sequence}-${step.approverId || step.approverName}`}
+                      >
+                        <div className="flex gap-4">
+                          <div className="flex w-12 flex-col items-center">
+                            <div
+                              className={cn(
+                                'flex h-11 w-11 items-center justify-center rounded-2xl border text-sm font-semibold',
+                                isCurrent
+                                  ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
+                                  : 'border-slate-200 bg-slate-50 text-slate-600',
                               )}
-                            </StepMeta>
-                            <StepMeta label="Sequence">
-                              Step {step.sequence}
-                            </StepMeta>
+                            >
+                              {step.sequence}
+                            </div>
+                            {index < chainSteps.length - 1 ? (
+                              <div className="mt-2 h-full w-px bg-slate-200" />
+                            ) : null}
+                          </div>
+
+                          <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <UserRound className="h-4 w-4 text-slate-500" />
+                                  <h3 className="truncate text-base font-semibold text-slate-900">
+                                    {step.approverName}
+                                  </h3>
+                                </div>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {displayedStatus === 'current'
+                                    ? 'Current approval step'
+                                    : step.stepType === 'specific_user'
+                                    ? 'Specific user approval'
+                                    : 'Approval step'}
+                                </p>
+                              </div>
+                              <StepStatusBadge
+                                status={displayedStatus}
+                                index={index}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      </li>
+                    )
+                  })}
+                </ol>
               ) : (
                 <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                   <div className="text-base font-medium text-slate-900">
@@ -485,25 +471,6 @@ function InfoRow({
     <div className="flex items-start justify-between gap-4">
       <dt className="text-slate-500">{label}</dt>
       <dd className="text-right font-medium text-slate-900">{value}</dd>
-    </div>
-  )
-}
-
-function StepMeta({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-2xl border border-white bg-white px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-        {label}
-      </div>
-      <div className="mt-2 text-sm font-medium text-slate-900">
-        {children}
-      </div>
     </div>
   )
 }
