@@ -98,7 +98,11 @@ function toIdString(value: unknown): string {
 }
 
 function normalizeStatus(value: unknown): string {
-  return readOptionalString(value).toLowerCase() || 'invited'
+  const status = readOptionalString(value).toLowerCase() || 'invited'
+  // Keep the current directory UI compatible with the legacy disabled label.
+  // Deactivated remains distinct so a later profile-only edit cannot silently
+  // turn a deactivated membership into a suspension.
+  return status === 'suspended' ? 'disabled' : status
 }
 
 function normalizeBackendUser(row: BackendUser): AdminUserRecord {

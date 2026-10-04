@@ -76,6 +76,10 @@ function readOptionalString(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
+function readOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 function parseSessionUser(payload: unknown): SessionUser | null {
   if (!payload || typeof payload !== 'object') {
     return null
@@ -110,6 +114,11 @@ function parseSessionUser(payload: unknown): SessionUser | null {
   const username = readOptionalString(candidate.username)
   const role =
     readOptionalString(membership?.role) || readOptionalString(candidate.role)
+  const membershipIdValue = membership?.membership_id
+  const membershipId =
+    typeof membershipIdValue === 'number'
+      ? String(membershipIdValue)
+      : readOptionalString(membershipIdValue)
 
   return {
     first_name: firstName,
@@ -117,6 +126,11 @@ function parseSessionUser(payload: unknown): SessionUser | null {
     email,
     username,
     role,
+    membershipId,
+    membershipState: readOptionalString(membership?.state),
+    authorizationVersion: readOptionalNumber(
+      membership?.authorization_version,
+    ),
   }
 }
 

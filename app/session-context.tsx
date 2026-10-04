@@ -8,6 +8,9 @@ export type SessionUser = {
   email?: string
   username?: string
   role?: string
+  membershipId?: string
+  membershipState?: string
+  authorizationVersion?: number
 }
 
 type SessionContextValue = {
