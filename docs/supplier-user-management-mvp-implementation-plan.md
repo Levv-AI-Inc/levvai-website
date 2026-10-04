@@ -1,0 +1,632 @@
+# Supplier and User Management MVP Implementation Plan
+
+## Purpose
+
+Implement the Supplier MVP and User Management MVP across the existing Next.js frontend and Django backend while preserving the current tenant, authentication, master-data, rates, approval, work-order, and invitation architecture.
+
+The frontend repository is `levvai-website`. The adjacent backend repository is `levvai-backend`. Most business endpoints are owned by Django and reached through the frontend's existing same-origin proxy. New Next.js API routes should not duplicate Django business logic.
+
+## Delivery principles
+
+- Extend existing endpoints and services before introducing new resources.
+- Keep tenant and supplier authorization enforced in Django, regardless of frontend state.
+- Preserve current IDs and compatibility for existing supplier, user, intake, rate, and work-order records.
+- Separate shared identity from tenant membership, roles, record scope, and approval authority.
+- Keep published pricing immutable while draft changes, document extraction, and manual edits are reviewed.
+- Treat uploaded documents and extracted content as untrusted data.
+- Return explicit denied, no-match, and conflict results instead of choosing silently.
+- Deliver through small migrations and independently testable pull requests.
+
+## Existing endpoints to reuse
+
+### Session and authentication
+
+| Existing endpoint | Current use | Planned use |
+| --- | --- | --- |
+| `GET /api/session` | Returns the authenticated user and active tenant membership | Extend with membership ID, lifecycle state, authorization version, profile type, and effective capability summary |
+| `POST /auth/password/login-user` | Internal user login | Keep as the internal password-login entry point |
+| `POST /auth/password/register-user` | Generic internal registration | Restrict to approved flows; invitation acceptance must activate a pre-created membership without replacing its configured access |
+| `POST /auth/password/register` | Supplier invitation registration | Keep for supplier contacts and strengthen token lifecycle validation |
+| WorkOS login and callback endpoints | SSO authentication | Reuse without creating a second SSO path |
+
+### Users and organization data
+
+| Existing endpoint | Current use | Planned use |
+| --- | --- | --- |
+| `GET /api/admin/users` | Lists up to 200 internal memberships with search and basic filters | Add pagination, organization filter, stable summaries, and action capabilities |
+| `POST /api/admin/users` | Creates an internal user and membership | Convert into invitation creation or retain as a compatibility wrapper over the invitation service |
+| `PATCH /api/admin/users/{membershipId}` | Updates basic membership and identity fields | Keep for Profile changes; move access, approval, and lifecycle mutations to explicit subresources/actions |
+| `GET /api/business-units/` | Business-unit lookup | Reuse for defaults, selected-scope configuration, and filters |
+| `GET /api/legal-entities/` | Legal-entity lookup | Reuse for defaults and scope restrictions |
+| `GET /api/cost-centers/` | Cost-center lookup | Reuse for profile defaults; cost centers do not grant access |
+| `GET /api/sites/` | Site lookup | Reuse for user defaults and supplier coverage |
+| `GET /api/roles/` | Canonical customer job-role catalogue | Reuse for supplier coverage and rate lines; do not confuse with user access-role presets |
+
+### Suppliers, work, and invitations
+
+| Existing endpoint | Current use | Planned use |
+| --- | --- | --- |
+| `GET /api/suppliers/` | Supplier list, search, status, and type filters | Reuse for the supplier directory and add server pagination |
+| `POST /api/suppliers/` | Creates a supplier | Keep for authorized manual records; integrated identity fields remain source-owned |
+| `GET /api/suppliers/{supplierId}/` | Supplier detail | Extend with source ownership metadata, Levv activation, contact-access summary, and allowed actions |
+| `PATCH /api/suppliers/{supplierId}/` | Updates a supplier | Restrict updates to Levv-owned fields and reject writes to source-owned fields |
+| `DELETE /api/suppliers/{supplierId}/` | Deletes a supplier | Deprecate for linked suppliers; prefer lifecycle deactivation and protected deletion rules |
+| `POST /api/suppliers/{supplierId}/invite/` | Creates and emails a supplier invitation | Reuse for supplier contact access; add resend, revoke, and access-grant semantics |
+| `GET /api/work-orders` and detail endpoints | Work-order and assignment data | Reuse to derive supplier workers and preserve assignment-level history |
+| Intake endpoints | Requisition and supplier selection | Reuse when applying supplier eligibility and resolved published pricing |
+
+### Rates and approvals
+
+| Existing endpoint | Current use | Planned use |
+| --- | --- | --- |
+| `GET/POST /api/rate-structures/` | Configures rate calculations | Reuse for Bill Rate and Pay plus Markup calculation structures |
+| `GET/PATCH/DELETE /api/rate-structures/{id}/` | Rate-structure lifecycle | Reuse with existing validation and audit service |
+| `GET/POST /api/rate-cards/` | Role-centric cards with supplier lines | Evolve compatibly into supplier-scoped agreement cards and versioned drafts |
+| `GET/PATCH/DELETE /api/rate-cards/{id}/` | Rate-card editing | Keep paths; change contracts through additive fields and a migration compatibility layer |
+| `POST /api/rate-cards/{id}/recalculate/` | Recalculates rate values | Reuse for draft recalculation only |
+| `POST /api/rate-cards/{id}/activate/` | Activates a card | Replace internally with validated publication while retaining the action as a compatibility alias |
+| `GET /api/rates/lookups/` | Rate status, unit, and rule lookups | Extend with pricing models, location-scope types, extraction states, and conflict types |
+| Approval-chain endpoints | Configure and simulate approval routes | Reuse for workflow routing; add membership responsibility checks at decision time |
+| Work-order approval endpoints | Approve or reject work | Extend with responsibility, scope, self-approval, currency, limit, and temporary-coverage checks |
+
+## Phase 0 Foundation and contract baseline
+
+### Goals
+
+- Freeze the current frontend-to-backend contracts with tests.
+- Identify compatibility constraints before schema migrations.
+- Remove ambiguity between prototypes and API-backed modules.
+
+### Backend work
+
+- Add request and response contract tests for session, users, suppliers, organization lookups, rate cards, approval chains, intake, and work orders.
+- Document which apps live in the shared schema and which live in tenant schemas.
+- Mark `masterdata.RateCard` as legacy and designate `rates.RateCard` as the supported pricing model.
+- Add feature flags for the new user detail, supplier detail, and supplier-scoped rate-card flows.
+
+### Frontend work
+
+- Create typed API modules for users and effective access instead of adding more inline `fetch` calls to `app/admin/users/page.tsx`.
+- Continue using `lib/api/suppliers.ts`, `lib/api/rates.ts`, `lib/api/roles.ts`, `lib/api/sites.ts`, and the organization API modules.
+- Identify `app/admin/rates/page.tsx` as a prototype and make `/admin/rates/cards` the base for production rate-card work.
+- Keep `/admin/supplier-network` out of this MVP because configurable distribution tiers are not in scope.
+
+### Exit criteria
+
+- Existing endpoint contracts are covered by tests.
+- Legacy and production rate implementations are clearly identified.
+- Feature flags allow incremental deployment without exposing unfinished flows.
+
+## Phase 1 Authorization, membership lifecycle, and audit
+
+### Goals
+
+- Establish one reusable authorization decision service for both MVPs.
+- Make membership changes safe across tenants.
+- Produce audit data that the User Activity tab can display.
+
+### Backend work
+
+- Extend `Membership` with `suspended` and `deactivated` states while migrating the current `disabled` value safely.
+- Do not toggle shared `User.is_active` when only one tenant membership changes state.
+- Add an `authorization_version` to the membership and bind it into the authenticated tenant session.
+- Increment the version on role, scope, restriction, suspension, deactivation, or reactivation changes.
+- Extend `GET /api/session` with membership ID, lifecycle state, authorization version, and profile flags.
+- Replace direct role-only decisions with an authorization service that evaluates:
+  - active membership;
+  - tenant boundary;
+  - organization boundary;
+  - role action;
+  - record scope;
+  - restricted field controls;
+  - supplier or worker isolation;
+  - transaction state.
+- Keep `HasRole` as a compatibility adapter over the new service for existing views.
+- Extend `AuditEvent` with structured metadata: affected membership, reason, before and after values, represented user, and safe display context. Keep the existing payload hash for integrity.
+- Add protection against suspending or deactivating the final active customer administrator.
+
+### Frontend work
+
+- Extend the session parser and context with membership identity and capability information.
+- Replace hard-coded `role === admin` navigation checks gradually with server-provided capabilities.
+- Add reusable unauthorized and effective-access explanation components.
+
+### Exit criteria
+
+- Membership suspension blocks that tenant immediately without disabling unrelated memberships.
+- Authorization decisions can return a deterministic explanation.
+- Cross-tenant and supplier isolation tests pass through direct API calls.
+- User access changes produce displayable audit events.
+
+## Phase 2 User invitation and directory
+
+### Goals
+
+- Deliver a safe invitation lifecycle and a scalable user directory while retaining the current admin-user endpoints.
+
+### Backend work
+
+- Add a tenant user-invitation model with hashed, single-use, expiring tokens.
+- Add resend and revoke operations; resending invalidates previous tokens.
+- Refactor `POST /api/admin/users` into a compatibility wrapper that creates an invitation and invited membership.
+- Extend `GET /api/admin/users` with cursor or page-number pagination, organization filter, role summary, scope summary, last login, and allowed row actions.
+- Keep current search, status, role, business-unit, and cost-center filters compatible.
+- Add invitation endpoints:
+  - `POST /api/admin/user-invitations`
+  - `POST /api/admin/user-invitations/{id}/resend`
+  - `POST /api/admin/user-invitations/{id}/revoke`
+  - `POST /api/admin/user-invitations/{token}/accept`
+- Ensure acceptance activates the exact preconfigured membership and cannot claim a duplicate membership.
+- Use the existing email infrastructure and a local development mail sink.
+
+### Frontend work
+
+- Refactor `/admin/users` into smaller directory, filters, table, and action components.
+- Preserve filters and pagination when returning from a user record.
+- Replace the current add-user modal with the Identity, Access, and Review invitation flow.
+- Display invitation delivery failures and retry actions.
+- Use membership ID, not name, for record routes.
+
+### Exit criteria
+
+- Duplicate, expired, revoked, and already-used invitations cannot activate access.
+- Directory counts and results respect the same authorization filters.
+- Existing user filtering remains functional.
+- No real invitation is sent by automated tests.
+
+## Phase 3 User profile and access management
+
+### Goals
+
+- Implement the Profile and Access tabs with explicit, composable access rules.
+
+### Backend work
+
+- Extend the existing membership rather than creating a separate customer-user identity.
+- Add membership defaults for business unit, legal entity, cost center, location, and manager. Defaults do not grant access.
+- Add personal preference fields through the existing user/profile architecture: supported language, time zone, phone, and title.
+- Add user role grants for Customer Administrator, Program Manager, Hiring Manager, Finance, Reviewer, Supplier User, and Worker.
+- Map current roles to the new presets during migration:
+  - `admin` to Customer Administrator;
+  - `manager` to Program Manager;
+  - `business` to Hiring Manager;
+  - `finance` to Finance;
+  - `viewer` to Reviewer.
+- Add explicit record-scope types:
+  - own and assigned;
+  - selected business units with optional legal-entity restrictions;
+  - entire customer environment.
+- Add restricted-data, confidential-commercial, export, and organization-user-management controls.
+- Add endpoints:
+  - `GET/PATCH /api/admin/users/{membershipId}` for Profile;
+  - `GET/PATCH /api/admin/users/{membershipId}/access`;
+  - `POST /api/admin/users/{membershipId}/effective-access/preview`.
+- Validate the acting administrator's grant authority on every save.
+
+### Frontend work
+
+- Replace the redirect in `/admin/users/[name]` with `/admin/users/[membershipId]` and a tabbed record shell.
+- Build Profile and Access tabs using existing business-unit, legal-entity, cost-center, and site lookups.
+- Show combined role actions, record scope, restricted controls, and an administrator-only denial explanation before save.
+- Add responsive, keyboard-accessible loading, empty, unauthorized, validation, and retry states.
+
+### Exit criteria
+
+- Multiple compatible roles add actions but do not widen the selected record scope.
+- Business-unit selections use OR; legal-entity restrictions add AND.
+- Supplier and worker isolation cannot be overridden by broad internal scope.
+- Profile defaults never grant record access.
+
+## Phase 4 Approval grants, temporary coverage, and lifecycle actions
+
+### Goals
+
+- Implement the Approvals and Coverage and Activity tabs.
+- Connect access administration to actual approval execution.
+
+### Backend work
+
+- Add explicit approval responsibility grants for supported request, budget, timesheet, expense, milestone, and invoice modules.
+- Store financial limit and customer approval currency on the grant.
+- Add temporary approval coverage with responsibility types, start and end dates, and represented user.
+- Prevent overlapping coverage for the same responsibility and recursive delegation.
+- Extend current work-order and intake approval checks to require:
+  - responsibility grant;
+  - assignment to the decision;
+  - record access;
+  - no self-approval;
+  - sufficient financial authority;
+  - compatible approval currency.
+- Keep the existing approval-chain endpoints for routing; responsibility grants determine whether the resolved person may act.
+- Add endpoints:
+  - `GET/PATCH /api/admin/users/{membershipId}/approvals`;
+  - `GET/POST/PATCH/DELETE /api/admin/users/{membershipId}/coverage`;
+  - `GET /api/admin/users/{membershipId}/activity`;
+  - lifecycle preview and action endpoints for suspend, deactivate, and reactivate.
+- If no eligible approver exists, hold the decision and create an operations exception.
+
+### Frontend work
+
+- Build Approvals and Coverage and Activity tabs.
+- Show module availability and disable unsupported responsibility types.
+- Preview open work before deactivation and allow immediate access revocation with unresolved work routed to operations.
+- Require an explicit access review during reactivation.
+
+### Exit criteria
+
+- Self-approval, insufficient limits, missing responsibility, unsupported currency, and expired coverage block decisions with useful reasons.
+- Audit records identify both the actual actor and represented user.
+- Lifecycle changes do not disable unrelated tenant memberships.
+
+## Phase 5 Supplier overview, contacts, workers, and coverage
+
+### Goals
+
+- Turn the existing supplier directory into one supplier relationship with connected frontend and Admin views.
+
+### Backend work
+
+- Extend `Supplier` additively with source-system identifiers, source status, last sync, registered address, HQ country, buying entities, business units, and service type.
+- Separate `active_in_levv` from the read-only source status.
+- Reject mutations to source-owned fields from normal supplier update endpoints.
+- Add supplier contact-access records rather than treating an email address as authorization.
+- Reuse `POST /api/suppliers/{supplierId}/invite/` and add resend, revoke, and access-update actions.
+- Add `SupplierCoverage` linking one supplier, one canonical role from `/api/roles/`, and one site from `/api/sites/`.
+- Enforce one supplier-role-site relationship; reactivating an inactive mapping must not create a duplicate.
+- Add supplier-scoped endpoints:
+  - `GET /api/suppliers/{supplierId}/workers` derived from work orders and assignments;
+  - `GET /api/suppliers/{supplierId}/coverage` for the frontend read-only view;
+  - `GET/POST/PATCH /api/suppliers/{supplierId}/coverage` for authorized Admin operations;
+  - contact-access list and mutation endpoints.
+- Preserve existing assignments and historical prices when a supplier or coverage mapping becomes inactive.
+
+### Frontend work
+
+- Keep `/suppliers` as the live supplier directory and link rows to supplier detail.
+- Add:
+  - `/suppliers/[supplierId]/overview`;
+  - `/suppliers/[supplierId]/workers`;
+  - `/suppliers/[supplierId]/roles-sites`;
+  - `/admin/suppliers/[supplierId]/coverage`.
+- Keep the selected supplier visible in breadcrumbs and headers.
+- Make ERP-owned fields read-only and Levv activation/contact access explicit.
+- Reuse the existing worker or work-order detail experience when opening a worker assignment.
+- Do not expose negotiated rates in the frontend supplier tabs.
+
+### Exit criteria
+
+- Every supplier query and mutation is scoped by tenant and supplier on the server.
+- A coverage edit appears in the frontend without duplicate configuration.
+- Inactive coverage blocks future eligibility but preserves history.
+- Supplier workers are retrieved from linked assignments, not display-name matching.
+
+## Phase 6 Supplier-scoped rate cards and immutable publication
+
+### Goals
+
+- Evolve the current rate-card API into supplier-owned commercial agreements without discarding the existing rate structures and calculation service.
+
+### Backend work
+
+- Keep `/api/rate-cards/` paths and existing rate-structure endpoints.
+- Add supplier ownership to the rate card and move role identity to individual rate lines.
+- Introduce immutable published versions and an editable draft version.
+- Add pricing model, optional markup, country, buying-entity scope, and lifecycle metadata.
+- Replace free-text line location with an explicit site or country scope.
+- Add standard/pay minimum and maximum values and optional OT/DT terms.
+- Use decimal-safe calculations and the existing rate-structure calculation service.
+- Add optimistic concurrency checks to prevent silent publication overwrites.
+- Preserve `POST /api/rate-cards/{id}/activate/` as a compatibility alias for validated publication.
+- Add actions for create draft, discard draft, validate, publish, and test resolution.
+- Migrate current cards by grouping lines by supplier. Ambiguous or invalid records remain drafts for review.
+
+### Frontend work
+
+- Build supplier-scoped card routes:
+  - `/admin/suppliers/[supplierId]/rate-cards`;
+  - `/admin/suppliers/[supplierId]/rate-cards/[cardId]`.
+- Adapt the existing API-backed rate-card components instead of the hard-coded `/admin/rates` prototype.
+- Support manual line entry through the same draft validation and publication path used by extraction.
+- Keep agreement documents at the top of the detail screen.
+
+### Exit criteria
+
+- Draft edits cannot change published pricing.
+- Unmapped roles, unapproved site coverage, invalid amounts, overlaps, and unresolved conflicts block publication.
+- Manual and extracted lines use the same validation service.
+
+## Phase 7 Agreement documents and reviewed extraction
+
+### Goals
+
+- Add secure agreement storage and a reviewable extraction workflow without allowing documents to mutate live pricing.
+
+### Backend work
+
+- Add agreement-document metadata linked to supplier and rate card.
+- Use the configured storage abstraction for authorized upload and download.
+- Add an extraction-provider interface and extraction-draft records with original values, document/page provenance, confidence, mappings, and unresolved issues.
+- Add endpoints for:
+  - document upload and authorized download;
+  - start extraction;
+  - extraction status;
+  - review and resolve mappings/conflicts;
+  - apply selected results to the rate-card draft.
+- Treat filenames, document text, and extracted instructions as untrusted input.
+- Never create roles, approve coverage, apply lines, or publish automatically.
+- If no production extraction provider exists, enable a clearly labelled development mock that cannot bypass validation or publication gates.
+
+### Frontend work
+
+- Add document list, upload, extraction progress, and extraction-review screens.
+- Display original source title, values, page provenance, proposed canonical role/site mapping, coverage status, and conflicting live/draft lines.
+- Keep Apply to draft and Publish as separate deliberate actions.
+
+### Exit criteria
+
+- Uploading a document leaves published rates unchanged.
+- Ambiguous or missing values remain flagged rather than being invented.
+- A document naming another supplier is blocked for explicit review.
+
+## Phase 8 Deterministic rate resolution and operational integration
+
+### Goals
+
+- Replace fuzzy, preselected-card pricing with deterministic supplier agreement resolution.
+
+### Backend work
+
+- Replace the current resolver behavior that can fall back to the first line.
+- Resolve using tenant, supplier, canonical role, site, date, currency, unit, and confirmed organizational scope.
+- Use published versions only.
+- Prefer exact-site pricing over country fallback.
+- Return explicit no-match or ambiguity for equally specific overlapping records.
+- Return the matched agreement, version, line, and a readable explanation.
+- Evaluate supplier activation and approved coverage separately from price resolution.
+- Reuse the resolver from intake and work-order services.
+- Snapshot accepted commercial terms on downstream records so later agreement changes do not rewrite history.
+- Expose a supplier-scoped rate tester endpoint for Admin.
+
+### Frontend work
+
+- Add the rate tester to the supplier rate-card area.
+- Display price resolution, eligibility, coverage, and supplier status as separate results.
+- Remove demo-only client-side resolution from production paths.
+
+### Exit criteria
+
+- Exact site beats country fallback deterministically.
+- Draft changes never affect rate testing.
+- No-match and conflict results do not invent a price.
+- Intake and work-order tests confirm the same resolver behavior.
+
+## Phase 9 Hardening, rollout, and cleanup
+
+### Backend verification
+
+- Cross-customer, cross-supplier, worker, and restricted-field isolation.
+- Direct URL and API bypass attempts.
+- Search, list counts, exports, attachments, background work, and Nova enforcement.
+- All record-scope and legal-entity combinations.
+- Invitation replay, expiry, revoke, resend, and duplicate membership.
+- Membership-specific session invalidation and final-administrator protection.
+- Coverage uniqueness and historical preservation.
+- Draft/published rate immutability and concurrency conflicts.
+- Exact-site fallback, effective-date boundaries, no-match, and ambiguity.
+- Extraction review and publication gates.
+- Approval responsibility, assignment, self-approval, limits, currency, and temporary coverage.
+- Complete audit metadata without secrets or invitation tokens.
+
+### Frontend verification
+
+- Add component tests for forms, access summaries, validation, and lifecycle actions.
+- Add browser tests for user invitation, access configuration, suspension, supplier coverage, document review, rate publication, and rate testing.
+- Inspect primary screens at desktop and narrow widths.
+- Verify labeled inputs, keyboard access, focus management, error recovery, and unauthorized states.
+
+### Rollout
+
+- Deploy additive migrations before enabling new frontend routes.
+- Backfill membership states, role mappings, and authorization versions.
+- Migrate rate cards supplier by supplier and produce a report for unresolved cards.
+- Enable new flows for a test tenant first.
+- Compare old and new authorization and rate-resolution decisions in logs before full cutover.
+- Remove compatibility wrappers and prototype-only state after the migration window.
+
+## Recommended pull request sequence
+
+1. Contract tests, feature flags, and API client extraction.
+2. Membership lifecycle, authorization service, and structured audit.
+3. User invitation lifecycle and paginated directory.
+4. User Profile and Access tabs.
+5. Approval grants, coverage, Activity, and lifecycle actions.
+6. Supplier source ownership, contact access, and coverage models.
+7. Supplier frontend and Admin detail routes.
+8. Supplier-scoped rate-card versions and data migration.
+9. Agreement documents and extraction review.
+10. Deterministic rate resolver and intake/work-order integration.
+11. Security, accessibility, browser tests, rollout, and cleanup.
+
+## Decisions required before production publication
+
+- Exact ERP or procurement ownership and payload for supplier fields.
+- Whether legal entity and business unit constrain agreement selection.
+- How a negotiated amount is selected within a minimum and maximum range.
+- OT and DT calculation bases, rounding, and currency precision.
+- Customer approval currency and unsupported-currency behavior.
+- Production document storage and extraction provider.
+- Whether AI supplier distribution recommends recipients or sends automatically.
+
+These decisions do not block the authorization, directory, supplier coverage, draft rate-card, or review workflow phases. They do block final pricing publication or approval behavior where choosing a default would change commercial or security outcomes.
+
+## How to iterate on implementation
+
+Implement the plan as small vertical slices. Each slice should deliver one observable outcome through the backend model or service, an existing endpoint extension, the corresponding frontend behavior, and focused tests. Do not attempt to implement an entire phase in one pass.
+
+### Iteration loop
+
+Use this sequence for every slice:
+
+1. Define one observable outcome, such as an administrator viewing a paginated user directory while preserving filters.
+2. Inspect both repositories and identify the current model, service, endpoint, serializer, permission check, frontend API client, and consuming screen.
+3. Add or update contract tests that preserve existing behavior before changing the endpoint.
+4. Make additive backend changes. Prefer optional fields, new actions, and compatibility wrappers over breaking response changes.
+5. Update the typed frontend API layer instead of adding more inline `fetch` calls to page components.
+6. Implement the smallest usable UI, including loading, empty, validation, retry, and unauthorized states.
+7. Exercise authorization directly through the API as the wrong tenant, role, supplier, or user. Hidden UI controls are not sufficient protection.
+8. Run backend tests, frontend lint and build checks, and responsive visual inspection.
+9. Commit one coherent change. Keep its migration, endpoint changes, UI, and tests together when they form one usable feature.
+
+### Recommended first iterations
+
+#### Iteration 1 Contract baseline
+
+Outcome: current integration contracts are protected before product behavior changes.
+
+- Add backend tests for `GET /api/session`, `GET /api/admin/users`, `GET /api/suppliers/`, and `GET /api/rate-cards/`.
+- Extract user API calls from `app/admin/users/page.tsx` into `lib/api/users.ts`.
+- Mark the hard-coded rates page as prototype-only and keep `/admin/rates/cards` as the production implementation base.
+- Add feature flags for unfinished user detail, supplier detail, coverage, and rate-card flows.
+- Do not change visible product behavior in this iteration.
+
+#### Iteration 2 Membership lifecycle safety
+
+Outcome: an administrator can suspend one tenant membership without disabling the person's access to unrelated tenants.
+
+- Add `suspended`, `deactivated`, and `authorization_version` to the membership lifecycle.
+- Stop changing shared `User.is_active` for tenant-specific lifecycle operations.
+- Extend `GET /api/session` with the active membership ID, state, and authorization version.
+- Add final-active-administrator protection.
+- Add direct tests for cross-tenant access and invalidating an affected tenant session.
+- Do not build the full user-administration interface yet.
+
+#### Iteration 3 Read-only user detail
+
+Outcome: an administrator can open a stable user record and view Profile information.
+
+- Extend the existing user detail endpoint with profile fields and allowed actions.
+- Replace the redirecting user route with a detail shell keyed by membership ID.
+- Implement the Profile tab first.
+- Link directory rows to the membership-ID route.
+- Preserve directory filters and pagination when returning from a record.
+- Defer access mutations, approval grants, and lifecycle actions.
+
+#### Iteration 4 User invitations
+
+Outcome: an administrator can configure and send a safe invitation that activates exactly the reviewed membership.
+
+- Add expiring, single-use invitation records with resend and revoke behavior.
+- Keep `POST /api/admin/users` as a compatibility wrapper over the invitation service.
+- Build the Identity, Access, and Review steps.
+- Test token replay, expiry, resend, revoke, duplicate membership, and failed delivery.
+- Use a local mail sink or test email backend during development.
+
+#### Iteration 5 Supplier read-only detail
+
+Outcome: an authorized internal user can view one supplier's Overview and Workers without exposing another supplier.
+
+- Extend `GET /api/suppliers/{supplierId}/` additively.
+- Add supplier Overview and Workers routes.
+- Derive workers from work orders and assignments, never supplier display-name matching.
+- Enforce tenant and supplier isolation on the backend.
+- Keep source-owned supplier fields read-only.
+
+#### Iteration 6 Supplier coverage
+
+Outcome: an administrator can maintain explicit supplier-role-site coverage and the supplier frontend reflects the same records.
+
+- Add the supplier-role-site coverage model.
+- Reuse `/api/roles/` and `/api/sites/` for canonical lookups.
+- Add the Admin coverage editor and frontend read-only view.
+- Test duplicate prevention, inactive-record reactivation, and preservation of historical assignments.
+- Do not add supplier distribution tiers.
+
+Begin supplier-scoped rate-card restructuring, extraction, and deterministic rate resolution only after these foundation iterations are complete.
+
+### Slice sizing rules
+
+A normal implementation slice should contain:
+
+- one migration or a closely related migration set;
+- one existing endpoint extension or one small endpoint group;
+- one primary screen or tab;
+- focused backend tests;
+- focused frontend tests where a frontend testing surface exists;
+- no unrelated cleanup.
+
+A slice is too large if it changes user authorization, supplier coverage, rate-card migration, document extraction, and approval execution together. Split work at service and endpoint boundaries while preserving a usable vertical outcome.
+
+### Feature flags
+
+Use feature flags to keep incomplete flows inaccessible until their server-side controls are ready. Initial flags should include:
+
+```text
+user_detail_v2
+user_access_management
+supplier_detail_v2
+supplier_coverage
+supplier_rate_cards_v2
+agreement_extraction
+deterministic_rate_resolution
+```
+
+Feature flags control rollout only. They must not replace Django authorization or record-scope enforcement.
+
+### Implementation task prompt template
+
+Use a bounded prompt for each iteration:
+
+```text
+Implement Iteration <number and name> from
+docs/supplier-user-management-mvp-implementation-plan.md.
+
+Outcome:
+<One observable user or system outcome.>
+
+Scope:
+- <Existing model, service, or endpoint to extend.>
+- <Frontend route or component to implement.>
+- <Required authorization and tests.>
+- Reuse the current tenant, authentication, organization, and API patterns.
+
+Do not:
+- Implement later plan phases.
+- Replace existing authentication or authorization infrastructure wholesale.
+- Add unrelated cleanup or generic configuration frameworks.
+- Deploy, send real invitations, or modify production data.
+
+Before editing, inspect the relevant backend and frontend code and summarize
+the intended migration and compatibility behavior. After implementation,
+report changed files, migration behavior, checks run, and remaining risks.
+```
+
+For security- or pricing-sensitive slices, add the exact denial and conflict cases that must be tested to the prompt. Do not allow an implementation task to infer commercial rules that are still listed as production decisions.
+
+### Progress tracking
+
+After each merged slice, update the relevant phase or iteration in this file with:
+
+- status: `not started`, `in progress`, `blocked`, or `complete`;
+- pull request or commit reference;
+- migrations added;
+- endpoint contracts added or changed;
+- tests added and checks run;
+- assumptions verified;
+- new decisions or blockers discovered.
+
+Finish each slice, including backend enforcement and tests, before beginning the next screen. This keeps the plan adaptable without accumulating frontend controls that are not connected to authoritative backend behavior.
+
+## Implementation progress
+
+### Iteration 1 Contract baseline
+
+- Status: `complete` (2026-10-04).
+- Commit references: backend `affd3cb`; frontend commit containing this progress record.
+- Migrations added: none. `makemigrations --check --dry-run` reported no changes.
+- Endpoint contracts protected: existing `GET /api/session`, `GET /api/admin/users`, `GET /api/suppliers/`, and `GET /api/rate-cards/` response shapes, current role gates, and the supported rate-card URL resolution.
+- Frontend contract work: admin-user list/create/update calls and response normalization moved from `app/admin/users/page.tsx` to `lib/api/users.ts`; current loading, denied, tenant-error, retry, and fallback behavior remains unchanged.
+- Baseline markers: `masterdata.RateCard` is documented as legacy; `rates.RateCard` remains the supported `/api/rate-cards/` model; `/admin/rates` is marked prototype-only and `/admin/rates/cards` remains the production base.
+- Feature flags: all seven planned rollout flags are declared in Django and Next.js configuration and default to disabled. They do not replace Django authorization and are not wired to alter current routes in this iteration.
+- Tests and checks run: 6 new backend contract tests; full backend suite 56/56 passing; Django system check passing; migration drift check found no changes; `npx tsc --noEmit` passing; `npm run build` passing; `git diff --check` passing in both repositories.
+- Assumptions verified: `apps.rates.urls` precedes `apps.masterdata.urls`, so `/api/rate-cards/` resolves to the supported `rates.RateCard` view set; supplier and rate-card list contracts remain unpaginated arrays; admin users retain the `{ results: [...] }` wrapper; no visible product behavior changed.
+- Decisions or blockers: standalone `npm run lint` is not non-interactive because this repository has no ESLint configuration and Next.js prompts to create one. The production build completed its built-in lint and type validation. No Iteration 2 work was started.

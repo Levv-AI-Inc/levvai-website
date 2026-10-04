@@ -22,6 +22,13 @@ import {
   getCostCenters,
   type CostCenterRecord,
 } from '@/lib/api/costCenters'
+import {
+  UsersApiError,
+  createAdminUser,
+  getAdminUsers,
+  updateAdminUser,
+  type AdminUserRecord,
+} from '@/lib/api/users'
 import RequiredIndicator from '@/components/ui/RequiredIndicator'
 import {
   ACCESS_ROLES,
@@ -36,43 +43,7 @@ import {
   levvUi,
 } from '@/components/ui/levv-app'
 
-type BackendUser = {
-  membership_id?: number | string | null
-  user_id?: number | string | null
-  name?: string | null
-  email?: string | null
-  status?: string | null
-  role?: string | null
-  business_unit_id?: string | number | null
-  business_unit?: string | null
-  cost_center_id?: string | number | null
-  cost_center?: string | null
-  cost_center_name?: string | null
-  sso_enabled?: boolean | null
-  is_active?: boolean | null
-  user_type?: string | null
-  account_type?: string | null
-}
-
-type BackendUsersResponse = {
-  results?: BackendUser[]
-}
-
-type UserRow = {
-  membershipId: string
-  userId: string
-  name: string
-  email: string
-  status: string
-  role: string
-  businessUnitId: string
-  businessUnit: string
-  costCenterId: string
-  costCenter: string
-  costCenterName: string
-  ssoEnabled: boolean
-  isActive: boolean
-}
+type UserRow = AdminUserRecord
 
 type AddUserFormState = {
   name: string
@@ -130,12 +101,6 @@ function readOptionalString(value: unknown): string {
   return value.trim()
 }
 
-function toIdString(value: unknown): string {
-  if (typeof value === 'number') return String(value)
-  if (typeof value === 'string') return value.trim()
-  return ''
-}
-
 function toTitleCase(value: string): string {
   return value
     .replace(/_/g, ' ')
@@ -152,43 +117,6 @@ function normalizeStatus(value: unknown): string {
 
 function normalizeRole(value: unknown): string {
   return normalizeAccessRole(value)
-}
-
-function getCookie(name: string) {
-  if (typeof document === 'undefined') return ''
-  const value = `; ${document.cookie}`
-  const parts = value.split(`; ${name}=`)
-  return parts.length === 2 ? parts.pop()?.split(';').shift() || '' : ''
-}
-
-function csrfHeaders() {
-  const token = getCookie('csrftoken')
-  return token ? { 'X-CSRFToken': token } : {}
-}
-
-function mapBackendUser(row: BackendUser): UserRow {
-  const userId = toIdString(row.user_id)
-  const email = readOptionalString(row.email)
-  const name =
-    readOptionalString(row.name) ||
-    email ||
-    (userId ? `User ${userId}` : 'Unknown user')
-
-  return {
-    membershipId: toIdString(row.membership_id),
-    userId,
-    name,
-    email,
-    status: normalizeStatus(row.status),
-    role: normalizeRole(row.role),
-    businessUnitId: toIdString(row.business_unit_id),
-    businessUnit: readOptionalString(row.business_unit),
-    costCenterId: toIdString(row.cost_center_id),
-    costCenter: readOptionalString(row.cost_center),
-    costCenterName: readOptionalString(row.cost_center_name),
-    ssoEnabled: row.sso_enabled === true,
-    isActive: row.is_active !== false,
-  }
 }
 
 function toCostCenterDisplay(row: UserRow): string {
@@ -441,74 +369,41 @@ export default function AdminUsersPage() {
       setError('')
 
       try {
-        const params = new URLSearchParams()
         const businessUnitFilterValue = businessUnitFilter.trim()
         const costCenterFilterValue = costCenterFilter.trim()
-
-        if (search) params.set('search', search)
-        if (statusFilter) params.set('status', statusFilter)
-        if (roleFilter) params.set('role', roleFilter)
-        if (
-          businessUnitFilterValue &&
-          /^\d+$/.test(businessUnitFilterValue)
-        ) {
-          params.set('business_unit_id', businessUnitFilterValue)
-        }
-        if (costCenterFilterValue) {
-          params.set('cost_center_id', costCenterFilterValue)
-        }
-
-        const url = params.toString()
-          ? `/api/admin/users?${params.toString()}`
-          : '/api/admin/users'
-
-        const response = await fetch(url, {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            Accept: 'application/json',
+        const rows = await getAdminUsers(
+          {
+            search,
+            status: statusFilter,
+            role: roleFilter,
+            business_unit_id:
+              businessUnitFilterValue && /^\d+$/.test(businessUnitFilterValue)
+                ? businessUnitFilterValue
+                : undefined,
+            cost_center_id: costCenterFilterValue || undefined,
           },
-          signal: controller.signal,
-        })
+          controller.signal,
+        )
 
-        if (response.status === 401) {
+        setUsers(rows)
+        setForbidden(false)
+      } catch (requestError) {
+        if ((requestError as { name?: string })?.name === 'AbortError') return
+        if (requestError instanceof UsersApiError && requestError.status === 401) {
           router.replace('/auth/login?next=/admin/users')
           return
         }
-
-        if (response.status === 403) {
+        if (requestError instanceof UsersApiError && requestError.status === 403) {
           setForbidden(true)
           setUsers([])
           return
         }
-
-        if (response.status === 400) {
+        if (requestError instanceof UsersApiError && requestError.status === 400) {
           setForbidden(false)
           setUsers([])
           setError('Tenant context is required to view users.')
           return
         }
-
-        if (!response.ok) {
-          throw new Error(`Failed to load users: ${response.status}`)
-        }
-
-        const payload = (await response.json().catch(() => ({}))) as BackendUsersResponse
-        const results = Array.isArray(payload.results) ? payload.results : []
-        const mapped = results
-          .filter((row) =>
-            isInternalAccessUser(
-              row.role,
-              row.user_type || row.account_type,
-            ),
-          )
-          .map(mapBackendUser)
-
-        setUsers(mapped)
-        setForbidden(false)
-      } catch (requestError) {
-        if ((requestError as { name?: string })?.name === 'AbortError') return
         setUsers([])
         setForbidden(false)
         setError(
@@ -848,46 +743,24 @@ export default function AdminUsersPage() {
     setAddUserError('')
 
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          ...csrfHeaders(),
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          role: pendingUser.role,
-          status: pendingUser.status,
-          business_unit_id: selectedBusinessUnit?.unit.id || null,
-          cost_center_id: selectedCostCenter?.center.id || null,
-          sso_enabled: pendingUser.ssoEnabled,
-          is_active: pendingUser.status === 'active',
-        }),
+      const created = await createAdminUser({
+        name,
+        email,
+        role: pendingUser.role,
+        status: pendingUser.status,
+        business_unit_id: selectedBusinessUnit?.unit.id || null,
+        cost_center_id: selectedCostCenter?.center.id || null,
+        sso_enabled: pendingUser.ssoEnabled,
+        is_active: pendingUser.status === 'active',
       })
 
-      if (response.status === 401) {
+      setUsers((current) => upsertUser(current, created || pendingUser))
+      setIsAddUserModalOpen(false)
+    } catch (requestError) {
+      if (requestError instanceof UsersApiError && requestError.status === 401) {
         router.replace('/auth/login?next=/admin/users')
         return
       }
-
-      const body = (await response.json().catch(() => ({}))) as BackendUser
-      if (!response.ok) {
-        const message =
-          body && typeof body === 'object' && 'detail' in body
-            ? String((body as { detail?: unknown }).detail)
-            : `Unable to add user (${response.status}).`
-        throw new Error(message)
-      }
-
-      const created = body.membership_id || body.user_id
-        ? mapBackendUser(body)
-        : pendingUser
-      setUsers((current) => upsertUser(current, created))
-      setIsAddUserModalOpen(false)
-    } catch (requestError) {
       setAddUserError(
         requestError instanceof Error
           ? requestError.message
@@ -950,49 +823,24 @@ export default function AdminUsersPage() {
     setEditUserError('')
 
     try {
-      const response = await fetch(
-        `/api/admin/users/${encodeURIComponent(recordId)}`,
-        {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...csrfHeaders(),
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            role: updatedUser.role,
-            status: updatedUser.status,
-            business_unit_id: selectedBusinessUnit?.unit.id || null,
-            cost_center_id: selectedCostCenter?.center.id || null,
-            sso_enabled: updatedUser.ssoEnabled,
-            is_active: updatedUser.isActive,
-          }),
-        },
-      )
+      const saved = await updateAdminUser(recordId, {
+        name,
+        email,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        business_unit_id: selectedBusinessUnit?.unit.id || null,
+        cost_center_id: selectedCostCenter?.center.id || null,
+        sso_enabled: updatedUser.ssoEnabled,
+        is_active: updatedUser.isActive,
+      })
 
-      if (response.status === 401) {
+      setUsers((current) => upsertUser(current, saved || updatedUser))
+      setEditingUser(null)
+    } catch (requestError) {
+      if (requestError instanceof UsersApiError && requestError.status === 401) {
         router.replace('/auth/login?next=/admin/users')
         return
       }
-
-      const body = (await response.json().catch(() => ({}))) as BackendUser
-      if (!response.ok) {
-        const message =
-          body && typeof body === 'object' && 'detail' in body
-            ? String((body as { detail?: unknown }).detail)
-            : `Unable to update user (${response.status}).`
-        throw new Error(message)
-      }
-
-      const saved = body.membership_id || body.user_id
-        ? mapBackendUser(body)
-        : updatedUser
-      setUsers((current) => upsertUser(current, saved))
-      setEditingUser(null)
-    } catch (requestError) {
       setEditUserError(
         requestError instanceof Error
           ? requestError.message

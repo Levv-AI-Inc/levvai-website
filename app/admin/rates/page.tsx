@@ -1,5 +1,8 @@
 'use client'
 
+// Prototype-only supplier agreement concept. Production rate-card work must
+// build on the API-backed /admin/rates/cards routes and lib/api/rates.ts.
+
 import { useMemo, useState } from 'react'
 import {
   ArrowLeft,
