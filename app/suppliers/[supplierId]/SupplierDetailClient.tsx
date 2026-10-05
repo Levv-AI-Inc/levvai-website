@@ -10,6 +10,7 @@ import {
   Building2,
   ExternalLink,
   Loader2,
+  MapPin,
   RefreshCw,
   ShieldCheck,
   Users,
@@ -19,7 +20,9 @@ import { LevvPage, LevvPageHeader, LevvPanel } from '@/components/ui/levv-app'
 import {
   ApiError,
   getSupplier,
+  getSupplierCoverage,
   getSupplierWorkers,
+  type SupplierCoverage,
   type SupplierDetail,
   type SupplierSourceReference,
   type SupplierWorker,
@@ -30,7 +33,7 @@ import { cn } from '@/lib/utils'
 
 import { complianceBadgeClass, riskBadgeClass, statusBadgeClass, toTitleCase } from '../utils'
 
-type SupplierDetailTab = 'overview' | 'workers'
+type SupplierDetailTab = 'overview' | 'workers' | 'roles-sites'
 
 const EMPTY_PAGINATION: SupplierWorkersResponse['pagination'] = {
   page: 1,
@@ -47,6 +50,7 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
   const supplierId = String(params?.supplierId || '')
   const [supplier, setSupplier] = useState<SupplierDetail | null>(null)
   const [workers, setWorkers] = useState<SupplierWorker[]>([])
+  const [coverage, setCoverage] = useState<SupplierCoverage[]>([])
   const [pagination, setPagination] = useState(EMPTY_PAGINATION)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -64,6 +68,10 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
       router.replace('/suppliers')
       return
     }
+    if (activeTab === 'roles-sites' && !isFeatureEnabled('supplier_coverage')) {
+      router.replace(`${basePath}/overview`)
+      return
+    }
     if (!validId) {
       setLoading(false)
       setNotFound(true)
@@ -76,28 +84,28 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
     setForbidden(false)
     setNotFound(false)
 
-    const requests: [Promise<SupplierDetail>, Promise<SupplierWorkersResponse> | null] = [
+    Promise.all([
       getSupplier(supplierId, controller.signal),
       activeTab === 'workers'
         ? getSupplierWorkers(supplierId, { page, page_size: 25 }, controller.signal)
-        : null,
-    ]
-
-    Promise.all([
-      requests[0],
-      requests[1] || Promise.resolve(null),
+        : Promise.resolve(null),
+      activeTab === 'roles-sites'
+        ? getSupplierCoverage(supplierId, controller.signal)
+        : Promise.resolve(null),
     ])
-      .then(([supplierResponse, workersResponse]) => {
+      .then(([supplierResponse, workersResponse, coverageResponse]) => {
         setSupplier(supplierResponse)
         if (workersResponse) {
           setWorkers(workersResponse.results)
           setPagination(workersResponse.pagination)
         }
+        if (coverageResponse) setCoverage(coverageResponse.results)
       })
       .catch((requestError) => {
         if ((requestError as { name?: string })?.name === 'AbortError') return
         setSupplier(null)
         setWorkers([])
+        setCoverage([])
         if (requestError instanceof ApiError && requestError.status === 401) {
           router.replace(
             `/auth/login?next=${encodeURIComponent(`${basePath}/${activeTab}`)}`,
@@ -156,13 +164,19 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
           <TabLink href={`${basePath}/workers`} active={activeTab === 'workers'}>
             Workers
           </TabLink>
-          <span
-            aria-disabled="true"
-            title="Available with supplier coverage in a later iteration"
-            className="cursor-not-allowed whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-slate-400"
-          >
-            Roles & sites
-          </span>
+          {isFeatureEnabled('supplier_coverage') ? (
+            <TabLink href={`${basePath}/roles-sites`} active={activeTab === 'roles-sites'}>
+              Roles & sites
+            </TabLink>
+          ) : (
+            <span
+              aria-disabled="true"
+              title="Supplier coverage is not enabled"
+              className="cursor-not-allowed whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold text-slate-400"
+            >
+              Roles & sites
+            </span>
+          )}
         </nav>
 
         {loading ? (
@@ -187,13 +201,15 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
         ) : supplier ? (
           activeTab === 'overview' ? (
             <SupplierOverview supplier={supplier} />
-          ) : (
+          ) : activeTab === 'workers' ? (
             <SupplierWorkers
               workers={workers}
               pagination={pagination}
               onPrevious={() => setPage((current) => Math.max(1, current - 1))}
               onNext={() => setPage((current) => current + 1)}
             />
+          ) : (
+            <SupplierCoverageList records={coverage} />
           )
         ) : (
           <StatePanel title="No supplier data" message="No supplier information was returned." />
@@ -201,6 +217,88 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
       </div>
     </LevvPage>
   )
+}
+
+function SupplierCoverageList({ records }: { records: SupplierCoverage[] }) {
+  const activeCount = records.filter((record) => record.is_active).length
+  return (
+    <LevvPanel className="overflow-hidden p-0">
+      <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+        <SectionHeading
+          icon={<MapPin className="h-5 w-5" />}
+          title="Roles & sites"
+          description={`${activeCount} active coverage mapping${activeCount === 1 ? '' : 's'}. Inactive mappings remain visible for relationship history.`}
+        />
+      </div>
+      {records.length === 0 ? (
+        <div className="flex min-h-64 flex-col items-center justify-center px-6 py-12 text-center">
+          <MapPin className="h-9 w-9 text-slate-300" />
+          <h2 className="mt-4 text-base font-bold text-slate-950">No coverage configured</h2>
+          <p className="mt-2 max-w-md text-sm text-slate-500">
+            An administrator can add canonical role and site coverage from Supplier Settings.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="divide-y divide-slate-100 md:hidden">
+            {records.map((record) => (
+              <div key={record.id} className="space-y-3 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-semibold text-slate-950">{record.role_name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{record.role_code || 'Canonical role'}</div>
+                  </div>
+                  <CoverageStatus active={record.is_active} />
+                </div>
+                <div className="text-sm text-slate-700">{formatSite(record)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                <tr>
+                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Role market</th>
+                  <th className="px-6 py-4">Site</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {records.map((record) => (
+                  <tr key={record.id}>
+                    <td className="px-6 py-5">
+                      <div className="font-semibold text-slate-950">{record.role_name}</div>
+                      <div className="mt-1 text-xs text-slate-500">{record.role_code || '—'}</div>
+                    </td>
+                    <td className="px-6 py-5 text-slate-700">{record.role_location_label || '—'}</td>
+                    <td className="px-6 py-5 text-slate-700">{formatSite(record)}</td>
+                    <td className="px-6 py-5"><CoverageStatus active={record.is_active} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </LevvPanel>
+  )
+}
+
+function CoverageStatus({ active }: { active: boolean }) {
+  return (
+    <span className={cn(
+      'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+      active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600',
+    )}>
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  )
+}
+
+function formatSite(record: SupplierCoverage) {
+  const location = [record.site_city, record.site_country].filter(Boolean).join(', ')
+  return [record.site_name, location].filter(Boolean).join(' · ') || record.site_code || 'Site not set'
 }
 
 function TabLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {

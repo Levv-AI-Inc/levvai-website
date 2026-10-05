@@ -82,6 +82,28 @@ export type SupplierWorkersResponse = {
   }
 }
 
+export type SupplierCoverage = {
+  id: number
+  supplier_id: number
+  role_id: number
+  role_code: string
+  role_name: string
+  role_location_label: string
+  site_id: number
+  site_code: string
+  site_name: string
+  site_city: string
+  site_country: string
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export type SupplierCoverageResponse = {
+  supplier_id: number
+  results: SupplierCoverage[]
+}
+
 export type SupplierUpsertPayload = {
   supplier_code?: string
   name: string
@@ -330,6 +352,25 @@ function normalizeSupplierWorker(row: Record<string, unknown>): SupplierWorker {
   }
 }
 
+function normalizeSupplierCoverage(row: Record<string, unknown>): SupplierCoverage {
+  return {
+    id: readOptionalNumber(row.id) || 0,
+    supplier_id: readOptionalNumber(row.supplier_id) || 0,
+    role_id: readOptionalNumber(row.role_id) || 0,
+    role_code: readOptionalString(row.role_code) || '',
+    role_name: readOptionalString(row.role_name) || '',
+    role_location_label: readOptionalString(row.role_location_label) || '',
+    site_id: readOptionalNumber(row.site_id) || 0,
+    site_code: readOptionalString(row.site_code) || '',
+    site_name: readOptionalString(row.site_name) || '',
+    site_city: readOptionalString(row.site_city) || '',
+    site_country: readOptionalString(row.site_country) || '',
+    is_active: readBoolean(row.is_active),
+    created_at: readOptionalString(row.created_at),
+    updated_at: readOptionalString(row.updated_at),
+  }
+}
+
 function buildSupplierQuery(params: SupplierListParams) {
   const query = new URLSearchParams()
 
@@ -460,6 +501,92 @@ export async function getSupplierWorkers(
       has_previous: readBoolean(pagination.has_previous),
     },
   }
+}
+
+export async function getSupplierCoverage(
+  supplierId: string | number,
+  signal?: AbortSignal,
+): Promise<SupplierCoverageResponse> {
+  const response = await fetch(
+    `/api/suppliers/${encodeURIComponent(String(supplierId))}/coverage/`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      signal,
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(response, body, `Failed to load supplier coverage (${response.status})`)
+  }
+  const payload = body && typeof body === 'object' && !Array.isArray(body)
+    ? (body as Record<string, unknown>)
+    : {}
+  const results = Array.isArray(payload.results)
+    ? payload.results
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        .map(normalizeSupplierCoverage)
+    : []
+  return {
+    supplier_id: readOptionalNumber(payload.supplier_id) || 0,
+    results,
+  }
+}
+
+export async function createSupplierCoverage(
+  supplierId: string | number,
+  payload: { role_id: number; site_id: number | string },
+): Promise<SupplierCoverage> {
+  const response = await fetch(
+    `/api/suppliers/${encodeURIComponent(String(supplierId))}/coverage/`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(response, body, `Failed to add supplier coverage (${response.status})`)
+  }
+  return normalizeSupplierCoverage(
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {},
+  )
+}
+
+export async function updateSupplierCoverage(
+  supplierId: string | number,
+  coverageId: number,
+  isActive: boolean,
+): Promise<SupplierCoverage> {
+  const response = await fetch(
+    `/api/suppliers/${encodeURIComponent(String(supplierId))}/coverage/${coverageId}/`,
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify({ is_active: isActive }),
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(response, body, `Failed to update supplier coverage (${response.status})`)
+  }
+  return normalizeSupplierCoverage(
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {},
+  )
 }
 
 export async function createSupplier(

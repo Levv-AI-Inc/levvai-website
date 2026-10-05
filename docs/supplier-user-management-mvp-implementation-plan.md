@@ -680,23 +680,34 @@ Finish each slice, including backend enforcement and tests, before beginning the
 - Assumptions verified: `Supplier`, `WorkOrder`, role, and site records are tenant-schema models; the current work order is the authoritative assignment record and has a direct supplier foreign key; existing work-order detail is the supported assignment destination; source integration payload details remain undecided, so additive JSON metadata accepts source references without inventing relational ownership; and the feature flag remains a rollout control rather than an authorization boundary.
 - Decisions or blockers: exact procurement/ERP payload ownership and normalization still require the production decision already recorded above. The existing fixed-width global navigation continues to reduce usable width on small screens until collapsed; the new content itself stacks and switches from table to cards. No frontend unit-test runner is configured, standalone `npm run lint` remains interactive, and the build continues to report existing client-rendering and outdated Browserslist-data warnings. No production data was modified, no invitation was sent, and supplier coverage, contact-access mutation, rate cards, extraction, approval work, and later iterations were not started.
 
+### Iteration 6 Supplier coverage (Phase 5 continuation)
+
+- Status: `complete` (2026-10-05).
+- Commit references: backend `a822eae`; frontend commit containing this progress record.
+- Migrations added: `masterdata.0011_suppliercoverage_and_more` creates tenant-schema `SupplierCoverage` with direct supplier, canonical role, and site foreign keys, an active/inactive lifecycle, timestamps, a supplier/active index, and a database uniqueness constraint for each supplier-role-site tuple. It creates no coverage rows and does not rewrite suppliers, roles, sites, work orders, or assignments.
+- Endpoint contracts added: internal active members may read `GET /api/suppliers/{supplierId}/coverage/`; customer administrators may create through `POST /api/suppliers/{supplierId}/coverage/` and activate or deactivate through `PATCH /api/suppliers/{supplierId}/coverage/{coverageId}/`. A new tuple returns 201, an inactive tuple is atomically reactivated in place with 200, and an already-active duplicate returns 409. Role and site IDs resolve in the active tenant schema, the URL supplier is authoritative, and only active roles and sites may be added or reactivated.
+- Compatibility behavior: the existing supplier list, detail, update, source-ownership, workers, role, site, work-order, and assignment contracts are unchanged. Coverage deactivation updates the existing mapping rather than deleting it; historical assignments remain readable and are not rewritten. Coverage is not yet connected to supplier selection or pricing, so this slice does not change operational eligibility behavior outside the new coverage endpoints and screens.
+- Frontend behavior: `lib/api/suppliers.ts` owns typed coverage reads and mutations. When `supplier_coverage` is enabled, `/suppliers/{supplierId}/roles-sites` shows the same mappings read-only with loading, empty, denied, not-found, retry, desktop-table, and compact-card states. `/admin/suppliers/{supplierId}/coverage` reuses the canonical role and site API clients and provides administrator create, deactivate, and reactivate controls while keeping the selected supplier visible.
+- Tests and checks run: 8 focused coverage model/API tests plus the 7 Iteration 5 supplier tests pass; the full backend suite passes 98/98 against isolated local PostgreSQL; the migration applied successfully through both shared and tenant migration commands; Django system check and migration drift check pass; `npx tsc --noEmit`, `npm run build`, and `git diff --check` pass. Desktop and 390-by-844 inspection covered empty and populated read-only coverage plus the populated Admin editor; the temporary local coverage row was removed afterward.
+- Assumptions verified: supplier, coverage, role, and site data belong in the tenant schema; direct foreign keys are the canonical identity boundary; customer administrator means the existing `admin` membership role for mutations, while all existing internal supplier-view roles retain read access; active duplicate creation is an explicit conflict rather than a silent success; and feature flags control rollout only, not server authorization.
+- Decisions or blockers: the fixed-width global and Admin navigation shells still constrain the Admin editor at narrow widths, although the new content stacks and the read-only view switches to compact cards after the global sidebar is collapsed. No frontend unit-test runner is configured, standalone lint remains interactive, and the build retains the existing client-rendering and outdated Browserslist warnings. A local `seed_local_data --refresh` attempt encountered a pre-existing duplicate workflow-scope-field validation issue; existing isolated seed data was sufficient for inspection. No production data was modified, no invitation was sent, and contact access, Levv activation administration, deletion protection, rate cards, extraction, approval work, and later iterations were not started.
+
 ## Next-agent handoff: continue Phase 5 supplier management
 
-Updated 2026-10-05 after Iteration 5 completion.
+Updated 2026-10-05 after the supplier coverage continuation completed.
 
 ### Repository state
 
 - Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: frontend commit containing this Iteration 5 progress record.
-- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `7e985fb` (`Add supplier detail and linked workers`).
-- Iterations 1 through 5 are complete. Both repositories were clean after the Iteration 5 commits.
-- Latest verified baseline: full backend suite 90/90, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
+- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `a822eae` (`Add supplier role and site coverage`).
+- Iterations 1 through 5 and the bounded supplier coverage continuation are complete. Both repositories were clean after their commits.
+- Latest verified baseline: full backend suite 98/98, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
 - The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
 
 ### Phase context
 
-Iteration 5 completed only the read-only Supplier Overview and Workers slice. It did not complete the full Phase 5 end state. Phase 5 still requires:
+Supplier Overview, Workers, and explicit supplier-role-site coverage are complete. Phase 5 still requires:
 
-- explicit supplier-role-site coverage, including Admin maintenance and the supplier read-only view;
 - supplier contact-access records and list/mutation endpoints;
 - resend, revoke, and access-update behavior around the existing supplier invitation path;
 - authorized administration of `active_in_levv`, kept separate from read-only source status; and
@@ -704,13 +715,13 @@ Iteration 5 completed only the read-only Supplier Overview and Workers slice. It
 
 Do not begin supplier-scoped rate cards until these remaining Phase 5 outcomes are complete. Keep the remaining work in bounded vertical slices rather than combining coverage, contact access, activation, and deletion policy in one change.
 
-### Next bounded slice: Phase 5 supplier coverage
+### Completed bounded slice: Phase 5 supplier coverage
 
-Implement the next bounded supplier coverage continuation of Phase 5.
+Completed in backend commit `a822eae` and the frontend commit containing this handoff. Do not reimplement this slice.
 
 Observable outcome: an administrator can maintain explicit supplier-role-site coverage and the supplier frontend reflects the same records without duplicate configuration.
 
-Required boundaries:
+Implemented boundaries:
 
 - Inspect both repositories before editing and follow the iteration loop above.
 - Add the unique supplier-role-site coverage model and reuse canonical `/api/roles/` and `/api/sites/` records.
@@ -721,7 +732,7 @@ Required boundaries:
 - Do not add supplier distribution tiers, contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
 - Update this progress record and this handoff section when the slice is complete, including commits, migrations, endpoint compatibility, checks, assumptions, and remaining risks.
 
-### Required Phase 5 slice after coverage
+### Next bounded slice: Phase 5 supplier contact access and activation
 
 After coverage is complete and verified, implement a separate bounded supplier contact-access and activation slice before starting supplier-scoped rate cards:
 
@@ -740,7 +751,7 @@ After coverage is complete and verified, implement a separate bounded supplier c
 - The new supplier source fields intentionally use additive JSON metadata because the exact ERP payload remains a production decision; do not use those labels as coverage identities.
 - Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items; they do not authorize real invitation delivery during the remaining Phase 5 work.
 
-### Implementation notes for the next Phase 5 slice
+### Established supplier coverage implementation notes
 
 - Start with `apps/masterdata/models.py`, `serializers.py`, and `views.py` in the backend. `Supplier`, `RoleDefinition`, and `Site` already live in this tenant-schema app, and `SupplierViewSet` is registered by `apps/masterdata/urls.py`; extend that view set rather than adding a parallel supplier API.
 - Model coverage with direct foreign keys to `Supplier`, `RoleDefinition`, and `Site`, plus an explicit active/inactive lifecycle. Enforce the supplier-role-site tuple with a database uniqueness constraint as well as serializer/service validation. Deactivation must update the existing row, not delete it, so historical work orders and assignments remain untouched.
