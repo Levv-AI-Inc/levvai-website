@@ -9,7 +9,8 @@ import {
   type ChangeEvent,
 } from 'react'
 import { FileSpreadsheet, Pencil, Plus, Search, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { parseUser } from '@/lib/intelligence'
 import {
   BusinessUnitsApiError,
@@ -36,6 +37,7 @@ import {
   isInternalAccessUser,
   normalizeAccessRole,
 } from '@/lib/accessControlRoles'
+import { isFeatureEnabled } from '@/lib/featureFlags'
 import {
   LevvPage,
   LevvPageHeader,
@@ -214,6 +216,7 @@ function normalizeAssistantUser(raw: unknown, source: string): UserRow {
 
 export default function AdminUsersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -226,12 +229,16 @@ export default function AdminUsersPage() {
   const [costCentersLoading, setCostCentersLoading] = useState(false)
   const [costCentersError, setCostCentersError] = useState('')
 
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
-  const [businessUnitFilter, setBusinessUnitFilter] = useState('')
-  const [costCenterFilter, setCostCenterFilter] = useState('')
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '')
+  const [search, setSearch] = useState(() => searchParams.get('search') || '')
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '')
+  const [roleFilter, setRoleFilter] = useState(() => searchParams.get('role') || '')
+  const [businessUnitFilter, setBusinessUnitFilter] = useState(
+    () => searchParams.get('business_unit_id') || '',
+  )
+  const [costCenterFilter, setCostCenterFilter] = useState(
+    () => searchParams.get('cost_center_id') || '',
+  )
   const [assistantPrompt, setAssistantPrompt] = useState('')
   const [assistantLoading, setAssistantLoading] = useState(false)
   const [assistantError, setAssistantError] = useState('')
@@ -276,6 +283,57 @@ export default function AdminUsersPage() {
 
     return () => window.clearTimeout(timer)
   }, [searchInput])
+
+  useEffect(() => {
+    const query = new URLSearchParams(searchParams.toString())
+    const values = {
+      search,
+      status: statusFilter,
+      role: roleFilter,
+      business_unit_id: businessUnitFilter,
+      cost_center_id: costCenterFilter,
+    }
+    Object.entries(values).forEach(([key, value]) => {
+      if (value.trim()) query.set(key, value.trim())
+      else query.delete(key)
+    })
+    const next = query.toString()
+    if (next !== searchParams.toString()) {
+      router.replace(next ? `/admin/users?${next}` : '/admin/users', { scroll: false })
+    }
+  }, [
+    businessUnitFilter,
+    costCenterFilter,
+    roleFilter,
+    router,
+    search,
+    searchParams,
+    statusFilter,
+  ])
+
+  const currentListHref = useMemo(() => {
+    const query = new URLSearchParams(searchParams.toString())
+    const values = {
+      search,
+      status: statusFilter,
+      role: roleFilter,
+      business_unit_id: businessUnitFilter,
+      cost_center_id: costCenterFilter,
+    }
+    Object.entries(values).forEach(([key, value]) => {
+      if (value.trim()) query.set(key, value.trim())
+      else query.delete(key)
+    })
+    const suffix = query.toString()
+    return suffix ? `/admin/users?${suffix}` : '/admin/users'
+  }, [
+    businessUnitFilter,
+    costCenterFilter,
+    roleFilter,
+    search,
+    searchParams,
+    statusFilter,
+  ])
 
   const loadBusinessUnits = useCallback(async () => {
     setBusinessUnitsLoading(true)
@@ -1795,7 +1853,18 @@ export default function AdminUsersPage() {
                   key={`${user.membershipId || user.userId || user.email}-${user.name}`}
                   className="group transition-colors hover:bg-[#e7f3ee]/50"
                 >
-                  <td className="px-5 py-4 font-semibold text-slate-950">{user.name}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-950">
+                    {isFeatureEnabled('user_detail_v2') && user.membershipId ? (
+                      <Link
+                        href={`/admin/users/${encodeURIComponent(user.membershipId)}?return_to=${encodeURIComponent(currentListHref)}`}
+                        className="rounded-sm hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+                      >
+                        {user.name}
+                      </Link>
+                    ) : (
+                      user.name
+                    )}
+                  </td>
                   <td className="px-5 py-4 text-slate-700">{user.email || '—'}</td>
                   <td className="px-5 py-4">
                     <span

@@ -29,6 +29,20 @@ export type AdminUserRecord = {
   isActive: boolean
 }
 
+export type AdminUserProfile = AdminUserRecord & {
+  legalEntityId: string
+  legalEntity: string
+  siteId: string
+  site: string
+  managerMembershipId: string
+  manager: string
+  title: string
+  phone: string
+  supportedLanguage: string
+  timeZone: string
+  allowedActions: string[]
+}
+
 export type AdminUserWritePayload = {
   name: string
   email: string
@@ -52,6 +66,17 @@ type BackendUser = {
   cost_center_id?: string | number | null
   cost_center?: string | null
   cost_center_name?: string | null
+  legal_entity_id?: string | null
+  legal_entity?: string | null
+  site_id?: string | number | null
+  site?: string | null
+  manager_membership_id?: string | number | null
+  manager?: string | null
+  title?: string | null
+  phone?: string | null
+  supported_language?: string | null
+  time_zone?: string | null
+  allowed_actions?: unknown
   sso_enabled?: boolean | null
   is_active?: boolean | null
   user_type?: string | null
@@ -105,7 +130,7 @@ function normalizeStatus(value: unknown): string {
   return status === 'suspended' ? 'disabled' : status
 }
 
-function normalizeBackendUser(row: BackendUser): AdminUserRecord {
+function normalizeBackendUser(row: BackendUser): AdminUserProfile {
   const userId = toIdString(row.user_id)
   const email = readOptionalString(row.email)
   const name =
@@ -125,6 +150,21 @@ function normalizeBackendUser(row: BackendUser): AdminUserRecord {
     costCenterId: toIdString(row.cost_center_id),
     costCenter: readOptionalString(row.cost_center),
     costCenterName: readOptionalString(row.cost_center_name),
+    legalEntityId: readOptionalString(row.legal_entity_id),
+    legalEntity: readOptionalString(row.legal_entity),
+    siteId: toIdString(row.site_id),
+    site: readOptionalString(row.site),
+    managerMembershipId: toIdString(row.manager_membership_id),
+    manager: readOptionalString(row.manager),
+    title: readOptionalString(row.title),
+    phone: readOptionalString(row.phone),
+    supportedLanguage: readOptionalString(row.supported_language),
+    timeZone: readOptionalString(row.time_zone),
+    allowedActions: Array.isArray(row.allowed_actions)
+      ? row.allowed_actions.filter(
+          (action): action is string => typeof action === 'string',
+        )
+      : [],
     ssoEnabled: row.sso_enabled === true,
     isActive: row.is_active !== false,
   }
@@ -179,6 +219,32 @@ export async function getAdminUsers(
       isInternalAccessUser(row.role, row.user_type || row.account_type),
     )
     .map(normalizeBackendUser)
+}
+
+export async function getAdminUser(
+  membershipId: string,
+  signal?: AbortSignal,
+): Promise<AdminUserProfile> {
+  const response = await fetch(
+    `/api/admin/users/${encodeURIComponent(membershipId)}`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal,
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throw new UsersApiError(
+      errorMessage(body, `Failed to load user: ${response.status}`),
+      response.status,
+      body,
+    )
+  }
+
+  return normalizeBackendUser(body as BackendUser)
 }
 
 export async function createAdminUser(
