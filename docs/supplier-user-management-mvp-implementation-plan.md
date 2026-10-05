@@ -668,38 +668,51 @@ Finish each slice, including backend enforcement and tests, before beginning the
 - Assumptions verified: `accounts.User`, `Membership`, and invitation records belong in the shared schema; tenant business-unit and cost-center identifiers remain reviewed membership defaults and do not grant record access; WorkOS supplies the verified identity email after validating the configured organization or connection; the existing callback can finalize the exact reviewed membership instead of provisioning a default-role membership; and same-origin proxying keeps invitation staging and the WorkOS session on the tenant host. The compatibility wrapper intentionally normalizes any create request to `invited` rather than honoring an immediate-active status.
 - Decisions or blockers: no production data was modified and no real invitation was sent. Production email-provider configuration and delivery observability still require rollout validation. The existing fixed-width application and Admin navigation shell continues to constrain narrow screens until collapsed; the new modal itself fits and scrolls at compact width. No frontend unit-test runner is configured, and standalone `npm run lint` remains interactive because the repository has no ESLint configuration. Approval grants, lifecycle actions, supplier work, and later iterations were not started.
 
+### Iteration 5 Supplier read-only detail
+
+- Status: `complete` (2026-10-05).
+- Commit references: backend `7e985fb`; frontend commit containing this progress record.
+- Migrations added: `masterdata.0010_supplier_active_in_levv_supplier_business_units_and_more` additively adds optional source system and identifier, source status and last-sync timestamp, registered address, HQ country, buying-entity and business-unit metadata, service type, and indexed `active_in_levv`. Existing inactive suppliers are backfilled as inactive in Levv, existing service type is initialized from `supplier_type`, and all other source fields remain empty until an integration supplies them. No supplier identifiers, relationships, or historical work orders are rewritten.
+- Endpoint contracts added or changed: existing `GET /api/suppliers/{supplierId}/` now uses an additive detail serializer with source-ownership metadata, independent Levv activation, and read-only Overview/Workers actions. The established unpaginated `GET /api/suppliers/` array and its exact row shape remain unchanged. Normal supplier create and update requests explicitly reject source-owned fields while retaining the existing paths and Levv-owned field behavior. New paginated `GET /api/suppliers/{supplierId}/workers/` returns worker and assignment context from `WorkOrder.supplier_id`, canonical role/site relations, and tenant scope without bill or pay rates.
+- Authorization and isolation: both detail routes keep the current authenticated active-tenant and internal-role gates. Supplier records are resolved inside the active tenant schema; the Workers query additionally binds the selected supplier foreign key and the request tenant ID, while allowing legacy null tenant IDs only inside that already-isolated tenant schema. Supplier memberships and requests without an active membership are denied before object lookup. No display-name matching is used.
+- Frontend behavior: `lib/api/suppliers.ts` now owns typed detail and worker contracts and normalization. Feature-flagged supplier directory IDs and names open `/suppliers/{supplierId}/overview`; shared Overview and Workers routes keep the selected supplier visible in the header and tabs. The Overview labels source-owned values as read-only and keeps Levv activation separate from source status. Workers provide desktop table and compact card layouts, empty state, pagination, and links to the existing work-order detail route. Both routes include loading, invalid-ID/not-found, denied, retry, and unauthenticated redirect behavior. Roles and sites remains visibly unavailable for the later coverage iteration.
+- Tests and checks run: 7 focused supplier detail/security tests added; supplier plus baseline contract tests 16/16 passing; full backend suite 90/90 passing against isolated local PostgreSQL; the migration applied successfully to shared and tenant schemas; Django system check passing; migration drift check found no changes; `npx tsc --noEmit` passing; `npm run build` passing; and `git diff --check` passing in both repositories. Desktop and 390-by-844 browser inspection covered directory links, read-only Overview, empty Workers, a temporary linked assignment, and compact card layout; the temporary local assignment was removed afterward.
+- Assumptions verified: `Supplier`, `WorkOrder`, role, and site records are tenant-schema models; the current work order is the authoritative assignment record and has a direct supplier foreign key; existing work-order detail is the supported assignment destination; source integration payload details remain undecided, so additive JSON metadata accepts source references without inventing relational ownership; and the feature flag remains a rollout control rather than an authorization boundary.
+- Decisions or blockers: exact procurement/ERP payload ownership and normalization still require the production decision already recorded above. The existing fixed-width global navigation continues to reduce usable width on small screens until collapsed; the new content itself stacks and switches from table to cards. No frontend unit-test runner is configured, standalone `npm run lint` remains interactive, and the build continues to report existing client-rendering and outdated Browserslist-data warnings. No production data was modified, no invitation was sent, and supplier coverage, contact-access mutation, rate cards, extraction, approval work, and later iterations were not started.
+
 ## Next-agent handoff
 
-Updated 2026-10-05 after Iteration 4 completion and SSO invitation hardening.
+Updated 2026-10-05 after Iteration 5 completion.
 
 ### Repository state
 
-- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: `29795e2` (`Document SSO invitation confirmation`).
-- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `6733a4d` (`Require WorkOS confirmation for SSO invitations`).
-- Iterations 1 through 4 are complete. Both repositories were clean after the Iteration 4 commits.
-- Latest verified baseline: full backend suite 83/83, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, and `git diff --check` all passed.
+- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: frontend commit containing this Iteration 5 progress record.
+- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `7e985fb` (`Add supplier detail and linked workers`).
+- Iterations 1 through 5 are complete. Both repositories were clean after the Iteration 5 commits.
+- Latest verified baseline: full backend suite 90/90, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
 - The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
 
 ### Next bounded slice
 
-Implement only **Iteration 5 Supplier read-only detail** from this plan.
+Implement only **Iteration 6 Supplier coverage** from this plan.
 
-Observable outcome: an authorized internal user can open one supplier record and view its Overview and Workers while direct API requests cannot expose another tenant's or supplier's data.
+Observable outcome: an administrator can maintain explicit supplier-role-site coverage and the supplier frontend reflects the same records without duplicate configuration.
 
 Required boundaries:
 
 - Inspect both repositories before editing and follow the iteration loop above.
-- Extend the existing `GET /api/suppliers/{supplierId}/` contract additively; preserve current supplier identifiers, list behavior, tenant middleware, and authorization patterns.
-- Add the supplier Overview and Workers routes by adapting existing API-backed supplier, work-order, and assignment code.
-- Derive workers from linked work orders and assignments. Never join or authorize using supplier display-name matching.
-- Keep source-owned supplier fields read-only and make tenant and supplier isolation authoritative in Django.
-- Add direct backend denial tests, typed frontend API changes, loading/empty/denied/not-found/retry states, and desktop plus narrow-width inspection.
-- Do not implement supplier coverage, supplier contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
+- Add the unique supplier-role-site coverage model and reuse canonical `/api/roles/` and `/api/sites/` records.
+- Add authorized Admin create/update/deactivation/reactivation behavior and a read-only supplier coverage view using the same records.
+- Preserve existing work orders, assignments, and supplier detail/list contracts; inactive coverage affects future eligibility only.
+- Test duplicate prevention, inactive-record reactivation without a second row, tenant/supplier isolation, and non-administrator denial.
+- Add typed frontend API changes, the Admin coverage editor, `/suppliers/{supplierId}/roles-sites`, loading/empty/denied/not-found/retry states, and desktop plus narrow-width inspection.
+- Do not add supplier distribution tiers, contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
 - Update this progress record and this handoff section when the slice is complete, including commits, migrations, endpoint compatibility, checks, assumptions, and remaining risks.
 
 ### Known context and risks
 
-- The application and Admin navigation shells remain fixed-width at narrow viewports; keep new supplier content responsive without broad navigation-shell cleanup.
+- The application and Admin navigation shells remain fixed-width at narrow viewports; Iteration 5 content switches to cards and stacks correctly after the shell is collapsed. Keep coverage content responsive without broad navigation-shell cleanup.
 - No frontend unit-test runner is configured. Standalone `npm run lint` remains interactive because the repository has no ESLint configuration; the production build performs its built-in lint/type validation.
-- Shared identities and memberships live in the shared schema, while supplier, work-order, assignment, and organization records may be tenant-schema data. Confirm actual model placement and relationships before designing queries.
-- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items, but they do not expand Iteration 5 scope.
+- Supplier, work-order, role, and site records are confirmed tenant-schema data. Keep coverage in the tenant schema and use direct foreign keys rather than source labels.
+- The new supplier source fields intentionally use additive JSON metadata because the exact ERP payload remains a production decision; do not use those labels as coverage identities.
+- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items, but they do not expand Iteration 6 scope.

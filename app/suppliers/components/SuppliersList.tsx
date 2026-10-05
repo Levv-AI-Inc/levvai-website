@@ -1,6 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
 import type { SupplierRecord } from '@/lib/api/suppliers'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ type SuppliersListProps = {
   loading: boolean
   suppliers: SupplierRecord[]
   canManageSuppliers: boolean
+  detailEnabled: boolean
   onEditSupplier: (supplier: SupplierRecord) => void
   onInviteSupplier: (supplier: SupplierRecord) => void
   onDeleteSupplier: (supplier: SupplierRecord) => void
@@ -27,6 +29,7 @@ export default function SuppliersList({
   loading,
   suppliers,
   canManageSuppliers,
+  detailEnabled,
   onEditSupplier,
   onInviteSupplier,
   onDeleteSupplier,
@@ -70,8 +73,26 @@ export default function SuppliersList({
             ) : (
               suppliers.map((supplier) => (
                 <tr key={String(toSupplierKey(supplier))} className="group transition-all hover:bg-cyan-50/40">
-                  <td className="px-8 py-6 font-black text-cyan-600">{supplier.supplier_id}</td>
-                  <td className="px-8 py-6 font-bold text-slate-900">{supplier.name}</td>
+                  <td className="px-8 py-6 font-black text-cyan-600">
+                    {detailEnabled ? (
+                      <Link
+                        href={`/suppliers/${encodeURIComponent(String(toSupplierKey(supplier)))}/overview`}
+                        className="rounded-sm hover:text-cyan-800 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+                      >
+                        {supplier.supplier_id}
+                      </Link>
+                    ) : supplier.supplier_id}
+                  </td>
+                  <td className="px-8 py-6 font-bold text-slate-900">
+                    {detailEnabled ? (
+                      <Link
+                        href={`/suppliers/${encodeURIComponent(String(toSupplierKey(supplier)))}/overview`}
+                        className="rounded-sm hover:text-cyan-700 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+                      >
+                        {supplier.name}
+                      </Link>
+                    ) : supplier.name}
+                  </td>
                   <td className="px-8 py-6 text-slate-700">{toTitleCase(supplier.supplier_type)}</td>
                   <td className="px-8 py-6 text-slate-700">{supplier.category || '-'}</td>
                   <td className="px-8 py-6 text-slate-700">{supplier.active_workers}</td>

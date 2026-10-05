@@ -25,6 +25,7 @@ import {
   updateSupplier,
 } from '@/lib/api/suppliers'
 import { cn } from '@/lib/utils'
+import { isFeatureEnabled } from '@/lib/featureFlags'
 import SupplierInviteModal from './components/SupplierInviteModal'
 import SupplierModal from './components/SupplierModal'
 import SuppliersList from './components/SuppliersList'
@@ -671,6 +672,7 @@ export default function SuppliersPage() {
         loading={loading}
         suppliers={suppliers}
         canManageSuppliers={canManageSuppliers}
+        detailEnabled={isFeatureEnabled('supplier_detail_v2')}
         onEditSupplier={openEditModal}
         onInviteSupplier={openInviteModal}
         onDeleteSupplier={deleteSupplierRecord}

@@ -27,6 +27,61 @@ export type SupplierRecord = {
   active_sows: number
 }
 
+export type SupplierSourceReference = {
+  id: string
+  name: string
+}
+
+export type SupplierDetail = SupplierRecord & {
+  source_system: string
+  source_identifier: string
+  source_status: string
+  source_last_synced_at?: string
+  registered_address: Record<string, string>
+  hq_country: string
+  buying_entities: SupplierSourceReference[]
+  business_units: SupplierSourceReference[]
+  service_type: string
+  active_in_levv: boolean
+  source_ownership: {
+    owner: string
+    read_only: boolean
+    fields: string[]
+  }
+  allowed_actions: string[]
+}
+
+export type SupplierWorker = {
+  assignment_id: number
+  assignment_number: string
+  worker_full_name: string
+  worker_email: string
+  worker_phone: string
+  status: string
+  role_id?: number
+  role_name: string
+  site_id?: number
+  site_name: string
+  work_location_label: string
+  start_date?: string
+  end_date?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type SupplierWorkersResponse = {
+  supplier_id: number
+  results: SupplierWorker[]
+  pagination: {
+    page: number
+    page_size: number
+    total_count: number
+    total_pages: number
+    has_next: boolean
+    has_previous: boolean
+  }
+}
+
 export type SupplierUpsertPayload = {
   supplier_code?: string
   name: string
@@ -103,6 +158,50 @@ function readOptionalNumber(value: unknown): number | undefined {
     if (Number.isFinite(parsed)) return parsed
   }
   return undefined
+}
+
+function readBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true
+    if (value.toLowerCase() === 'false') return false
+  }
+  return fallback
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => readOptionalString(item))
+    .filter((item): item is string => Boolean(item))
+}
+
+function normalizeSourceReferences(value: unknown): SupplierSourceReference[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    if (typeof item === 'string') {
+      const label = item.trim()
+      return label ? [{ id: label, name: label }] : []
+    }
+    if (!item || typeof item !== 'object') return []
+    const row = item as Record<string, unknown>
+    const id =
+      readOptionalString(row.id) ||
+      readOptionalString(row.code) ||
+      readOptionalString(row.name) ||
+      ''
+    const name = readOptionalString(row.name) || id
+    return id || name ? [{ id, name }] : []
+  })
+}
+
+function normalizeAddress(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => [key, readOptionalString(item)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+  )
 }
 
 function readMessages(value: JsonLike | undefined): string[] {
@@ -184,6 +283,53 @@ function normalizeSupplier(row: Record<string, unknown>): SupplierRecord {
   }
 }
 
+function normalizeSupplierDetail(row: Record<string, unknown>): SupplierDetail {
+  const ownership =
+    row.source_ownership && typeof row.source_ownership === 'object'
+      ? (row.source_ownership as Record<string, unknown>)
+      : {}
+
+  return {
+    ...normalizeSupplier(row),
+    source_system: readOptionalString(row.source_system) || '',
+    source_identifier: readOptionalString(row.source_identifier) || '',
+    source_status: readOptionalString(row.source_status) || '',
+    source_last_synced_at: readOptionalString(row.source_last_synced_at),
+    registered_address: normalizeAddress(row.registered_address),
+    hq_country: readOptionalString(row.hq_country) || '',
+    buying_entities: normalizeSourceReferences(row.buying_entities),
+    business_units: normalizeSourceReferences(row.business_units),
+    service_type: readOptionalString(row.service_type) || '',
+    active_in_levv: readBoolean(row.active_in_levv, true),
+    source_ownership: {
+      owner: readOptionalString(ownership.owner) || 'unconfigured',
+      read_only: readBoolean(ownership.read_only, true),
+      fields: readStringArray(ownership.fields),
+    },
+    allowed_actions: readStringArray(row.allowed_actions),
+  }
+}
+
+function normalizeSupplierWorker(row: Record<string, unknown>): SupplierWorker {
+  return {
+    assignment_id: readOptionalNumber(row.assignment_id) || 0,
+    assignment_number: readOptionalString(row.assignment_number) || '',
+    worker_full_name: readOptionalString(row.worker_full_name) || '',
+    worker_email: readOptionalString(row.worker_email) || '',
+    worker_phone: readOptionalString(row.worker_phone) || '',
+    status: readOptionalString(row.status) || '',
+    role_id: readOptionalNumber(row.role_id),
+    role_name: readOptionalString(row.role_name) || '',
+    site_id: readOptionalNumber(row.site_id),
+    site_name: readOptionalString(row.site_name) || '',
+    work_location_label: readOptionalString(row.work_location_label) || '',
+    start_date: readOptionalString(row.start_date),
+    end_date: readOptionalString(row.end_date),
+    created_at: readOptionalString(row.created_at),
+    updated_at: readOptionalString(row.updated_at),
+  }
+}
+
 function buildSupplierQuery(params: SupplierListParams) {
   const query = new URLSearchParams()
 
@@ -230,6 +376,90 @@ export async function getSuppliers(
   return rows
     .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
     .map((row) => normalizeSupplier(row))
+}
+
+export async function getSupplier(
+  supplierId: string | number,
+  signal?: AbortSignal,
+): Promise<SupplierDetail> {
+  const response = await fetch(
+    `/api/suppliers/${encodeURIComponent(String(supplierId))}/`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      signal,
+    },
+  )
+
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(
+      response,
+      body,
+      `Failed to load supplier (${response.status})`,
+    )
+  }
+
+  return normalizeSupplierDetail(
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {},
+  )
+}
+
+export async function getSupplierWorkers(
+  supplierId: string | number,
+  params: { page?: number; page_size?: number } = {},
+  signal?: AbortSignal,
+): Promise<SupplierWorkersResponse> {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.page_size) query.set('page_size', String(params.page_size))
+  const suffix = query.toString()
+  const path = `/api/suppliers/${encodeURIComponent(String(supplierId))}/workers/${suffix ? `?${suffix}` : ''}`
+  const response = await fetch(path, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    signal,
+  })
+
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throwApiError(
+      response,
+      body,
+      `Failed to load supplier workers (${response.status})`,
+    )
+  }
+
+  const payload =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {}
+  const pagination =
+    payload.pagination && typeof payload.pagination === 'object'
+      ? (payload.pagination as Record<string, unknown>)
+      : {}
+  const results = Array.isArray(payload.results)
+    ? payload.results
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        .map(normalizeSupplierWorker)
+    : []
+
+  return {
+    supplier_id: readOptionalNumber(payload.supplier_id) || 0,
+    results,
+    pagination: {
+      page: readOptionalNumber(pagination.page) || 1,
+      page_size: readOptionalNumber(pagination.page_size) || 25,
+      total_count: readOptionalNumber(pagination.total_count) || results.length,
+      total_pages: readOptionalNumber(pagination.total_pages) || 0,
+      has_next: readBoolean(pagination.has_next),
+      has_previous: readBoolean(pagination.has_previous),
+    },
+  }
 }
 
 export async function createSupplier(
