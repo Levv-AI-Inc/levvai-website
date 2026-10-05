@@ -680,7 +680,7 @@ Finish each slice, including backend enforcement and tests, before beginning the
 - Assumptions verified: `Supplier`, `WorkOrder`, role, and site records are tenant-schema models; the current work order is the authoritative assignment record and has a direct supplier foreign key; existing work-order detail is the supported assignment destination; source integration payload details remain undecided, so additive JSON metadata accepts source references without inventing relational ownership; and the feature flag remains a rollout control rather than an authorization boundary.
 - Decisions or blockers: exact procurement/ERP payload ownership and normalization still require the production decision already recorded above. The existing fixed-width global navigation continues to reduce usable width on small screens until collapsed; the new content itself stacks and switches from table to cards. No frontend unit-test runner is configured, standalone `npm run lint` remains interactive, and the build continues to report existing client-rendering and outdated Browserslist-data warnings. No production data was modified, no invitation was sent, and supplier coverage, contact-access mutation, rate cards, extraction, approval work, and later iterations were not started.
 
-## Next-agent handoff
+## Next-agent handoff: continue Phase 5 supplier management
 
 Updated 2026-10-05 after Iteration 5 completion.
 
@@ -692,9 +692,21 @@ Updated 2026-10-05 after Iteration 5 completion.
 - Latest verified baseline: full backend suite 90/90, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
 - The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
 
-### Next bounded slice
+### Phase context
 
-Implement only **Iteration 6 Supplier coverage** from this plan.
+Iteration 5 completed only the read-only Supplier Overview and Workers slice. It did not complete the full Phase 5 end state. Phase 5 still requires:
+
+- explicit supplier-role-site coverage, including Admin maintenance and the supplier read-only view;
+- supplier contact-access records and list/mutation endpoints;
+- resend, revoke, and access-update behavior around the existing supplier invitation path;
+- authorized administration of `active_in_levv`, kept separate from read-only source status; and
+- protected deactivation/deletion behavior for suppliers with linked history.
+
+Do not begin supplier-scoped rate cards until these remaining Phase 5 outcomes are complete. Keep the remaining work in bounded vertical slices rather than combining coverage, contact access, activation, and deletion policy in one change.
+
+### Next bounded slice: Phase 5 supplier coverage
+
+Implement the next bounded supplier coverage continuation of Phase 5.
 
 Observable outcome: an administrator can maintain explicit supplier-role-site coverage and the supplier frontend reflects the same records without duplicate configuration.
 
@@ -709,15 +721,26 @@ Required boundaries:
 - Do not add supplier distribution tiers, contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
 - Update this progress record and this handoff section when the slice is complete, including commits, migrations, endpoint compatibility, checks, assumptions, and remaining risks.
 
+### Required Phase 5 slice after coverage
+
+After coverage is complete and verified, implement a separate bounded supplier contact-access and activation slice before starting supplier-scoped rate cards:
+
+- add supplier contact-access records instead of treating a contact email as authorization;
+- reuse `POST /api/suppliers/{supplierId}/invite/` and add resend, revoke, access-list, and access-update actions;
+- expose contact-access state and `active_in_levv` administration without making source status editable;
+- define and enforce protected deactivation/deletion behavior for suppliers with linked work orders or other history;
+- preserve existing supplier invitations and assignments compatibly; and
+- test replay/revoke/resend behavior, tenant and supplier isolation, role denial, lifecycle changes, and historical preservation without sending real invitations.
+
 ### Known context and risks
 
 - The application and Admin navigation shells remain fixed-width at narrow viewports; Iteration 5 content switches to cards and stacks correctly after the shell is collapsed. Keep coverage content responsive without broad navigation-shell cleanup.
 - No frontend unit-test runner is configured. Standalone `npm run lint` remains interactive because the repository has no ESLint configuration; the production build performs its built-in lint/type validation.
 - Supplier, work-order, role, and site records are confirmed tenant-schema data. Keep coverage in the tenant schema and use direct foreign keys rather than source labels.
 - The new supplier source fields intentionally use additive JSON metadata because the exact ERP payload remains a production decision; do not use those labels as coverage identities.
-- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items, but they do not expand Iteration 6 scope.
+- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items; they do not authorize real invitation delivery during the remaining Phase 5 work.
 
-### Implementation notes for Iteration 6
+### Implementation notes for the next Phase 5 slice
 
 - Start with `apps/masterdata/models.py`, `serializers.py`, and `views.py` in the backend. `Supplier`, `RoleDefinition`, and `Site` already live in this tenant-schema app, and `SupplierViewSet` is registered by `apps/masterdata/urls.py`; extend that view set rather than adding a parallel supplier API.
 - Model coverage with direct foreign keys to `Supplier`, `RoleDefinition`, and `Site`, plus an explicit active/inactive lifecycle. Enforce the supplier-role-site tuple with a database uniqueness constraint as well as serializer/service validation. Deactivation must update the existing row, not delete it, so historical work orders and assignments remain untouched.
