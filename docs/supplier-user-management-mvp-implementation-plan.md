@@ -683,7 +683,7 @@ Finish each slice, including backend enforcement and tests, before beginning the
 ### Iteration 6 Supplier coverage (Phase 5 continuation)
 
 - Status: `complete` (2026-10-05).
-- Commit references: backend `a822eae`; frontend commit containing this progress record.
+- Commit references: backend `a822eae`; frontend `69e1147`.
 - Migrations added: `masterdata.0011_suppliercoverage_and_more` creates tenant-schema `SupplierCoverage` with direct supplier, canonical role, and site foreign keys, an active/inactive lifecycle, timestamps, a supplier/active index, and a database uniqueness constraint for each supplier-role-site tuple. It creates no coverage rows and does not rewrite suppliers, roles, sites, work orders, or assignments.
 - Endpoint contracts added: internal active members may read `GET /api/suppliers/{supplierId}/coverage/`; customer administrators may create through `POST /api/suppliers/{supplierId}/coverage/` and activate or deactivate through `PATCH /api/suppliers/{supplierId}/coverage/{coverageId}/`. A new tuple returns 201, an inactive tuple is atomically reactivated in place with 200, and an already-active duplicate returns 409. Role and site IDs resolve in the active tenant schema, the URL supplier is authoritative, and only active roles and sites may be added or reactivated.
 - Compatibility behavior: the existing supplier list, detail, update, source-ownership, workers, role, site, work-order, and assignment contracts are unchanged. Coverage deactivation updates the existing mapping rather than deleting it; historical assignments remain readable and are not rewritten. Coverage is not yet connected to supplier selection or pricing, so this slice does not change operational eligibility behavior outside the new coverage endpoints and screens.
@@ -698,9 +698,9 @@ Updated 2026-10-05 after the supplier coverage continuation completed.
 
 ### Repository state
 
-- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: frontend commit containing this Iteration 5 progress record.
+- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: `69e1147` (`Add supplier coverage management screens`).
 - Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `a822eae` (`Add supplier role and site coverage`).
-- Iterations 1 through 5 and the bounded supplier coverage continuation are complete. Both repositories were clean after their commits.
+- Iterations 1 through 6 are complete. Both repositories were clean after their implementation commits.
 - Latest verified baseline: full backend suite 98/98, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
 - The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
 
@@ -713,54 +713,63 @@ Supplier Overview, Workers, and explicit supplier-role-site coverage are complet
 - authorized administration of `active_in_levv`, kept separate from read-only source status; and
 - protected deactivation/deletion behavior for suppliers with linked history.
 
-Do not begin supplier-scoped rate cards until these remaining Phase 5 outcomes are complete. Keep the remaining work in bounded vertical slices rather than combining coverage, contact access, activation, and deletion policy in one change.
+Do not begin supplier-scoped rate cards until these remaining Phase 5 outcomes are complete. Implement contact access first, then handle supplier activation and protected deletion as a separate slice.
 
-### Completed bounded slice: Phase 5 supplier coverage
+### Next bounded slice: Phase 5 supplier contact access
 
-Completed in backend commit `a822eae` and the frontend commit containing this handoff. Do not reimplement this slice.
+Observable outcome: a customer administrator can invite, resend, revoke, and review access for supplier contacts, and accepted access is bound to the exact tenant, supplier, identity, and membership rather than inferred from an email address.
 
-Observable outcome: an administrator can maintain explicit supplier-role-site coverage and the supplier frontend reflects the same records without duplicate configuration.
+Required scope:
 
-Implemented boundaries:
+- Add an explicit supplier contact-access record in the shared identity/membership schema. Bind it to tenant and supplier ID, normalized email, lifecycle state, and the exact supplier membership once accepted. Do not create a tenant-schema foreign key from the shared schema.
+- Reuse `POST /api/suppliers/{supplierId}/invite/` as the compatibility entry point. Route it through one contact-access/invitation service rather than maintaining a second invitation implementation.
+- Add supplier-scoped Admin endpoints to list contact access, resend a pending or failed invitation, revoke pending or active access, and update supported access settings. Use the supplier in the URL as authoritative and never accept a conflicting supplier ID in the payload.
+- Make resend rotate the credential and invalidate every previous link. Revoke must block pending token use immediately; revoking accepted access must suspend or deactivate only the matching tenant supplier membership and advance its authorization version without disabling the shared user or unrelated memberships.
+- Acceptance must activate the exact reviewed supplier membership and contact-access record. It must not move an existing supplier membership to a different supplier, claim an internal or worker membership, or use an email match as authorization.
+- Strengthen the existing `SupplierInvite` token lifecycle additively. Prefer the hashed-token pattern already used by `UserInvitation`; preserve a deliberate compatibility path for any existing pending supplier invitations rather than silently accepting two valid credentials.
+- Do not send raw tokens back from production Admin responses. Tests may capture the generated link through the local/test email backend. Do not send a real email during automated tests or visual inspection.
+- Extend `GET /api/suppliers/{supplierId}/` additively with a contact-access summary and allowed actions only if the frontend needs it. Do not change the exact `GET /api/suppliers/` list-row contract.
+- Add a typed frontend contact-access API and a focused Admin contact-access screen or section that shows pending, active, revoked, expired, and delivery-failed states with resend/retry and revoke actions. Keep the selected supplier visible and include loading, empty, denied, not-found, validation, confirmation, and retry states.
+- Preserve supplier Overview, Workers, coverage, existing assignments, source-owned-field rejection, and supplier registration routes. Do not implement `active_in_levv` mutation, deletion protection, supplier distribution tiers, rate cards, extraction, pricing resolution, approvals, deployment, or production-data changes in this slice.
 
-- Inspect both repositories before editing and follow the iteration loop above.
-- Add the unique supplier-role-site coverage model and reuse canonical `/api/roles/` and `/api/sites/` records.
-- Add authorized Admin create/update/deactivation/reactivation behavior and a read-only supplier coverage view using the same records.
-- Preserve existing work orders, assignments, and supplier detail/list contracts; inactive coverage affects future eligibility only.
-- Test duplicate prevention, inactive-record reactivation without a second row, tenant/supplier isolation, and non-administrator denial.
-- Add typed frontend API changes, the Admin coverage editor, `/suppliers/{supplierId}/roles-sites`, loading/empty/denied/not-found/retry states, and desktop plus narrow-width inspection.
-- Do not add supplier distribution tiers, contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
-- Update this progress record and this handoff section when the slice is complete, including commits, migrations, endpoint compatibility, checks, assumptions, and remaining risks.
+Required denial and lifecycle tests:
 
-### Next bounded slice: Phase 5 supplier contact access and activation
+- wrong tenant, wrong supplier, supplier-role caller, non-administrator caller, mismatched email, internal/worker membership collision, and conflicting existing supplier membership;
+- expired, revoked, already-used, and superseded invitation tokens;
+- resend invalidates the old token and keeps one reviewed access target;
+- revocation of active access invalidates only the matching tenant membership/session authorization version;
+- duplicate requests do not create a second membership or contact-access row; and
+- email delivery failure leaves a retryable, non-active access record without exposing provider details or a usable leaked token.
 
-After coverage is complete and verified, implement a separate bounded supplier contact-access and activation slice before starting supplier-scoped rate cards:
+Exit criteria:
 
-- add supplier contact-access records instead of treating a contact email as authorization;
-- reuse `POST /api/suppliers/{supplierId}/invite/` and add resend, revoke, access-list, and access-update actions;
-- expose contact-access state and `active_in_levv` administration without making source status editable;
-- define and enforce protected deactivation/deletion behavior for suppliers with linked work orders or other history;
-- preserve existing supplier invitations and assignments compatibly; and
-- test replay/revoke/resend behavior, tenant and supplier isolation, role denial, lifecycle changes, and historical preservation without sending real invitations.
+- Supplier contact authorization is determined by the contact-access record plus the exact active supplier membership, never by contact email alone.
+- Invitation replay, expiry, resend, revoke, tenant mismatch, supplier mismatch, and duplicate membership cases are deterministic and covered by direct API tests.
+- No unrelated membership, supplier record, coverage mapping, work order, or assignment is modified.
+- The Admin UI and typed API use the same server-owned lifecycle and allowed actions.
+
+### Required Phase 5 slice after contact access
+
+Implement supplier activation and protected deletion separately: make `active_in_levv` administrator-managed while source status remains read-only; preview linked work orders, assignments, coverage, contact access, invitations, and commercial history; deactivate instead of deleting linked suppliers; and permit hard deletion only when no protected history exists. Complete that slice before supplier-scoped rate-card work.
 
 ### Known context and risks
 
-- The application and Admin navigation shells remain fixed-width at narrow viewports; Iteration 5 content switches to cards and stacks correctly after the shell is collapsed. Keep coverage content responsive without broad navigation-shell cleanup.
+- The application and Admin navigation shells remain fixed-width at narrow viewports. Keep new contact-access content responsive without broad navigation-shell cleanup.
 - No frontend unit-test runner is configured. Standalone `npm run lint` remains interactive because the repository has no ESLint configuration; the production build performs its built-in lint/type validation.
-- Supplier, work-order, role, and site records are confirmed tenant-schema data. Keep coverage in the tenant schema and use direct foreign keys rather than source labels.
+- `accounts.User`, `Membership`, `SupplierInvite`, and `UserInvitation` are shared-schema records. `Supplier` is tenant-schema data, so shared records currently store `supplier_id` rather than a relational supplier foreign key and must validate it inside `schema_context(tenant.schema_name)`.
+- `Membership` already supports supplier isolation with `role="supplier"` and `supplier_id`, has one membership per user and tenant, and validates the supplier inside the tenant schema. Reuse its authorization-version helper when access changes.
+- The current `SupplierInvite` stores a raw unique token and the existing invite endpoint returns that token and registration link in its response. Treat this as compatibility debt to replace safely, not behavior to copy into new endpoints.
+- The supplier registration endpoint currently finds an invite by raw token, validates tenant, expiry, status, and email, then creates or reuses a supplier membership and marks the invite accepted. Refactor this path through the new service instead of adding a second acceptance route.
 - The new supplier source fields intentionally use additive JSON metadata because the exact ERP payload remains a production decision; do not use those labels as coverage identities.
 - Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items; they do not authorize real invitation delivery during the remaining Phase 5 work.
+- A local `seed_local_data --refresh` run currently encounters a pre-existing duplicate workflow-scope-field validation error. This does not affect the test suite but should not be “fixed” as unrelated cleanup in the contact-access slice.
 
-### Established supplier coverage implementation notes
+### Implementation starting points for supplier contact access
 
-- Start with `apps/masterdata/models.py`, `serializers.py`, and `views.py` in the backend. `Supplier`, `RoleDefinition`, and `Site` already live in this tenant-schema app, and `SupplierViewSet` is registered by `apps/masterdata/urls.py`; extend that view set rather than adding a parallel supplier API.
-- Model coverage with direct foreign keys to `Supplier`, `RoleDefinition`, and `Site`, plus an explicit active/inactive lifecycle. Enforce the supplier-role-site tuple with a database uniqueness constraint as well as serializer/service validation. Deactivation must update the existing row, not delete it, so historical work orders and assignments remain untouched.
-- Make create/reactivate atomic. A request for a tuple that already exists but is inactive should lock and reactivate that row instead of attempting a second insert. A request for an already-active tuple should return a deterministic idempotent result or explicit conflict; choose one behavior, document it in the contract, and test concurrent/duplicate handling.
-- Keep tenant isolation implicit in the active Django tenant schema and explicit through supplier-scoped object lookup. Never accept a supplier identifier from the coverage payload that can differ from the supplier in the URL. Role and site IDs must resolve inside the same active tenant schema.
-- Separate read from write authorization. The supplier-facing read-only coverage route should use the same internal view roles as Iteration 5. The plan says an administrator maintains coverage; decide and test whether this means admin-only rather than silently inheriting the current supplier `manage_roles` of admin and manager. Supplier memberships must remain denied.
-- Preserve Iteration 5 compatibility: the exact unpaginated `GET /api/suppliers/` row shape is protected by `apps/common/test_contracts.py`; supplier detail additions belong only in `SupplierDetailSerializer`; source-owned field rejection must remain intact; and `GET /api/suppliers/{supplierId}/workers/` must not change.
-- Do not add coverage data to work-order history or rewrite existing assignments. If an eligibility helper is introduced, use it only for future supplier selection and test that an inactive mapping is ineligible while historical records are still readable. Do not begin deterministic price resolution or supplier distribution behavior.
-- Extend `lib/api/suppliers.ts` for typed coverage reads and mutations. Reuse `/api/roles/` and `/api/sites/` through the existing `lib/api/roles.ts` and `lib/api/sites.ts` clients rather than copying labels into new lookup code.
-- The shared supplier shell is `app/suppliers/[supplierId]/SupplierDetailClient.tsx`. Replace the disabled Roles & sites tab with `/suppliers/[supplierId]/roles-sites` only when `supplier_coverage` is enabled. Keep it read-only there; place mutations in `/admin/suppliers/[supplierId]/coverage` and keep the selected supplier visible in both shells.
-- The current frontend has no unit-test runner. Add focused backend model/API tests near `apps/masterdata/test_supplier_detail.py`, preserve the baseline contract suite, run the full backend suite against isolated local PostgreSQL, then run `npx tsc --noEmit`, `npm run build`, and `git diff --check` in both repositories. Inspect desktop and 390-by-844 layouts with the existing sidebar both expanded and collapsed.
-- Apply the new tenant-app migration with both shared and tenant migration commands in local verification. Use only the isolated local database and remove temporary visual-inspection fixtures afterward. Do not send invitations or touch production data.
+- Backend identity and lifecycle: `apps/accounts/models.py`, `apps/accounts/user_invitations.py` for the hashed-token reference pattern, `apps/accounts/api/supplier.py` for current supplier acceptance, `apps/accounts/authorization.py` for membership authorization-version changes, and the existing invitation tests in `apps/accounts/tests.py` and `apps/accounts/test_user_invitations.py`.
+- Backend supplier endpoint: extend `SupplierViewSet` in `apps/masterdata/views.py` and its serializers rather than adding a parallel supplier resource. Keep reads supplier-scoped through `self.get_object()` and make every contact mutation admin-only, matching coverage administration rather than the current broader admin/manager invite gate.
+- Frontend API and UI: extend `lib/api/suppliers.ts`; reuse the shared supplier identity/header patterns; add the Admin contact-access experience under `/admin/suppliers/[supplierId]/...`; and do not expose mutation controls in the read-only `/suppliers/[supplierId]` tabs.
+- Current frontend invite surfaces live in `app/suppliers/page.tsx` and `app/suppliers/components/SupplierInviteModal.tsx`. Preserve their compatibility behavior by routing them through the typed service, but do not leave raw tokens in client-visible success payloads.
+- Add the shared-schema migration with no destructive backfill. If existing pending invites require conversion, make the migration/transition explicit and reversible; do not silently activate, revoke, or email them.
+- Use the isolated local PostgreSQL workflow from the repository-state section. Test email with Django's in-memory/local backend, inspect desktop and 390-by-844 states without submitting a real invitation, remove temporary fixtures, and stop local services afterward.
+- Run focused invitation/contact-access tests, the full backend suite, Django system and migration-drift checks, `npx tsc --noEmit`, `npm run build`, and `git diff --check` in both repositories. Update the progress record and replace this handoff with the activation/deletion slice when complete.
