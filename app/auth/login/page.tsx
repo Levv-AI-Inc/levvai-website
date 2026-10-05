@@ -24,6 +24,7 @@ type SessionStatusResponse = {
 type RegisterResponse = {
   linked_existing_user?: boolean
   sso_enabled?: boolean
+  sso_pending?: boolean
 }
 
 type JsonLike =
