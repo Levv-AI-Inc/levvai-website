@@ -8,7 +8,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
-import { FileSpreadsheet, Pencil, Plus, Search, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
+import { Ban, Check, FileSpreadsheet, Pencil, Plus, RotateCcw, Search, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { parseUser } from '@/lib/intelligence'
@@ -27,6 +27,8 @@ import {
   UsersApiError,
   createAdminUser,
   getAdminUsers,
+  resendAdminUserInvitation,
+  revokeAdminUserInvitation,
   updateAdminUser,
   type AdminUserRecord,
 } from '@/lib/api/users'
@@ -211,6 +213,11 @@ function normalizeAssistantUser(raw: unknown, source: string): UserRow {
     costCenterName: '',
     ssoEnabled: ssoValue.toLowerCase() === 'true' || ssoValue === '1',
     isActive: status === 'active',
+    invitationId: '',
+    invitationStatus: '',
+    invitationDeliveryStatus: '',
+    invitationDeliveryError: '',
+    invitationExpiresAt: '',
   }
 }
 
@@ -246,8 +253,12 @@ export default function AdminUsersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
+  const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1)
   const [addUserError, setAddUserError] = useState('')
   const [addingUser, setAddingUser] = useState(false)
+  const [invitationNotice, setInvitationNotice] = useState('')
+  const [invitationActionError, setInvitationActionError] = useState('')
+  const [invitationActionId, setInvitationActionId] = useState('')
   const [addUserForm, setAddUserForm] = useState<AddUserFormState>({
     name: '',
     email: '',
@@ -611,6 +622,7 @@ export default function AdminUsersPage() {
 
   const openAddUserModal = () => {
     setAddUserError('')
+    setAddUserStep(1)
     setAddUserForm({
       name: '',
       email: '',
@@ -627,6 +639,30 @@ export default function AdminUsersPage() {
     if (addingUser) return
     setIsAddUserModalOpen(false)
     setAddUserError('')
+  }
+
+  const validateInvitationIdentity = () => {
+    const name = addUserForm.name.trim()
+    const email = addUserForm.email.trim()
+    if (!name) return 'Name is required.'
+    if (!email) return 'Email is required.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return 'Enter a valid email address.'
+    }
+    return ''
+  }
+
+  const goToInvitationStep = (step: 1 | 2 | 3) => {
+    if (step > 1) {
+      const identityError = validateInvitationIdentity()
+      if (identityError) {
+        setAddUserError(identityError)
+        setAddUserStep(1)
+        return
+      }
+    }
+    setAddUserError('')
+    setAddUserStep(step)
   }
 
   const openEditUserModal = (user: UserRow) => {
@@ -749,19 +785,10 @@ export default function AdminUsersPage() {
     const name = addUserForm.name.trim()
     const email = addUserForm.email.trim()
 
-    if (!name) {
-      setAddUserError('Name is required.')
-      return
-    }
-
-    if (!email) {
-      setAddUserError('Email is required.')
-      return
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(email)) {
-      setAddUserError('Enter a valid email address.')
+    const identityError = validateInvitationIdentity()
+    if (identityError) {
+      setAddUserError(identityError)
+      setAddUserStep(1)
       return
     }
 
@@ -795,6 +822,11 @@ export default function AdminUsersPage() {
       costCenterName: selectedCostCenter?.center.name || '',
       ssoEnabled: addUserForm.ssoEnabled,
       isActive: normalizeStatus(addUserForm.status) === 'active',
+      invitationId: '',
+      invitationStatus: '',
+      invitationDeliveryStatus: '',
+      invitationDeliveryError: '',
+      invitationExpiresAt: '',
     }
 
     setAddingUser(true)
@@ -805,7 +837,7 @@ export default function AdminUsersPage() {
         name,
         email,
         role: pendingUser.role,
-        status: pendingUser.status,
+        status: 'invited',
         business_unit_id: selectedBusinessUnit?.unit.id || null,
         cost_center_id: selectedCostCenter?.center.id || null,
         sso_enabled: pendingUser.ssoEnabled,
@@ -814,6 +846,13 @@ export default function AdminUsersPage() {
 
       setUsers((current) => upsertUser(current, created || pendingUser))
       setIsAddUserModalOpen(false)
+      if (created?.invitationDeliveryStatus === 'failed') {
+        setInvitationNotice(
+          `Invitation created for ${email}, but delivery failed. Use Retry invite in the user row.`,
+        )
+      } else {
+        setInvitationNotice(`Invitation sent to ${email}.`)
+      }
     } catch (requestError) {
       if (requestError instanceof UsersApiError && requestError.status === 401) {
         router.replace('/auth/login?next=/admin/users')
@@ -826,6 +865,72 @@ export default function AdminUsersPage() {
       )
     } finally {
       setAddingUser(false)
+    }
+  }
+
+  const updateInvitationState = (
+    user: UserRow,
+    invitation: {
+      id: string
+      status: string
+      deliveryStatus: string
+      deliveryError: string
+      expiresAt: string
+    },
+  ) => {
+    setUsers((current) =>
+      current.map((row) =>
+        row.membershipId === user.membershipId
+          ? {
+              ...row,
+              invitationId: invitation.id || row.invitationId,
+              invitationStatus: invitation.status,
+              invitationDeliveryStatus: invitation.deliveryStatus,
+              invitationDeliveryError: invitation.deliveryError,
+              invitationExpiresAt: invitation.expiresAt,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const handleInvitationAction = async (
+    user: UserRow,
+    action: 'resend' | 'revoke',
+  ) => {
+    if (!user.invitationId) return
+    setInvitationActionId(user.invitationId)
+    setInvitationActionError('')
+    setInvitationNotice('')
+    try {
+      const invitation =
+        action === 'resend'
+          ? await resendAdminUserInvitation(user.invitationId)
+          : await revokeAdminUserInvitation(user.invitationId)
+      updateInvitationState(user, invitation)
+      if (action === 'resend' && invitation.deliveryStatus === 'failed') {
+        setInvitationActionError(
+          invitation.deliveryError || 'The invitation was renewed but email delivery failed.',
+        )
+      } else {
+        setInvitationNotice(
+          action === 'resend'
+            ? `A new invitation was sent to ${user.email}; the previous link is invalid.`
+            : `Invitation for ${user.email} was revoked.`,
+        )
+      }
+    } catch (requestError) {
+      if (requestError instanceof UsersApiError && requestError.status === 401) {
+        router.replace('/auth/login?next=/admin/users')
+        return
+      }
+      setInvitationActionError(
+        requestError instanceof Error
+          ? requestError.message
+          : `Unable to ${action} invitation.`,
+      )
+    } finally {
+      setInvitationActionId('')
     }
   }
 
@@ -1012,7 +1117,7 @@ export default function AdminUsersPage() {
             className={levvUi.primaryButton}
           >
             <Plus className="h-4 w-4" />
-            Add User
+            Invite User
           </button>
         </div>
         }
@@ -1091,210 +1196,175 @@ export default function AdminUsersPage() {
 
       {isAddUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
-                <h2 className="text-lg font-black text-slate-900">Add User</h2>
+                <h2 className="text-lg font-black text-slate-900">Invite user</h2>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  Add a user record with tenant role and access status.
+                  Configure the membership before sending a single-use invitation.
                 </p>
               </div>
               <button
+                type="button"
                 onClick={closeAddUserModal}
+                disabled={addingUser}
                 className="rounded-xl p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                aria-label="Close add user modal"
+                aria-label="Close invite user modal"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-bold text-slate-800">
-                  Name
-                  <RequiredIndicator />
-                </label>
-                <input
-                  value={addUserForm.name}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                  placeholder="Jane Doe"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-bold text-slate-800">
-                  Email
-                  <RequiredIndicator />
-                </label>
-                <input
-                  type="email"
-                  value={addUserForm.email}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                  placeholder="jane.doe@company.com"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Business Unit
-                </label>
-                <select
-                  value={addUserForm.businessUnit}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      businessUnit: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  disabled={businessUnitsLoading}
-                >
-                  <option value="">Select business unit</option>
-                  {businessUnitOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {businessUnitsLoading && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Loading business units...
-                  </p>
-                )}
-                {businessUnitsError && (
-                  <p className="mt-1 text-xs text-rose-600">
-                    {businessUnitsError}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">Cost Center</label>
-                <select
-                  value={addUserForm.costCenter}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      costCenter: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  disabled={costCentersLoading}
-                >
-                  <option value="">Select cost center</option>
-                  {costCenterOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {costCentersLoading && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Loading cost centers...
-                  </p>
-                )}
-                {costCentersError && (
-                  <p className="mt-1 text-xs text-rose-600">
-                    {costCentersError}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">Role</label>
-                <select
-                  value={addUserForm.role}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      role: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                >
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">
-                  {getAccessRole(addUserForm.role).description}
-                </p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">Status</label>
-                <select
-                  value={addUserForm.status}
-                  onChange={(event) =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-sm font-medium text-gray-800">SSO Enabled</span>
-                <button
-                  onClick={() =>
-                    setAddUserForm((current) => ({
-                      ...current,
-                      ssoEnabled: !current.ssoEnabled,
-                    }))
-                  }
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
-                    addUserForm.ssoEnabled ? 'bg-black' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                      addUserForm.ssoEnabled ? 'translate-x-4' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {addUserError && (
-                <p className="md:col-span-2 text-sm text-red-600">{addUserError}</p>
-              )}
+            <div className="px-6 pt-5">
+              <ol className="grid grid-cols-3 gap-2" aria-label="Invitation steps">
+                {(['Identity', 'Access', 'Review'] as const).map((label, index) => {
+                  const step = (index + 1) as 1 | 2 | 3
+                  return (
+                    <li key={label}>
+                      <button
+                        type="button"
+                        onClick={() => goToInvitationStep(step)}
+                        className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold ${
+                          addUserStep === step
+                            ? 'border-blue-300 bg-blue-50 text-blue-800'
+                            : 'border-slate-200 text-slate-500'
+                        }`}
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px]">
+                          {addUserStep > step ? <Check className="h-3 w-3" /> : step}
+                        </span>
+                        {label}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ol>
             </div>
 
-            <div className="flex justify-end gap-3 border-t px-6 py-4">
+            <div className="px-6 py-5">
+              {addUserStep === 1 ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-slate-800">
+                      Name <RequiredIndicator />
+                    </label>
+                    <input
+                      value={addUserForm.name}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, name: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      placeholder="Jane Doe"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-slate-800">
+                      Email <RequiredIndicator />
+                    </label>
+                    <input
+                      type="email"
+                      value={addUserForm.email}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, email: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      placeholder="jane.doe@company.com"
+                    />
+                  </div>
+                  <label className="md:col-span-2 flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+                    <span>
+                      <span className="block text-sm font-bold text-slate-800">Use SSO</span>
+                      <span className="mt-1 block text-xs text-slate-500">The invitee will accept the membership and continue through the tenant SSO provider.</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={addUserForm.ssoEnabled}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, ssoEnabled: event.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {addUserStep === 2 ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-bold text-slate-800">Access role</label>
+                    <select
+                      value={addUserForm.role}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, role: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                    >
+                      {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <p className="mt-2 text-xs text-slate-500">{getAccessRole(addUserForm.role).description}</p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-slate-800">Business-unit default</label>
+                    <select
+                      value={addUserForm.businessUnit}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, businessUnit: event.target.value, costCenter: '' }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                      disabled={businessUnitsLoading}
+                    >
+                      <option value="">No business-unit default</option>
+                      {businessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-slate-800">Cost-center default</label>
+                    <select
+                      value={addUserForm.costCenter}
+                      onChange={(event) => setAddUserForm((current) => ({ ...current, costCenter: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                      disabled={costCentersLoading}
+                    >
+                      <option value="">No cost-center default</option>
+                      {costCenterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <p className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900">
+                    Organization defaults prefill work; they do not grant record access. The selected role is the reviewed tenant access preset.
+                  </p>
+                  {(businessUnitsError || costCentersError) ? (
+                    <p className="md:col-span-2 text-sm text-rose-600">{businessUnitsError || costCentersError}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {addUserStep === 3 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-2">
+                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Identity</p><p className="mt-1 font-bold text-slate-900">{addUserForm.name.trim()}</p><p className="text-slate-600">{addUserForm.email.trim()}</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Authentication</p><p className="mt-1 font-bold text-slate-900">{addUserForm.ssoEnabled ? 'Single sign-on' : 'Password'}</p><p className="text-slate-600">Single-use, expiring invitation</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Access</p><p className="mt-1 font-bold text-slate-900">{getAccessRole(addUserForm.role).label}</p><p className="text-slate-600">Membership remains inactive until acceptance.</p></div>
+                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Working defaults</p><p className="mt-1 text-slate-700">{businessUnitOptions.find((option) => option.value === addUserForm.businessUnit)?.label || 'No business unit'}</p><p className="text-slate-600">{costCenterOptions.find((option) => option.value === addUserForm.costCenter)?.label || 'No cost center'}</p></div>
+                  </div>
+                  <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    Sending creates exactly this invited membership. Resending will invalidate its previous link; acceptance cannot replace the reviewed role or defaults.
+                  </p>
+                </div>
+              ) : null}
+
+              {addUserError ? <p className="mt-4 text-sm font-medium text-rose-600">{addUserError}</p> : null}
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-between">
               <button
+                type="button"
                 onClick={closeAddUserModal}
-                className="rounded-md border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={addingUser}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </button>
-              <button
-                onClick={() => void submitAddUser()}
-                disabled={addingUser}
-                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:bg-gray-400"
-              >
-                {addingUser ? 'Adding...' : 'Add User'}
-              </button>
+              <div className="flex gap-3">
+                {addUserStep > 1 ? <button type="button" onClick={() => goToInvitationStep((addUserStep - 1) as 1 | 2)} disabled={addingUser} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">Back</button> : null}
+                {addUserStep < 3 ? (
+                  <button type="button" onClick={() => goToInvitationStep((addUserStep + 1) as 2 | 3)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">Continue</button>
+                ) : (
+                  <button type="button" onClick={() => void submitAddUser()} disabled={addingUser} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">
+                    {addingUser ? 'Sending invitation...' : 'Send invitation'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1813,6 +1883,18 @@ export default function AdminUsersPage() {
         </div>
       )}
 
+      {!forbidden && invitationNotice ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800" role="status">
+          {invitationNotice}
+        </div>
+      ) : null}
+
+      {!forbidden && invitationActionError ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-800" role="alert">
+          {invitationActionError}
+        </div>
+      ) : null}
+
       <LevvPanel className="overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
@@ -1894,14 +1976,43 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEditUserModal(user)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit access
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      {user.status === 'invited' && user.invitationId ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void handleInvitationAction(user, 'resend')}
+                            disabled={invitationActionId === user.invitationId}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                            title={user.invitationDeliveryError || 'Invalidate the old link and send a new invitation'}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            {user.invitationDeliveryStatus === 'failed' ? 'Retry invite' : 'Resend'}
+                          </button>
+                          {user.invitationStatus !== 'revoked' ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleInvitationAction(user, 'revoke')}
+                              disabled={invitationActionId === user.invitationId}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Revoke
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {user.status !== 'invited' || !user.invitationId ? (
+                        <button
+                          type="button"
+                          onClick={() => openEditUserModal(user)}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit access
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}

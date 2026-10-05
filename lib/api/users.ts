@@ -27,6 +27,11 @@ export type AdminUserRecord = {
   costCenterName: string
   ssoEnabled: boolean
   isActive: boolean
+  invitationId: string
+  invitationStatus: string
+  invitationDeliveryStatus: string
+  invitationDeliveryError: string
+  invitationExpiresAt: string
 }
 
 export type AdminUserProfile = AdminUserRecord & {
@@ -81,6 +86,23 @@ type BackendUser = {
   is_active?: boolean | null
   user_type?: string | null
   account_type?: string | null
+  invitation?: BackendInvitation | null
+}
+
+type BackendInvitation = {
+  id?: number | string | null
+  status?: string | null
+  delivery_status?: string | null
+  delivery_error?: string | null
+  expires_at?: string | null
+}
+
+export type UserInvitationResult = {
+  id: string
+  status: string
+  deliveryStatus: string
+  deliveryError: string
+  expiresAt: string
 }
 
 type BackendUsersResponse = {
@@ -167,6 +189,25 @@ function normalizeBackendUser(row: BackendUser): AdminUserProfile {
       : [],
     ssoEnabled: row.sso_enabled === true,
     isActive: row.is_active !== false,
+    invitationId: toIdString(row.invitation?.id),
+    invitationStatus: readOptionalString(row.invitation?.status),
+    invitationDeliveryStatus: readOptionalString(
+      row.invitation?.delivery_status,
+    ),
+    invitationDeliveryError: readOptionalString(
+      row.invitation?.delivery_error,
+    ),
+    invitationExpiresAt: readOptionalString(row.invitation?.expires_at),
+  }
+}
+
+function normalizeInvitation(row: BackendInvitation): UserInvitationResult {
+  return {
+    id: toIdString(row.id),
+    status: readOptionalString(row.status),
+    deliveryStatus: readOptionalString(row.delivery_status),
+    deliveryError: readOptionalString(row.delivery_error),
+    expiresAt: readOptionalString(row.expires_at),
   }
 }
 
@@ -263,6 +304,44 @@ export async function updateAdminUser(
     payload,
     'update',
   )
+}
+
+export async function resendAdminUserInvitation(
+  invitationId: string,
+): Promise<UserInvitationResult> {
+  return mutateInvitation(invitationId, 'resend')
+}
+
+export async function revokeAdminUserInvitation(
+  invitationId: string,
+): Promise<UserInvitationResult> {
+  return mutateInvitation(invitationId, 'revoke')
+}
+
+async function mutateInvitation(
+  invitationId: string,
+  action: 'resend' | 'revoke',
+): Promise<UserInvitationResult> {
+  const response = await fetch(
+    `/api/admin/user-invitations/${encodeURIComponent(invitationId)}/${action}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        ...csrfHeaders(),
+      },
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    throw new UsersApiError(
+      errorMessage(body, `Unable to ${action} invitation (${response.status}).`),
+      response.status,
+      body,
+    )
+  }
+  return normalizeInvitation(body as BackendInvitation)
 }
 
 async function writeAdminUser(

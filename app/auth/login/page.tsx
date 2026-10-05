@@ -23,6 +23,7 @@ type SessionStatusResponse = {
 
 type RegisterResponse = {
   linked_existing_user?: boolean
+  sso_enabled?: boolean
 }
 
 type JsonLike =
@@ -77,6 +78,10 @@ export default function TenantLoginPage() {
   const modeParam = searchParams.get('mode')
   const inviteToken = searchParams.get('invite_token')?.trim() || ''
   const inviteEmail = searchParams.get('email')?.trim() || ''
+  const invitationType = searchParams.get('invitation_type')?.trim() || ''
+  const invitationAuth = searchParams.get('auth')?.trim() || ''
+  const invitationUsesExistingPassword =
+    searchParams.get('existing_password') === '1'
   const [mode, setMode] = useState<Mode>('login')
   const [origin, setOrigin] = useState('')
   const [tenantName, setTenantName] = useState<string | null>(null)
@@ -178,24 +183,41 @@ export default function TenantLoginPage() {
 
   const isInviteRegistration =
     mode === 'register' && Boolean(inviteToken)
+  const isUserInvitation =
+    isInviteRegistration && invitationType === 'user'
+  const isSsoUserInvitation =
+    isUserInvitation && invitationAuth === 'sso'
+  const isExistingPasswordInvitation =
+    isUserInvitation && invitationUsesExistingPassword
 
   const endpoint =
     mode === 'login'
       ? '/auth/password/login-user'
+      : isUserInvitation
+        ? `/api/admin/user-invitations/${encodeURIComponent(inviteToken)}/accept`
       : isInviteRegistration
         ? '/auth/password/register'
         : '/auth/password/register-user'
 
-  const submitLabel = mode === 'login' ? 'Sign in' : 'Create account'
+  const submitLabel =
+    mode === 'login'
+      ? 'Sign in'
+      : isUserInvitation
+        ? 'Accept invitation'
+        : 'Create account'
   const ssoLabel = mode === 'login' ? 'Continue with SSO' : 'Sign up with SSO'
   const helperCopy =
     mode === 'login'
       ? 'Use your work email to sign in.'
-      : isInviteRegistration
-      ? 'Create your supplier account to access this tenant.'
-      : 'Create your account to get started.'
+      : isUserInvitation
+        ? 'Review and accept your tenant membership invitation.'
+        : isInviteRegistration
+          ? 'Create your supplier account to access this tenant.'
+          : 'Create your account to get started.'
   const passwordMismatch =
     mode === 'register' &&
+    !isSsoUserInvitation &&
+    !isExistingPasswordInvitation &&
     Boolean(confirmPassword) &&
     password !== confirmPassword
 
@@ -211,11 +233,13 @@ export default function TenantLoginPage() {
       return
     }
 
-    if (!email || !password) {
+    if (!email || (!isSsoUserInvitation && !password)) {
       setFeedback({
         status: 'error',
         title: 'Add your email and password',
-        detail: 'Both fields are required to continue.',
+        detail: isSsoUserInvitation
+          ? 'Email is required to continue.'
+          : 'Both fields are required to continue.',
       })
       return
     }
@@ -229,7 +253,12 @@ export default function TenantLoginPage() {
       return
     }
 
-    if (mode === 'register' && password !== confirmPassword) {
+    if (
+      mode === 'register' &&
+      !isSsoUserInvitation &&
+      !isExistingPasswordInvitation &&
+      password !== confirmPassword
+    ) {
       setFeedback({
         status: 'error',
         title: 'Passwords do not match',
@@ -244,6 +273,8 @@ export default function TenantLoginPage() {
     try {
       const payload =
         mode === 'login'
+          ? { email, password }
+          : isUserInvitation
           ? { email, password }
           : isInviteRegistration
           ? { email, password, invite_token: inviteToken }
@@ -273,6 +304,14 @@ export default function TenantLoginPage() {
             ? (body as RegisterResponse)
             : {}
 
+        if (isUserInvitation && registerResponse.sso_enabled === true) {
+          const nextPath = cleanNextPath(searchParams.get('next'), '/home')
+          window.location.assign(
+            `${origin}/auth/workos/login?next=${encodeURIComponent(nextPath)}`,
+          )
+          return
+        }
+
         setMode('login')
         setPassword('')
         setConfirmPassword('')
@@ -280,12 +319,14 @@ export default function TenantLoginPage() {
         setLastName('')
         setFeedback({
           status: 'success',
-          title:
-            registerResponse.linked_existing_user === true
+          title: isUserInvitation
+            ? 'Invitation accepted'
+            : registerResponse.linked_existing_user === true
               ? 'Access added to this tenant'
               : 'Registered successfully',
-          detail:
-            registerResponse.linked_existing_user === true
+          detail: isUserInvitation
+            ? 'Your reviewed tenant access is active. Please sign in.'
+            : registerResponse.linked_existing_user === true
               ? 'Please sign in with your existing password.'
               : 'Your account has been created. Please sign in.',
         })
@@ -383,28 +424,30 @@ export default function TenantLoginPage() {
               ))}
             </div>
 
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full rounded-xl border-slate-200 text-base font-semibold text-slate-900"
-                onClick={() => {
-                  const target = origin
-                    ? `${origin}/auth/workos/login?next=/home`
-                    : '/auth/workos/login?next=/home'
-                  window.location.assign(target)
-                }}
-              >
-                <Globe2 className="h-4 w-4" />
-                <span>{ssoLabel}</span>
-              </Button>
-              <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                <span className="h-px flex-1 bg-slate-200" />
-                or
-                <span className="h-px flex-1 bg-slate-200" />
+            {!isUserInvitation ? (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full rounded-xl border-slate-200 text-base font-semibold text-slate-900"
+                  onClick={() => {
+                    const target = origin
+                      ? `${origin}/auth/workos/login?next=/home`
+                      : '/auth/workos/login?next=/home'
+                    window.location.assign(target)
+                  }}
+                >
+                  <Globe2 className="h-4 w-4" />
+                  <span>{ssoLabel}</span>
+                </Button>
+                <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  or
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
               </div>
-            </div>
+            ) : null}
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-800">
@@ -429,31 +472,44 @@ export default function TenantLoginPage() {
               </div>
               {isInviteRegistration && (
                 <p className="text-xs text-slate-500">
-                  Email is locked to the invited supplier contact.
+                  Email is locked to the invited{' '}
+                  {isUserInvitation ? 'tenant user' : 'supplier contact'}.
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">
-                Password
-                <RequiredIndicator />
-              </label>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <KeyRound className="h-4 w-4 text-slate-400" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  placeholder="********"
-                  required
-                />
+            {!isSsoUserInvitation ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-800">
+                  {isExistingPasswordInvitation ? 'Current password' : 'Password'}
+                  <RequiredIndicator />
+                </label>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <KeyRound className="h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete={
+                      mode === 'login' || isExistingPasswordInvitation
+                        ? 'current-password'
+                        : 'new-password'
+                    }
+                    className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    placeholder="********"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                Accepting activates only the reviewed tenant membership, then continues to your organization&apos;s SSO provider.
+              </p>
+            )}
 
-            {mode === 'register' && (
+            {mode === 'register' &&
+              !isSsoUserInvitation &&
+              !isExistingPasswordInvitation && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-800">
                   Confirm password
