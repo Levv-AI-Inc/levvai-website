@@ -19,6 +19,7 @@ type SuppliersListProps = {
   loading: boolean
   suppliers: SupplierRecord[]
   canManageSuppliers: boolean
+  canManageContactAccess: boolean
   detailEnabled: boolean
   onEditSupplier: (supplier: SupplierRecord) => void
   onInviteSupplier: (supplier: SupplierRecord) => void
@@ -29,6 +30,7 @@ export default function SuppliersList({
   loading,
   suppliers,
   canManageSuppliers,
+  canManageContactAccess,
   detailEnabled,
   onEditSupplier,
   onInviteSupplier,
@@ -121,6 +123,7 @@ export default function SuppliersList({
                   <td className="px-8 py-6 text-right">
                     <SupplierRowActions
                       canManage={canManageSuppliers}
+                      canManageContactAccess={canManageContactAccess}
                       onEdit={() => onEditSupplier(supplier)}
                       onInvite={() => onInviteSupplier(supplier)}
                       onDelete={() => onDeleteSupplier(supplier)}

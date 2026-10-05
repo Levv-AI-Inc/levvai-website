@@ -1,11 +1,9 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2,
-  Check,
-  Copy,
   Loader2,
   Plus,
   Search,
@@ -26,7 +24,6 @@ import {
 } from '@/lib/api/suppliers'
 import { cn } from '@/lib/utils'
 import { isFeatureEnabled } from '@/lib/featureFlags'
-import SupplierInviteModal from './components/SupplierInviteModal'
 import SupplierModal from './components/SupplierModal'
 import SuppliersList from './components/SuppliersList'
 import type { SupplierFormState } from './types'
@@ -95,21 +92,15 @@ export default function SuppliersPage() {
   const [savingSupplier, setSavingSupplier] = useState(false)
   const [supplierFormError, setSupplierFormError] = useState('')
 
-  const [inviteSupplier, setInviteSupplier] = useState<SupplierRecord | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteDays, setInviteDays] = useState('7')
-  const [inviteError, setInviteError] = useState('')
-  const [sendingInvite, setSendingInvite] = useState(false)
-
   const [inviteSuccess, setInviteSuccess] = useState<SupplierInviteResponse | null>(null)
   const [inviteSuccessSource, setInviteSuccessSource] = useState<'create' | 'resend' | null>(null)
-  const [copiedInviteLink, setCopiedInviteLink] = useState(false)
 
   const listRequestIdRef = useRef(0)
 
   const normalizedRole = normalizeRole(sessionRole)
   const canViewSuppliers = !normalizedRole || VIEW_ROLES.has(normalizedRole)
   const canManageSuppliers = MANAGE_ROLES.has(normalizedRole)
+  const canManageContactAccess = normalizedRole === 'admin'
 
   const uniqueStatuses = useMemo(() => {
     const values = new Set(STATUS_OPTIONS)
@@ -171,7 +162,7 @@ export default function SuppliersPage() {
   }, [searchInput])
 
   useEffect(() => {
-    const shouldLockBody = showSupplierModal || Boolean(inviteSupplier) || Boolean(inviteSuccess)
+    const shouldLockBody = showSupplierModal || Boolean(inviteSuccess)
     if (!shouldLockBody) return
 
     const previousOverflow = document.body.style.overflow
@@ -180,7 +171,7 @@ export default function SuppliersPage() {
     return () => {
       document.body.style.overflow = previousOverflow
     }
-  }, [inviteSuccess, inviteSupplier, showSupplierModal])
+  }, [inviteSuccess, showSupplierModal])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -331,6 +322,12 @@ export default function SuppliersPage() {
         const { supplier_code, status, ...createPayload } = payload
         createdSupplier = await createSupplier(createPayload)
 
+        if (!canManageContactAccess) {
+          closeSupplierModal()
+          await loadSuppliers()
+          return
+        }
+
         const inviteEmail =
           payload.contact_email?.trim() || payload.email?.trim() || ''
         const createdSupplierKey = toSupplierKey(createdSupplier)
@@ -389,61 +386,8 @@ export default function SuppliersPage() {
   }
 
   const openInviteModal = (supplier: SupplierRecord) => {
-    if (!canManageSuppliers) return
-
-    setInviteSupplier(supplier)
-    setInviteEmail(supplier.contact_email || supplier.email || '')
-    setInviteDays('7')
-    setInviteError('')
-    setSendingInvite(false)
-  }
-
-  const closeInviteModal = () => {
-    setInviteSupplier(null)
-    setInviteEmail('')
-    setInviteDays('7')
-    setInviteError('')
-    setSendingInvite(false)
-  }
-
-  const submitInvite = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!inviteSupplier) return
-
-    const targetEmail = inviteEmail.trim()
-    const days = Math.max(1, toNonNegativeInt(inviteDays))
-
-    if (!targetEmail) {
-      setInviteError('Invite email is required.')
-      return
-    }
-
-    setInviteError('')
-    setSendingInvite(true)
-
-    try {
-      const response = await inviteSupplierContact(toSupplierKey(inviteSupplier), {
-        email: targetEmail,
-        expires_in_days: days,
-      })
-
-      closeInviteModal()
-      setInviteSuccessSource('resend')
-      setInviteSuccess(response)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 403) {
-        setInviteError('You do not have permission to invite supplier contacts.')
-        return
-      }
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to generate supplier invite.'
-      setInviteError(message)
-    } finally {
-      setSendingInvite(false)
-    }
+    if (!canManageContactAccess) return
+    router.push(`/admin/suppliers/${encodeURIComponent(String(toSupplierKey(supplier)))}/contact-access`)
   }
 
   const deleteSupplierRecord = async (supplier: SupplierRecord) => {
@@ -474,22 +418,9 @@ export default function SuppliersPage() {
     }
   }
 
-  const copyInviteLink = async () => {
-    if (!inviteSuccess?.registration_link) return
-
-    try {
-      await navigator.clipboard.writeText(inviteSuccess.registration_link)
-      setCopiedInviteLink(true)
-      window.setTimeout(() => setCopiedInviteLink(false), 1500)
-    } catch {
-      setCopiedInviteLink(false)
-    }
-  }
-
   const closeInviteSuccess = () => {
     setInviteSuccess(null)
     setInviteSuccessSource(null)
-    setCopiedInviteLink(false)
   }
 
   if (checkingSession) {
@@ -672,6 +603,7 @@ export default function SuppliersPage() {
         loading={loading}
         suppliers={suppliers}
         canManageSuppliers={canManageSuppliers}
+        canManageContactAccess={canManageContactAccess}
         detailEnabled={isFeatureEnabled('supplier_detail_v2')}
         onEditSupplier={openEditModal}
         onInviteSupplier={openInviteModal}
@@ -687,19 +619,6 @@ export default function SuppliersPage() {
         onClose={closeSupplierModal}
         onFieldChange={onSupplierFormChange}
         onSubmit={submitSupplierForm}
-      />
-
-      <SupplierInviteModal
-        open={Boolean(inviteSupplier)}
-        supplierName={inviteSupplier?.name || ''}
-        inviteEmail={inviteEmail}
-        inviteDays={inviteDays}
-        inviteError={inviteError}
-        sendingInvite={sendingInvite}
-        onInviteEmailChange={setInviteEmail}
-        onInviteDaysChange={setInviteDays}
-        onClose={closeInviteModal}
-        onSubmit={submitInvite}
       />
 
       {inviteSuccess && (
@@ -720,18 +639,12 @@ export default function SuppliersPage() {
 
             <div className="space-y-4 px-5 py-5">
               <p className="text-sm text-slate-700">
-                {inviteSuccessSource === 'resend'
-                  ? 'Share this updated registration link with the supplier contact.'
-                  : 'Share this registration link with the supplier contact.'}
+                The single-use registration link was sent to {inviteSuccess.email}. Links are never exposed in the Admin response.
               </p>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="break-all text-xs text-slate-700">{inviteSuccess.registration_link}</p>
-              </div>
 
               <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-2">
                 <div>
-                  <span className="font-medium text-slate-800">Invite ID:</span> {String(inviteSuccess.invite_id)}
+                  <span className="font-medium text-slate-800">Access ID:</span> {String(inviteSuccess.id)}
                 </div>
                 <div>
                   <span className="font-medium text-slate-800">Expires:</span>{' '}
@@ -740,14 +653,6 @@ export default function SuppliersPage() {
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={copyInviteLink}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  {copiedInviteLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copiedInviteLink ? 'Copied' : 'Copy link'}
-                </button>
                 <button
                   type="button"
                   onClick={closeInviteSuccess}

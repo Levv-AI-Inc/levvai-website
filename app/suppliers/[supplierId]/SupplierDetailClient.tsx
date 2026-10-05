@@ -384,6 +384,13 @@ function SupplierOverview({ supplier }: { supplier: SupplierDetail }) {
             <Metric label="Active SOWs" value={supplier.active_sows} />
           </dl>
         </LevvPanel>
+        {supplier.allowed_actions.includes('manage_contact_access') ? (
+          <LevvPanel className="p-6">
+            <SectionHeading icon={<Users className="h-5 w-5" />} title="Supplier portal access" />
+            <p className="mt-3 text-sm text-slate-500">Review invitations and revoke access without changing unrelated tenant memberships.</p>
+            <Link href={`/admin/suppliers/${encodeURIComponent(String(supplier.id || supplier.supplier_id))}/contact-access`} className="mt-5 inline-flex rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]">Manage contact access</Link>
+          </LevvPanel>
+        ) : null}
       </div>
     </div>
   )

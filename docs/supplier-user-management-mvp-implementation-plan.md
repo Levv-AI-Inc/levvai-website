@@ -692,84 +692,60 @@ Finish each slice, including backend enforcement and tests, before beginning the
 - Assumptions verified: supplier, coverage, role, and site data belong in the tenant schema; direct foreign keys are the canonical identity boundary; customer administrator means the existing `admin` membership role for mutations, while all existing internal supplier-view roles retain read access; active duplicate creation is an explicit conflict rather than a silent success; and feature flags control rollout only, not server authorization.
 - Decisions or blockers: the fixed-width global and Admin navigation shells still constrain the Admin editor at narrow widths, although the new content stacks and the read-only view switches to compact cards after the global sidebar is collapsed. No frontend unit-test runner is configured, standalone lint remains interactive, and the build retains the existing client-rendering and outdated Browserslist warnings. A local `seed_local_data --refresh` attempt encountered a pre-existing duplicate workflow-scope-field validation issue; existing isolated seed data was sufficient for inspection. No production data was modified, no invitation was sent, and contact access, Levv activation administration, deletion protection, rate cards, extraction, approval work, and later iterations were not started.
 
+### Iteration 7 Supplier contact access (Phase 5 continuation)
+
+- Status: `complete` (2026-10-05).
+- Commit references: backend `627b0be`; frontend commit containing this progress record.
+- Migrations added: `accounts.0013_supplierinvite_delivery_error_and_more` creates shared-schema `SupplierContactAccess`, binds it to tenant and numeric tenant-schema supplier ID without a cross-schema foreign key, optionally links the exact supplier membership, and adds pending/active/revoked/expired lifecycle and uniqueness for tenant/supplier/normalized-email. `SupplierInvite` additively gains contact-access linkage, SHA-256 token digest/hint, delivery status/error, and sent/revoked timestamps while retaining nullable legacy plaintext tokens only for one-time transition acceptance. The data migration coalesces existing invitations by normalized target, binds matching supplier memberships, and creates active access records for legitimate pre-invitation supplier memberships so existing supplier logins remain compatible. It sends no email and changes no supplier, coverage, work-order, or assignment records.
+- Endpoint contracts added or changed: administrator-only `GET /api/suppliers/{supplierId}/contact-access/`, `POST /api/suppliers/{supplierId}/contact-access/{accessId}/resend/`, and `POST /api/suppliers/{supplierId}/contact-access/{accessId}/revoke/` were added. Existing `POST /api/suppliers/{supplierId}/invite/` remains the create compatibility entry point but now returns the server-owned contact-access lifecycle without raw token or registration link. Supplier registration still uses `/auth/password/register`, but supplier-ID/email-only self-registration is rejected; a valid supplier or worker invitation is required. Supplier login now requires both the exact active supplier membership and matching active contact-access record.
+- Invitation and authorization behavior: new raw credentials exist only while composing email; resend revokes and clears every previous digest or legacy token before issuing one credential. Acceptance locks and activates the exact reviewed tenant, supplier, email, access row, and pre-created supplier membership; it cannot claim a worker/internal identity or move a supplier membership. A legacy pending plaintext invite is accepted once through the same service and then cleared. Revocation invalidates pending credentials immediately and deactivates only the exact supplier membership while advancing its authorization version; the shared user and unrelated tenant memberships remain unchanged. Delivery failure leaves a non-active retryable record with a safe error.
+- Frontend behavior: `lib/api/suppliers.ts` owns typed contact-access lifecycle reads and mutations. `/admin/suppliers/{supplierId}/contact-access` keeps the supplier visible and implements invite, retry/resend, revoke confirmation, delivery/lifecycle badges, loading, empty, denied, not-found, validation, and retry states. The live supplier directory routes the administrator Contact access row action to this screen; managers retain supplier maintenance without invitation authority. Existing create-and-invite success UI no longer exposes or copies bearer links.
+- Tests and checks run: focused contact-access service/API tests plus existing supplier detail/coverage tests pass; full backend suite 113/113 passes against isolated local PostgreSQL; Django system check and migration drift check pass; the migration applied successfully to shared and tenant schemas; `npx tsc --noEmit` and `npm run build` pass. Desktop and 390-by-844 browser inspection covered the empty Admin contact-access screen without submitting an invitation. `git diff --check` passes in both repositories.
+- Assumptions verified: supplier contact access is shared-schema identity/authorization state while the supplier remains tenant-schema data; numeric supplier identity is always validated in `schema_context`; supplier membership plus contact-access state is the authorization boundary; existing supplier memberships require an explicit compatibility backfill; and no supplier sub-role settings exist today, so this slice exposes lifecycle actions rather than inventing unapproved supplier permissions.
+- Decisions or blockers: no production data was modified and no real invitation was sent. Production email-provider delivery/observability remains a rollout validation item. The fixed-width global and Admin navigation shells leave very little content width at 390 pixels even after the global sidebar collapses; the new form and list stack correctly, but the shared Admin shell remains the limiting layout. No frontend unit-test runner is configured, standalone lint remains interactive, and the build retains existing client-rendering and outdated Browserslist warnings. Supplier activation/deletion, rate cards, extraction, approval work, and later iterations were not started.
+
 ## Next-agent handoff: continue Phase 5 supplier management
 
-Updated 2026-10-05 after the supplier coverage continuation completed.
+Updated 2026-10-05 after supplier contact access completed.
 
 ### Repository state
 
-- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: `69e1147` (`Add supplier coverage management screens`).
-- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `a822eae` (`Add supplier role and site coverage`).
-- Iterations 1 through 6 are complete. Both repositories were clean after their implementation commits.
-- Latest verified baseline: full backend suite 98/98, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
+- Frontend repository: `/Users/markli/code/levvai-website`; supplier contact-access UI and this progress record are the latest slice.
+- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit `627b0be` (`Add supplier contact access lifecycle`).
+- Iterations 1 through 7 are complete.
+- Latest verified baseline: full backend suite 113/113, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, `git diff --check`, and desktop/compact browser inspection all passed.
 - The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
 
 ### Phase context
 
-Supplier Overview, Workers, and explicit supplier-role-site coverage are complete. Phase 5 still requires:
+Supplier Overview, Workers, coverage, and contact access are complete. The remaining Phase 5 slice is supplier activation and protected deletion. Do not begin supplier-scoped rate cards until it is complete.
 
-- supplier contact-access records and list/mutation endpoints;
-- resend, revoke, and access-update behavior around the existing supplier invitation path;
-- authorized administration of `active_in_levv`, kept separate from read-only source status; and
-- protected deactivation/deletion behavior for suppliers with linked history.
+### Next bounded slice: supplier activation and protected deletion
 
-Do not begin supplier-scoped rate cards until these remaining Phase 5 outcomes are complete. Implement contact access first, then handle supplier activation and protected deletion as a separate slice.
+Observable outcome: a customer administrator can review a supplier's linked operational history and safely activate or deactivate Levv usage without editing source status or deleting historical relationships.
 
-### Next bounded slice: Phase 5 supplier contact access
-
-Observable outcome: a customer administrator can invite, resend, revoke, and review access for supplier contacts, and accepted access is bound to the exact tenant, supplier, identity, and membership rather than inferred from an email address.
-
-Required scope:
-
-- Add an explicit supplier contact-access record in the shared identity/membership schema. Bind it to tenant and supplier ID, normalized email, lifecycle state, and the exact supplier membership once accepted. Do not create a tenant-schema foreign key from the shared schema.
-- Reuse `POST /api/suppliers/{supplierId}/invite/` as the compatibility entry point. Route it through one contact-access/invitation service rather than maintaining a second invitation implementation.
-- Add supplier-scoped Admin endpoints to list contact access, resend a pending or failed invitation, revoke pending or active access, and update supported access settings. Use the supplier in the URL as authoritative and never accept a conflicting supplier ID in the payload.
-- Make resend rotate the credential and invalidate every previous link. Revoke must block pending token use immediately; revoking accepted access must suspend or deactivate only the matching tenant supplier membership and advance its authorization version without disabling the shared user or unrelated memberships.
-- Acceptance must activate the exact reviewed supplier membership and contact-access record. It must not move an existing supplier membership to a different supplier, claim an internal or worker membership, or use an email match as authorization.
-- Strengthen the existing `SupplierInvite` token lifecycle additively. Prefer the hashed-token pattern already used by `UserInvitation`; preserve a deliberate compatibility path for any existing pending supplier invitations rather than silently accepting two valid credentials.
-- Do not send raw tokens back from production Admin responses. Tests may capture the generated link through the local/test email backend. Do not send a real email during automated tests or visual inspection.
-- Extend `GET /api/suppliers/{supplierId}/` additively with a contact-access summary and allowed actions only if the frontend needs it. Do not change the exact `GET /api/suppliers/` list-row contract.
-- Add a typed frontend contact-access API and a focused Admin contact-access screen or section that shows pending, active, revoked, expired, and delivery-failed states with resend/retry and revoke actions. Keep the selected supplier visible and include loading, empty, denied, not-found, validation, confirmation, and retry states.
-- Preserve supplier Overview, Workers, coverage, existing assignments, source-owned-field rejection, and supplier registration routes. Do not implement `active_in_levv` mutation, deletion protection, supplier distribution tiers, rate cards, extraction, pricing resolution, approvals, deployment, or production-data changes in this slice.
-
-Required denial and lifecycle tests:
-
-- wrong tenant, wrong supplier, supplier-role caller, non-administrator caller, mismatched email, internal/worker membership collision, and conflicting existing supplier membership;
-- expired, revoked, already-used, and superseded invitation tokens;
-- resend invalidates the old token and keeps one reviewed access target;
-- revocation of active access invalidates only the matching tenant membership/session authorization version;
-- duplicate requests do not create a second membership or contact-access row; and
-- email delivery failure leaves a retryable, non-active access record without exposing provider details or a usable leaked token.
-
-Exit criteria:
-
-- Supplier contact authorization is determined by the contact-access record plus the exact active supplier membership, never by contact email alone.
-- Invitation replay, expiry, resend, revoke, tenant mismatch, supplier mismatch, and duplicate membership cases are deterministic and covered by direct API tests.
-- No unrelated membership, supplier record, coverage mapping, work order, or assignment is modified.
-- The Admin UI and typed API use the same server-owned lifecycle and allowed actions.
-
-### Required Phase 5 slice after contact access
-
-Implement supplier activation and protected deletion separately: make `active_in_levv` administrator-managed while source status remains read-only; preview linked work orders, assignments, coverage, contact access, invitations, and commercial history; deactivate instead of deleting linked suppliers; and permit hard deletion only when no protected history exists. Complete that slice before supplier-scoped rate-card work.
+- Make `active_in_levv` administrator-managed while source-owned status remains read-only.
+- Add a lifecycle preview that counts linked work orders/assignments, coverage, contact access/invitations, and any existing commercial history without exposing unrelated suppliers.
+- Deactivation must block future operational eligibility but preserve supplier identity, work orders, assignments, coverage, contacts, invitations, and history.
+- Hard deletion may remain on the existing endpoint only when no protected linkage exists; return an explicit conflict and deactivation guidance otherwise.
+- Keep list/detail identifiers and source-owned-field rejection compatible. Extend existing supplier endpoints and `lib/api/suppliers.ts`; do not add a parallel business resource.
+- Add direct wrong-tenant, non-administrator, linked-history, empty-supplier deletion, repeat-deactivation, and source-status mutation tests.
+- Build the smallest Admin lifecycle section with preview, explicit confirmation, loading/denied/not-found/conflict/retry states, and desktop/compact inspection.
+- Do not implement supplier distribution tiers, rate cards, extraction, pricing resolution, approvals, deployment, or production-data changes.
 
 ### Known context and risks
 
 - The application and Admin navigation shells remain fixed-width at narrow viewports. Keep new contact-access content responsive without broad navigation-shell cleanup.
 - No frontend unit-test runner is configured. Standalone `npm run lint` remains interactive because the repository has no ESLint configuration; the production build performs its built-in lint/type validation.
-- `accounts.User`, `Membership`, `SupplierInvite`, and `UserInvitation` are shared-schema records. `Supplier` is tenant-schema data, so shared records currently store `supplier_id` rather than a relational supplier foreign key and must validate it inside `schema_context(tenant.schema_name)`.
-- `Membership` already supports supplier isolation with `role="supplier"` and `supplier_id`, has one membership per user and tenant, and validates the supplier inside the tenant schema. Reuse its authorization-version helper when access changes.
-- The current `SupplierInvite` stores a raw unique token and the existing invite endpoint returns that token and registration link in its response. Treat this as compatibility debt to replace safely, not behavior to copy into new endpoints.
-- The supplier registration endpoint currently finds an invite by raw token, validates tenant, expiry, status, and email, then creates or reuses a supplier membership and marks the invite accepted. Refactor this path through the new service instead of adding a second acceptance route.
+- `accounts.User`, `Membership`, `SupplierInvite`, `SupplierContactAccess`, and `UserInvitation` are shared-schema records. `Supplier` remains tenant-schema data, so shared records store `supplier_id` and validate it inside `schema_context(tenant.schema_name)`.
+- Supplier invitation credentials are now hashed for new/resend flows. Do not restore raw tokens to models or Admin responses.
 - The new supplier source fields intentionally use additive JSON metadata because the exact ERP payload remains a production decision; do not use those labels as coverage identities.
-- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items; they do not authorize real invitation delivery during the remaining Phase 5 work.
+- Invitation email-provider rollout remains a production validation item; it does not authorize real invitation delivery during remaining work.
 - A local `seed_local_data --refresh` run currently encounters a pre-existing duplicate workflow-scope-field validation error. This does not affect the test suite but should not be “fixed” as unrelated cleanup in the contact-access slice.
 
-### Implementation starting points for supplier contact access
+### Implementation starting points for activation/deletion
 
-- Backend identity and lifecycle: `apps/accounts/models.py`, `apps/accounts/user_invitations.py` for the hashed-token reference pattern, `apps/accounts/api/supplier.py` for current supplier acceptance, `apps/accounts/authorization.py` for membership authorization-version changes, and the existing invitation tests in `apps/accounts/tests.py` and `apps/accounts/test_user_invitations.py`.
-- Backend supplier endpoint: extend `SupplierViewSet` in `apps/masterdata/views.py` and its serializers rather than adding a parallel supplier resource. Keep reads supplier-scoped through `self.get_object()` and make every contact mutation admin-only, matching coverage administration rather than the current broader admin/manager invite gate.
-- Frontend API and UI: extend `lib/api/suppliers.ts`; reuse the shared supplier identity/header patterns; add the Admin contact-access experience under `/admin/suppliers/[supplierId]/...`; and do not expose mutation controls in the read-only `/suppliers/[supplierId]` tabs.
-- Current frontend invite surfaces live in `app/suppliers/page.tsx` and `app/suppliers/components/SupplierInviteModal.tsx`. Preserve their compatibility behavior by routing them through the typed service, but do not leave raw tokens in client-visible success payloads.
-- Add the shared-schema migration with no destructive backfill. If existing pending invites require conversion, make the migration/transition explicit and reversible; do not silently activate, revoke, or email them.
-- Use the isolated local PostgreSQL workflow from the repository-state section. Test email with Django's in-memory/local backend, inspect desktop and 390-by-844 states without submitting a real invitation, remove temporary fixtures, and stop local services afterward.
-- Run focused invitation/contact-access tests, the full backend suite, Django system and migration-drift checks, `npx tsc --noEmit`, `npm run build`, and `git diff --check` in both repositories. Update the progress record and replace this handoff with the activation/deletion slice when complete.
+- Backend: extend `SupplierViewSet` and supplier serializers in `apps/masterdata`; use `WorkOrder`, `SupplierCoverage`, shared `SupplierContactAccess`/`SupplierInvite`, and supported rates models only for scoped preview counts and protection checks.
+- Frontend: extend `lib/api/suppliers.ts` and the existing Admin supplier detail patterns. Keep `source_status` visibly separate and read-only.
+- Use the isolated local PostgreSQL workflow, create only temporary local fixtures needed to test linked and unlinked suppliers, remove them afterward, and stop local services.
+- Run focused lifecycle/deletion tests, the full backend suite, Django system and migration-drift checks, `npx tsc --noEmit`, `npm run build`, `git diff --check`, and desktop/390-by-844 inspection. Update this progress record and handoff when complete.

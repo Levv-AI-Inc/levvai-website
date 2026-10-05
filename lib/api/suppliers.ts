@@ -129,11 +129,23 @@ export type SupplierInvitePayload = {
 }
 
 export type SupplierInviteResponse = {
-  registration_link: string
-  invite_id: string | number
-  token: string
-  expires_at: string
+  id: number
+  supplier_id: number
+  email: string
+  status: SupplierContactAccessStatus
+  membership_id?: number
+  delivery_status: 'pending' | 'sent' | 'failed'
+  delivery_error: string
+  expires_at?: string
+  sent_at?: string
+  accepted_at?: string
+  revoked_at?: string
+  allowed_actions: Array<'resend' | 'revoke'>
 }
+
+export type SupplierContactAccessStatus = 'pending' | 'active' | 'revoked' | 'expired'
+export type SupplierContactAccess = SupplierInviteResponse
+export type SupplierContactAccessResponse = { supplier_id: number; results: SupplierContactAccess[] }
 
 export class ApiError extends Error {
   status: number
@@ -368,6 +380,25 @@ function normalizeSupplierCoverage(row: Record<string, unknown>): SupplierCovera
     is_active: readBoolean(row.is_active),
     created_at: readOptionalString(row.created_at),
     updated_at: readOptionalString(row.updated_at),
+  }
+}
+
+function normalizeSupplierContactAccess(row: Record<string, unknown>): SupplierContactAccess {
+  return {
+    id: readOptionalNumber(row.id) || 0,
+    supplier_id: readOptionalNumber(row.supplier_id) || 0,
+    email: readOptionalString(row.email) || '',
+    status: (readOptionalString(row.status) || 'pending') as SupplierContactAccessStatus,
+    membership_id: readOptionalNumber(row.membership_id),
+    delivery_status: (readOptionalString(row.delivery_status) || 'pending') as SupplierContactAccess['delivery_status'],
+    delivery_error: readOptionalString(row.delivery_error) || '',
+    expires_at: readOptionalString(row.expires_at),
+    sent_at: readOptionalString(row.sent_at),
+    accepted_at: readOptionalString(row.accepted_at),
+    revoked_at: readOptionalString(row.revoked_at),
+    allowed_actions: readStringArray(row.allowed_actions).filter(
+      (action): action is 'resend' | 'revoke' => action === 'resend' || action === 'revoke',
+    ),
   }
 }
 
@@ -671,17 +702,59 @@ export async function inviteSupplierContact(
     )
   }
 
-  const responseBody = body as Record<string, unknown>
+  return normalizeSupplierContactAccess(body as Record<string, unknown>)
+}
 
+export async function getSupplierContactAccess(
+  supplierId: string | number,
+  signal?: AbortSignal,
+): Promise<SupplierContactAccessResponse> {
+  const response = await fetch(`/api/suppliers/${encodeURIComponent(String(supplierId))}/contact-access/`, {
+    method: 'GET', credentials: 'include', cache: 'no-store', signal,
+  })
+  const body = await parseJsonSafe(response)
+  if (!response.ok) throwApiError(response, body, `Failed to load supplier contact access (${response.status})`)
+  const payload = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {}
   return {
-    registration_link: readOptionalString(responseBody.registration_link) || '',
-    invite_id:
-      (responseBody.invite_id as string | number | undefined) ||
-      readOptionalString(responseBody.id) ||
-      '',
-    token: readOptionalString(responseBody.token) || '',
-    expires_at: readOptionalString(responseBody.expires_at) || '',
+    supplier_id: readOptionalNumber(payload.supplier_id) || 0,
+    results: Array.isArray(payload.results)
+      ? payload.results.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object').map(normalizeSupplierContactAccess)
+      : [],
   }
+}
+
+export async function resendSupplierContactAccess(
+  supplierId: string | number,
+  accessId: number,
+  expiresInDays = 7,
+): Promise<SupplierContactAccess> {
+  return mutateSupplierContactAccess(supplierId, accessId, 'resend', { expires_in_days: expiresInDays })
+}
+
+export async function revokeSupplierContactAccess(
+  supplierId: string | number,
+  accessId: number,
+): Promise<SupplierContactAccess> {
+  return mutateSupplierContactAccess(supplierId, accessId, 'revoke', {})
+}
+
+async function mutateSupplierContactAccess(
+  supplierId: string | number,
+  accessId: number,
+  action: 'resend' | 'revoke',
+  payload: Record<string, unknown>,
+) {
+  const response = await fetch(
+    `/api/suppliers/${encodeURIComponent(String(supplierId))}/contact-access/${accessId}/${action}/`,
+    {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+      body: JSON.stringify(payload),
+    },
+  )
+  const body = await parseJsonSafe(response)
+  if (!response.ok) throwApiError(response, body, `Failed to ${action} supplier contact access (${response.status})`)
+  return normalizeSupplierContactAccess(body as Record<string, unknown>)
 }
 
 export async function deleteSupplier(

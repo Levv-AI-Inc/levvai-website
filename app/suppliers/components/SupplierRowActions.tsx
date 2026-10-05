@@ -6,6 +6,7 @@ import { MailPlus, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 
 type SupplierRowActionsProps = {
   canManage: boolean
+  canManageContactAccess: boolean
   onEdit: () => void
   onInvite: () => void
   onDelete: () => void
@@ -13,6 +14,7 @@ type SupplierRowActionsProps = {
 
 export default function SupplierRowActions({
   canManage,
+  canManageContactAccess,
   onEdit,
   onInvite,
   onDelete,
@@ -141,14 +143,16 @@ export default function SupplierRowActions({
             </button>
             <button
               type="button"
+              disabled={!canManageContactAccess}
               onClick={() => {
+                if (!canManageContactAccess) return
                 setOpen(false)
                 onInvite()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
             >
               <MailPlus className="h-4 w-4" />
-              Resend invite
+              Contact access
             </button>
             <button
               type="button"
