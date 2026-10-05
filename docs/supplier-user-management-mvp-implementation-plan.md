@@ -667,3 +667,39 @@ Finish each slice, including backend enforcement and tests, before beginning the
 - Tests and checks run: 15 focused invitation tests cover token hashing, local/test email delivery, simulated delivery failure, exact-membership activation, replay, expiry, revoke, resend token rotation, wrong-tenant denial, duplicate membership, generic-registration bypass, legacy-PATCH conflict, non-administrator denial, SSO staging without activation, same-email WorkOS finalization, mismatched-email denial, and callback reuse of the reviewed membership. Focused invitation tests 15/15 passing; full backend suite 83/83 passing against local PostgreSQL; Django system check passing; migration drift check found no changes; `npx tsc --noEmit` passing; `npm run build` passing; `git diff --check` passing in both repositories. Desktop and 390-by-844 browser inspection covered Identity, Access, and Review without submitting an invitation.
 - Assumptions verified: `accounts.User`, `Membership`, and invitation records belong in the shared schema; tenant business-unit and cost-center identifiers remain reviewed membership defaults and do not grant record access; WorkOS supplies the verified identity email after validating the configured organization or connection; the existing callback can finalize the exact reviewed membership instead of provisioning a default-role membership; and same-origin proxying keeps invitation staging and the WorkOS session on the tenant host. The compatibility wrapper intentionally normalizes any create request to `invited` rather than honoring an immediate-active status.
 - Decisions or blockers: no production data was modified and no real invitation was sent. Production email-provider configuration and delivery observability still require rollout validation. The existing fixed-width application and Admin navigation shell continues to constrain narrow screens until collapsed; the new modal itself fits and scrolls at compact width. No frontend unit-test runner is configured, and standalone `npm run lint` remains interactive because the repository has no ESLint configuration. Approval grants, lifecycle actions, supplier work, and later iterations were not started.
+
+## Next-agent handoff
+
+Updated 2026-10-05 after Iteration 4 completion and SSO invitation hardening.
+
+### Repository state
+
+- Frontend repository: `/Users/markli/code/levvai-website`; current completed-work commit: `29795e2` (`Document SSO invitation confirmation`).
+- Backend repository: `/Users/markli/code/levvai-backend`; current completed-work commit: `6733a4d` (`Require WorkOS confirmation for SSO invitations`).
+- Iterations 1 through 4 are complete. Both repositories were clean after the Iteration 4 commits.
+- Latest verified baseline: full backend suite 83/83, Django system check, migration drift check, `npx tsc --noEmit`, production frontend build, and `git diff --check` all passed.
+- The local PostgreSQL test container was stopped after verification. Use the backend's `docker-compose.local.yml`, `scripts/local-compose.env`, and `scripts/local-env.sh` for isolated local verification; do not use production data.
+
+### Next bounded slice
+
+Implement only **Iteration 5 Supplier read-only detail** from this plan.
+
+Observable outcome: an authorized internal user can open one supplier record and view its Overview and Workers while direct API requests cannot expose another tenant's or supplier's data.
+
+Required boundaries:
+
+- Inspect both repositories before editing and follow the iteration loop above.
+- Extend the existing `GET /api/suppliers/{supplierId}/` contract additively; preserve current supplier identifiers, list behavior, tenant middleware, and authorization patterns.
+- Add the supplier Overview and Workers routes by adapting existing API-backed supplier, work-order, and assignment code.
+- Derive workers from linked work orders and assignments. Never join or authorize using supplier display-name matching.
+- Keep source-owned supplier fields read-only and make tenant and supplier isolation authoritative in Django.
+- Add direct backend denial tests, typed frontend API changes, loading/empty/denied/not-found/retry states, and desktop plus narrow-width inspection.
+- Do not implement supplier coverage, supplier contact-access mutation, rate cards, extraction, deterministic rate resolution, approval work, deployment, or production-data changes.
+- Update this progress record and this handoff section when the slice is complete, including commits, migrations, endpoint compatibility, checks, assumptions, and remaining risks.
+
+### Known context and risks
+
+- The application and Admin navigation shells remain fixed-width at narrow viewports; keep new supplier content responsive without broad navigation-shell cleanup.
+- No frontend unit-test runner is configured. Standalone `npm run lint` remains interactive because the repository has no ESLint configuration; the production build performs its built-in lint/type validation.
+- Shared identities and memberships live in the shared schema, while supplier, work-order, assignment, and organization records may be tenant-schema data. Confirm actual model placement and relationships before designing queries.
+- Invitation email-provider rollout and WorkOS verified-email behavior remain production validation items, but they do not expand Iteration 5 scope.
