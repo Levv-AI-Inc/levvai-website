@@ -9,7 +9,7 @@ node_modules
 .next
 .next/*
 out
-coverage
+/coverage
 build
 .env
 .env.*.local
