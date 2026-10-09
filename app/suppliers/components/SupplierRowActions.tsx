@@ -2,21 +2,25 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MailPlus, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { MailPlus, MapPin, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 
 type SupplierRowActionsProps = {
   canManage: boolean
   canManageContactAccess: boolean
+  canManageCoverage: boolean
   onEdit: () => void
   onInvite: () => void
+  onCoverage: () => void
   onDelete: () => void
 }
 
 export default function SupplierRowActions({
   canManage,
   canManageContactAccess,
+  canManageCoverage,
   onEdit,
   onInvite,
+  onCoverage,
   onDelete,
 }: SupplierRowActionsProps) {
   const [open, setOpen] = useState(false)
@@ -153,6 +157,19 @@ export default function SupplierRowActions({
             >
               <MailPlus className="h-4 w-4" />
               Contact access
+            </button>
+            <button
+              type="button"
+              disabled={!canManageCoverage}
+              onClick={() => {
+                if (!canManageCoverage) return
+                setOpen(false)
+                onCoverage()
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+            >
+              <MapPin className="h-4 w-4" />
+              Coverage
             </button>
             <button
               type="button"
