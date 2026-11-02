@@ -1,0 +1,290 @@
+{
+  "_about": "Ready-made onboarding/offboarding steps (Identity & right to work, Background check, Contract & policies, Training, HR system, Accounts & access, Laptop & badge, Payroll & banking, and offboarding ones). RTW = right-to-work rules per country. BGPKG = background check packages. CHECKERS = verification providers (Persona, Onfido, Yoti, Checkr, e-signature, Digital Workers).",
+  "PRESETS": {
+    "idrtw": {
+      "ph": "on",
+      "n": "Identity & right to work",
+      "d": "Checks ID and the right to work, by work country",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Photo ID",
+          "Right to work"
+        ],
+        "checker": "persona",
+        "verify": "auto_person",
+        "reviewer": "people_ops"
+      }
+    },
+    "bgcheck": {
+      "ph": "on",
+      "n": "Background check",
+      "d": "Criminal, credit and sanctions checks; adverse results go to the people set under “If it fails”",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Criminal record",
+          "Employment history"
+        ],
+        "checker": "checkr",
+        "verify": "auto",
+        "failTo": "approval",
+        "failFlow": "adverse",
+        "pkg": "std"
+      }
+    },
+    "docs": {
+      "ph": "on",
+      "n": "Contract & policies",
+      "d": "Sends the agreement and policies for e-signature",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Contractor agreement",
+          "Non-disclosure agreement",
+          "Code of conduct"
+        ],
+        "checker": "esign",
+        "verify": "auto",
+        "gives": "Confidentiality obligations",
+        "disp": "retain",
+        "reverse": "Send NDA exit reminder",
+        "reverseBy": "legal"
+      }
+    },
+    "training": {
+      "ph": "on",
+      "n": "Required training",
+      "d": "Assigns mandatory courses and tracks completion",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Information security",
+          "Data protection",
+          "Anti-bribery"
+        ],
+        "checker": "workday",
+        "verify": "auto",
+        "due": "start"
+      }
+    },
+    "hris": {
+      "ph": "on",
+      "n": "Add to HR system",
+      "d": "Creates the contingent worker in Workday",
+      "kind": "system",
+      "p": {
+        "system": "Workday",
+        "actions": [
+          "push",
+          "pull"
+        ],
+        "gives": "Workday account",
+        "reverse": "End contingent worker in Workday",
+        "disp": "remove"
+      }
+    },
+    "access": {
+      "ph": "on",
+      "n": "Accounts & access",
+      "d": "Creates logins and only the access the role needs",
+      "kind": "system",
+      "p": {
+        "system": "Okta",
+        "actions": [
+          "push",
+          "reconcile"
+        ],
+        "gives": "System access",
+        "reverse": "Remove all access",
+        "disp": "remove",
+        "via": "access",
+        "apps": [
+          "Email & single sign-on",
+          "VPN"
+        ]
+      }
+    },
+    "equip": {
+      "ph": "on",
+      "n": "Laptop & badge",
+      "d": "Orders equipment and a building badge for day one",
+      "kind": "task",
+      "p": {
+        "role": "it",
+        "title": "Ship laptop and issue badge",
+        "gives": "Laptop and badge",
+        "reverse": "Return laptop and badge",
+        "disp": "return",
+        "reverseBy": "hm",
+        "kit": [
+          "Laptop",
+          "Building badge"
+        ],
+        "from": "it"
+      }
+    },
+    "pay": {
+      "ph": "on",
+      "n": "Payroll & banking",
+      "d": "Bank and tax details for payrolled workers",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Bank details",
+          "Tax forms"
+        ],
+        "checker": "workday",
+        "verify": "auto"
+      }
+    },
+    "revoke": {
+      "ph": "off",
+      "n": "Remove access",
+      "d": "Removes every account and access given at onboarding, from the ledger",
+      "kind": "system",
+      "p": {
+        "system": "Okta",
+        "actions": [
+          "push",
+          "reconcile"
+        ],
+        "via": "sweeper",
+        "when": "last"
+      }
+    },
+    "recover": {
+      "ph": "off",
+      "n": "Return equipment",
+      "d": "Arranges returns for everything issued and chases until it is back",
+      "kind": "task",
+      "p": {
+        "role": "it",
+        "title": "Collect laptop and badge",
+        "method": "courier",
+        "chaseDays": 5
+      }
+    },
+    "finalts": {
+      "ph": "off",
+      "n": "Final timesheet & expenses",
+      "d": "Gets the last time and expenses in before the work order closes",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Final timesheet",
+          "Final expenses"
+        ],
+        "verify": "person",
+        "reviewer": "hm"
+      }
+    },
+    "handover": {
+      "ph": "off",
+      "n": "Knowledge handover",
+      "d": "A handover task for the hiring manager",
+      "kind": "task",
+      "p": {
+        "role": "hm",
+        "title": "Confirm handover is done",
+        "req": "none"
+      }
+    },
+    "exitconf": {
+      "ph": "off",
+      "n": "Exit confirmations",
+      "d": "Reminds the worker of ongoing obligations and confirms company data is returned",
+      "kind": "collect",
+      "p": {
+        "items": [
+          "Confidentiality reminder acknowledged",
+          "Company data returned or deleted"
+        ],
+        "checker": "esign",
+        "verify": "auto"
+      }
+    },
+    "hrclose": {
+      "ph": "off",
+      "n": "Close in HR system",
+      "d": "Ends the contingent worker record in Workday",
+      "kind": "system",
+      "p": {
+        "system": "Workday",
+        "actions": [
+          "push",
+          "pull"
+        ]
+      }
+    },
+    "wclose": {
+      "ph": "off",
+      "n": "Close the work order",
+      "d": "Closes the work order in Fieldglass once the final invoice is in",
+      "kind": "system",
+      "p": {
+        "system": "SAP Fieldglass",
+        "actions": [
+          "push",
+          "pull"
+        ]
+      }
+    },
+    "ledger": {
+      "ph": "off",
+      "n": "Ledger clear check",
+      "d": "Confirms nothing given at onboarding is still open. Anything left is flagged as ghost access",
+      "kind": "system",
+      "p": {
+        "system": "Okta",
+        "actions": [
+          "reconcile"
+        ]
+      }
+    }
+  },
+  "PRE_SHORT": {
+    "none": "none",
+    "jp_approved": "job posting is approved",
+    "wo_approved": "work order is approved",
+    "wo_accepted": "supplier has accepted the work order",
+    "cleared": "worker is cleared to start",
+    "ob_done": "onboarding is complete",
+    "active": "assignment has started",
+    "sow_approved": "SOW is approved",
+    "ts_approved": "timesheet or milestone is approved"
+  },
+  "PRE_STATES": {
+    "none": "Nothing: it can start any time",
+    "jp_approved": "Job posting is approved",
+    "wo_approved": "Work order is approved",
+    "wo_accepted": "Supplier has accepted the work order",
+    "cleared": "Worker is cleared to start",
+    "ob_done": "Onboarding is complete",
+    "active": "Assignment has started",
+    "sow_approved": "SOW is approved",
+    "ts_approved": "Timesheet or milestone is approved"
+  },
+  "RTW": {
+    "UK": "Passport, or a Home Office share code",
+    "US": "Form I-9, checked with E-Verify",
+    "Canada": "Work permit or proof of citizenship, plus SIN",
+    "Germany": "ID card or passport, plus residence permit for non-EU citizens"
+  },
+  "BGPKG": {
+    "std": "Standard: identity and criminal record",
+    "fs": "Financial services: adds credit, sanctions and regulatory references",
+    "enh": "Enhanced: adds 5-year employment and education"
+  },
+  "CHECKERS": {
+    "persona": "Persona",
+    "checkr": "Checkr",
+    "esign": "E-signature",
+    "workday": "Workday",
+    "servicenow": "ServiceNow",
+    "dw:docs": "Document collector",
+    "dw:access": "Access",
+    "onfido": "Onfido",
+    "yoti": "Yoti"
+  }
+}

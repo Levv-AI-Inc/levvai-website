@@ -1,0 +1,7081 @@
+{
+  "_about": "All 15 workflows exactly as they are in prototype v35. 'draft' = current editable version, 'published' = last published snapshot (null for never-published drafts). Node graph: nodes keyed by id; each node has kind + settings + outs[] (key,to,label,...). See docs/flow-studio/02-data-model.md §4–§5.",
+  "workflows": [
+    {
+      "id": "wf-onboard",
+      "tab": "workflows",
+      "name": "Contractor onboarding",
+      "kind": "main",
+      "records": [
+        "onboarding"
+      ],
+      "event": "ob_start",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "HR operations",
+      "priority": null,
+      "source": "levv",
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PA"
+              }
+            ]
+          },
+          "PA": {
+            "id": "PA",
+            "kind": "parallel",
+            "label": "Collect in parallel",
+            "outs": [
+              {
+                "key": "b4",
+                "to": "VI",
+                "label": "Insurance"
+              },
+              {
+                "key": "b5",
+                "to": "LB",
+                "label": "Equipment"
+              },
+              {
+                "key": "b2",
+                "to": "LG",
+                "label": "Legal"
+              },
+              {
+                "key": "b3",
+                "to": "WD",
+                "label": "Workday"
+              },
+              {
+                "key": "b1",
+                "to": "ID",
+                "label": "Identity"
+              }
+            ]
+          },
+          "ID": {
+            "id": "ID",
+            "kind": "collect",
+            "label": "Identity & eligibility",
+            "items": [
+              "Photo ID",
+              "Right to work"
+            ],
+            "verify": "auto_person",
+            "checker": "persona",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BG"
+              }
+            ],
+            "preset": "idrtw",
+            "from": "worker"
+          },
+          "BG": {
+            "id": "BG",
+            "kind": "collect",
+            "label": "Background check",
+            "items": [
+              "Criminal record",
+              "Employment history"
+            ],
+            "verify": "auto",
+            "checker": "checkr",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "approval",
+            "failRole": "people_ops",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "preset": "bgcheck",
+            "pkg": "fs",
+            "from": "worker",
+            "failRoles": [
+              "hrbp",
+              "legal"
+            ],
+            "failMode": "all"
+          },
+          "LG": {
+            "id": "LG",
+            "kind": "collect",
+            "label": "Legal & compliance",
+            "items": [
+              "Contractor agreement",
+              "Non-disclosure agreement",
+              "Code of conduct"
+            ],
+            "verify": "auto",
+            "checker": "esign",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "Confidentiality obligations",
+            "reverse": "Send NDA exit reminder",
+            "reverseWhen": "before",
+            "reverseBy": "legal",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "disp": "retain",
+            "preset": "docs",
+            "from": "worker"
+          },
+          "WD": {
+            "id": "WD",
+            "kind": "system",
+            "label": "Workday provisioning",
+            "system": "Workday",
+            "actions": [
+              "push",
+              "pull",
+              "reconcile"
+            ],
+            "via": "",
+            "gives": "Workday account",
+            "reverse": "Close Workday account",
+            "reverseWhen": "after",
+            "reverseBy": "people_ops",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "disp": "remove",
+            "preset": "hris",
+            "sys": {
+              "system": "Workday",
+              "action": "create",
+              "object": "Contingent worker",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Legal name"
+                ],
+                [
+                  "Work email",
+                  "Work email"
+                ],
+                [
+                  "Start date",
+                  "Contract start date"
+                ],
+                [
+                  "End date",
+                  "Contract end date"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ],
+                [
+                  "Supplier",
+                  "Supplier"
+                ]
+              ],
+              "read": [
+                "Workday worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "VI": {
+            "id": "VI",
+            "kind": "collect",
+            "label": "Vendor insurance",
+            "items": [
+              "Certificate of insurance"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "proc",
+            "strength": "soft",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "from": "supplier_am"
+          },
+          "LB": {
+            "id": "LB",
+            "kind": "collect",
+            "label": "Laptop and badge",
+            "items": [
+              "Laptop",
+              "Building badge"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "it",
+            "strength": "soft",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "Laptop and badge",
+            "reverse": "Return laptop and badge",
+            "reverseWhen": "before",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "disp": "return",
+            "preset": "equip",
+            "kit": [
+              "Laptop",
+              "Building badge"
+            ],
+            "from": "it"
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Registration required?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RG",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "registration_required",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "SA",
+                "label": "No"
+              }
+            ]
+          },
+          "RG": {
+            "id": "RG",
+            "kind": "collect",
+            "label": "Registration verified",
+            "items": [
+              "Regulatory registration"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "compliance",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "SA"
+              }
+            ],
+            "from": "worker"
+          },
+          "SA": {
+            "id": "SA",
+            "kind": "system",
+            "label": "System access",
+            "system": "ServiceNow",
+            "actions": [
+              "push",
+              "reconcile"
+            ],
+            "via": "access",
+            "gives": "System access",
+            "reverse": "Remove all system access",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "W1"
+              }
+            ],
+            "disp": "remove",
+            "preset": "access",
+            "apps": [
+              "Email & single sign-on",
+              "VPN",
+              "Jira"
+            ],
+            "sys": {
+              "system": "ServiceNow",
+              "action": "create",
+              "object": "Access request",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Requested for"
+                ],
+                [
+                  "Hiring manager",
+                  "Opened by"
+                ],
+                [
+                  "Start date",
+                  "Needed by"
+                ],
+                [
+                  "Job title",
+                  "Role"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "W1": {
+            "id": "W1",
+            "kind": "wait",
+            "label": "Wait for start date",
+            "until": "Start date",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PB"
+              }
+            ],
+            "w": {
+              "mode": "date",
+              "field": "start_date",
+              "amount": 0,
+              "unit": "days",
+              "dir": "before",
+              "time": "09:00",
+              "tz": "worker"
+            }
+          },
+          "PB": {
+            "id": "PB",
+            "kind": "collect",
+            "label": "Payroll & banking",
+            "items": [
+              "Bank details",
+              "Tax forms"
+            ],
+            "verify": "auto_person",
+            "checker": "workday",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "pay",
+            "from": "worker"
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PA"
+              }
+            ]
+          },
+          "PA": {
+            "id": "PA",
+            "kind": "parallel",
+            "label": "Collect in parallel",
+            "outs": [
+              {
+                "key": "b4",
+                "to": "VI",
+                "label": "Insurance"
+              },
+              {
+                "key": "b5",
+                "to": "LB",
+                "label": "Equipment"
+              },
+              {
+                "key": "b2",
+                "to": "LG",
+                "label": "Legal"
+              },
+              {
+                "key": "b3",
+                "to": "WD",
+                "label": "Workday"
+              },
+              {
+                "key": "b1",
+                "to": "ID",
+                "label": "Identity"
+              }
+            ]
+          },
+          "ID": {
+            "id": "ID",
+            "kind": "collect",
+            "label": "Identity & eligibility",
+            "items": [
+              "Photo ID",
+              "Right to work"
+            ],
+            "verify": "auto_person",
+            "checker": "persona",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BG"
+              }
+            ],
+            "preset": "idrtw",
+            "from": "worker"
+          },
+          "BG": {
+            "id": "BG",
+            "kind": "collect",
+            "label": "Background check",
+            "items": [
+              "Criminal record",
+              "Employment history"
+            ],
+            "verify": "auto",
+            "checker": "checkr",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "approval",
+            "failRole": "people_ops",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "preset": "bgcheck",
+            "pkg": "fs",
+            "from": "worker",
+            "failRoles": [
+              "hrbp",
+              "legal"
+            ],
+            "failMode": "all"
+          },
+          "LG": {
+            "id": "LG",
+            "kind": "collect",
+            "label": "Legal & compliance",
+            "items": [
+              "Contractor agreement",
+              "Non-disclosure agreement",
+              "Code of conduct"
+            ],
+            "verify": "auto",
+            "checker": "esign",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "Confidentiality obligations",
+            "reverse": "Send NDA exit reminder",
+            "reverseWhen": "before",
+            "reverseBy": "legal",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "disp": "retain",
+            "preset": "docs",
+            "from": "worker"
+          },
+          "WD": {
+            "id": "WD",
+            "kind": "system",
+            "label": "Workday provisioning",
+            "system": "Workday",
+            "actions": [
+              "push",
+              "pull",
+              "reconcile"
+            ],
+            "via": "",
+            "gives": "Workday account",
+            "reverse": "Close Workday account",
+            "reverseWhen": "after",
+            "reverseBy": "people_ops",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ],
+            "disp": "remove",
+            "preset": "hris",
+            "sys": {
+              "system": "Workday",
+              "action": "create",
+              "object": "Contingent worker",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Legal name"
+                ],
+                [
+                  "Work email",
+                  "Work email"
+                ],
+                [
+                  "Start date",
+                  "Contract start date"
+                ],
+                [
+                  "End date",
+                  "Contract end date"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ],
+                [
+                  "Supplier",
+                  "Supplier"
+                ]
+              ],
+              "read": [
+                "Workday worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "VI": {
+            "id": "VI",
+            "kind": "collect",
+            "label": "Vendor insurance",
+            "items": [
+              "Certificate of insurance"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "proc",
+            "strength": "soft",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "from": "supplier_am"
+          },
+          "LB": {
+            "id": "LB",
+            "kind": "collect",
+            "label": "Laptop and badge",
+            "items": [
+              "Laptop",
+              "Building badge"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "it",
+            "strength": "soft",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "Laptop and badge",
+            "reverse": "Return laptop and badge",
+            "reverseWhen": "before",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "disp": "return",
+            "preset": "equip",
+            "kit": [
+              "Laptop",
+              "Building badge"
+            ],
+            "from": "it"
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Registration required?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RG",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "registration_required",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "SA",
+                "label": "No"
+              }
+            ]
+          },
+          "RG": {
+            "id": "RG",
+            "kind": "collect",
+            "label": "Registration verified",
+            "items": [
+              "Regulatory registration"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "compliance",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "SA"
+              }
+            ],
+            "from": "worker"
+          },
+          "SA": {
+            "id": "SA",
+            "kind": "system",
+            "label": "System access",
+            "system": "ServiceNow",
+            "actions": [
+              "push",
+              "reconcile"
+            ],
+            "via": "access",
+            "gives": "System access",
+            "reverse": "Remove all system access",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "W1"
+              }
+            ],
+            "disp": "remove",
+            "preset": "access",
+            "apps": [
+              "Email & single sign-on",
+              "VPN",
+              "Jira"
+            ],
+            "sys": {
+              "system": "ServiceNow",
+              "action": "create",
+              "object": "Access request",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Requested for"
+                ],
+                [
+                  "Hiring manager",
+                  "Opened by"
+                ],
+                [
+                  "Start date",
+                  "Needed by"
+                ],
+                [
+                  "Job title",
+                  "Role"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "W1": {
+            "id": "W1",
+            "kind": "wait",
+            "label": "Wait for start date",
+            "until": "Start date",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PB"
+              }
+            ],
+            "w": {
+              "mode": "date",
+              "field": "start_date",
+              "amount": 0,
+              "unit": "days",
+              "dir": "before",
+              "time": "09:00",
+              "tz": "worker"
+            }
+          },
+          "PB": {
+            "id": "PB",
+            "kind": "collect",
+            "label": "Payroll & banking",
+            "items": [
+              "Bank details",
+              "Tax forms"
+            ],
+            "verify": "auto_person",
+            "checker": "workday",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "pay",
+            "from": "worker"
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        },
+        "scope": {},
+        "name": "Contractor onboarding"
+      }
+    },
+    {
+      "id": "wf-ending",
+      "tab": "workflows",
+      "name": "Assignment ending",
+      "kind": "main",
+      "records": [
+        "assignment"
+      ],
+      "event": "end_30",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "HR operations",
+      "priority": null,
+      "basis": "total",
+      "onReject": {
+        "recipients": [
+          "hm",
+          "supplier_am"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "K1"
+              }
+            ]
+          },
+          "K1": {
+            "id": "K1",
+            "kind": "task",
+            "label": "Extend or end?",
+            "role": "hm",
+            "title": "Decide whether to extend",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ]
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Extending?",
+            "elseDo": "continue",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_CT",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "decision_extend",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NE",
+                "label": "No"
+              }
+            ]
+          },
+          "NE": {
+            "id": "NE",
+            "kind": "notify",
+            "label": "Confirm the end date",
+            "recipients": [
+              "hm",
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Tenure over 18 months?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "months_engaged_after",
+                    "op": ">",
+                    "v": 18
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_PL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Tenure review",
+            "roles": [
+              "hrbp",
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "End date"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_C2",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A2",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "New total over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C3",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C3"
+              }
+            ]
+          },
+          "RA_C3": {
+            "id": "RA_C3",
+            "kind": "cond",
+            "label": "Rate changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "changed_fields",
+                    "op": "includes",
+                    "v": "bill_rate"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_POL"
+              }
+            ],
+            "when": {
+              "join": "all",
+              "rows": [
+                {
+                  "f": "rate_change_pct",
+                  "op": ">",
+                  "v": 5
+                }
+              ]
+            },
+            "whenPrompt": "Only when the bill rate goes up more than 5%"
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Auto-approve if no one else needed",
+            "receipt": "Approved automatically: inside plan, no threshold crossed",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "RA_CT": {
+            "id": "RA_CT",
+            "kind": "dw",
+            "label": "Tenure & classification",
+            "worker": "tenure",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_C1",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_C1",
+                "label": "Passed"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "K1"
+              }
+            ]
+          },
+          "K1": {
+            "id": "K1",
+            "kind": "task",
+            "label": "Extend or end?",
+            "role": "hm",
+            "title": "Decide whether to extend",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ]
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Extending?",
+            "elseDo": "continue",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_CT",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "decision_extend",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NE",
+                "label": "No"
+              }
+            ]
+          },
+          "NE": {
+            "id": "NE",
+            "kind": "notify",
+            "label": "Confirm the end date",
+            "recipients": [
+              "hm",
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Tenure over 18 months?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "months_engaged_after",
+                    "op": ">",
+                    "v": 18
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_PL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Tenure review",
+            "roles": [
+              "hrbp",
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "End date"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_C2",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A2",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "New total over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C3",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C3"
+              }
+            ]
+          },
+          "RA_C3": {
+            "id": "RA_C3",
+            "kind": "cond",
+            "label": "Rate changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "changed_fields",
+                    "op": "includes",
+                    "v": "bill_rate"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_POL"
+              }
+            ],
+            "when": {
+              "join": "all",
+              "rows": [
+                {
+                  "f": "rate_change_pct",
+                  "op": ">",
+                  "v": 5
+                }
+              ]
+            },
+            "whenPrompt": "Only when the bill rate goes up more than 5%"
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Auto-approve if no one else needed",
+            "receipt": "Approved automatically: inside plan, no threshold crossed",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "RA_CT": {
+            "id": "RA_CT",
+            "kind": "dw",
+            "label": "Tenure & classification",
+            "worker": "tenure",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_C1",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_C1",
+                "label": "Passed"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Assignment ending"
+      }
+    },
+    {
+      "id": "wf-asn-chg",
+      "tab": "workflows",
+      "name": "Assignment changed",
+      "kind": "main",
+      "records": [
+        "assignment"
+      ],
+      "event": "changed",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "basis": "total",
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CT"
+              }
+            ]
+          },
+          "NS": {
+            "id": "NS",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Tenure over 18 months?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "months_engaged_after",
+                    "op": ">",
+                    "v": 18
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_PL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Tenure review",
+            "roles": [
+              "hrbp",
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "End date"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_C2",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A2",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "New total over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C3",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C3"
+              }
+            ]
+          },
+          "RA_C3": {
+            "id": "RA_C3",
+            "kind": "cond",
+            "label": "Rate changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "changed_fields",
+                    "op": "includes",
+                    "v": "bill_rate"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_POL"
+              }
+            ],
+            "when": {
+              "join": "all",
+              "rows": [
+                {
+                  "f": "rate_change_pct",
+                  "op": ">",
+                  "v": 5
+                }
+              ]
+            },
+            "whenPrompt": "Only when the bill rate goes up more than 5%"
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Auto-approve if no one else needed",
+            "receipt": "Approved automatically: inside plan, no threshold crossed",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NS"
+              }
+            ]
+          },
+          "RA_CT": {
+            "id": "RA_CT",
+            "kind": "dw",
+            "label": "Tenure & classification",
+            "worker": "tenure",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_C1",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_C1",
+                "label": "Passed"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CT"
+              }
+            ]
+          },
+          "NS": {
+            "id": "NS",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Tenure over 18 months?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "months_engaged_after",
+                    "op": ">",
+                    "v": 18
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_PL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Tenure review",
+            "roles": [
+              "hrbp",
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "End date"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_C2",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A2",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "end_date",
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "New total over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C3",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": false,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C3"
+              }
+            ]
+          },
+          "RA_C3": {
+            "id": "RA_C3",
+            "kind": "cond",
+            "label": "Rate changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "changed_fields",
+                    "op": "includes",
+                    "v": "bill_rate"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_POL"
+              }
+            ],
+            "when": {
+              "join": "all",
+              "rows": [
+                {
+                  "f": "rate_change_pct",
+                  "op": ">",
+                  "v": 5
+                }
+              ]
+            },
+            "whenPrompt": "Only when the bill rate goes up more than 5%"
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Auto-approve if no one else needed",
+            "receipt": "Approved automatically: inside plan, no threshold crossed",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NS"
+              }
+            ]
+          },
+          "RA_CT": {
+            "id": "RA_CT",
+            "kind": "dw",
+            "label": "Tenure & classification",
+            "worker": "tenure",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_C1",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_C1",
+                "label": "Passed"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Assignment changed"
+      }
+    },
+    {
+      "id": "wf-offboard",
+      "tab": "workflows",
+      "name": "Contractor offboarding",
+      "kind": "main",
+      "records": [
+        "offboarding"
+      ],
+      "event": "off_start",
+      "days": 14,
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "HR operations",
+      "priority": null,
+      "source": "levv",
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PA"
+              }
+            ]
+          },
+          "PA": {
+            "id": "PA",
+            "kind": "parallel",
+            "label": "Before the last day",
+            "outs": [
+              {
+                "key": "b1",
+                "to": "HO",
+                "label": "Handover"
+              },
+              {
+                "key": "b2",
+                "to": "FT",
+                "label": "Final time"
+              },
+              {
+                "key": "b3",
+                "to": "RE",
+                "label": "Equipment"
+              },
+              {
+                "key": "b4",
+                "to": "XC",
+                "label": "Obligations"
+              }
+            ]
+          },
+          "HO": {
+            "id": "HO",
+            "kind": "task",
+            "label": "Knowledge handover",
+            "role": "hm",
+            "title": "Confirm handover is done",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "handover"
+          },
+          "FT": {
+            "id": "FT",
+            "kind": "collect",
+            "label": "Final timesheet & expenses",
+            "items": [
+              "Final timesheet",
+              "Final expenses"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "hm",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "finalts",
+            "from": "worker"
+          },
+          "RE": {
+            "id": "RE",
+            "kind": "task",
+            "label": "Return equipment",
+            "role": "it",
+            "title": "Collect laptop and badge",
+            "method": "courier",
+            "chaseDays": 5,
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "recover"
+          },
+          "XC": {
+            "id": "XC",
+            "kind": "collect",
+            "label": "Exit confirmations",
+            "items": [
+              "Confidentiality reminder acknowledged",
+              "Company data returned or deleted"
+            ],
+            "verify": "auto",
+            "checker": "esign",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "exitconf",
+            "from": "worker"
+          },
+          "M1": {
+            "id": "M1",
+            "kind": "wait",
+            "label": "Wait for the last day",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RV"
+              }
+            ],
+            "w": {
+              "mode": "date",
+              "field": "end_date",
+              "amount": 0,
+              "unit": "days",
+              "dir": "before",
+              "time": "17:00",
+              "tz": "worker"
+            }
+          },
+          "RV": {
+            "id": "RV",
+            "kind": "system",
+            "label": "Remove access",
+            "system": "Okta",
+            "actions": [
+              "push",
+              "reconcile"
+            ],
+            "via": "sweeper",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "when": "last",
+            "outs": [
+              {
+                "key": "next",
+                "to": "HC"
+              }
+            ],
+            "preset": "revoke",
+            "sys": {
+              "system": "Okta",
+              "action": "close",
+              "object": "User",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Display name"
+                ],
+                [
+                  "Work email",
+                  "Login"
+                ],
+                [
+                  "Job title",
+                  "Title"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Business unit",
+                  "Department"
+                ],
+                [
+                  "End date",
+                  "Deactivate on"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "HC": {
+            "id": "HC",
+            "kind": "system",
+            "label": "Close in HR system",
+            "system": "Workday",
+            "actions": [
+              "push",
+              "pull"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "LC"
+              }
+            ],
+            "preset": "hrclose",
+            "sys": {
+              "system": "Workday",
+              "action": "close",
+              "object": "Contingent worker",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Legal name"
+                ],
+                [
+                  "Work email",
+                  "Work email"
+                ],
+                [
+                  "Start date",
+                  "Contract start date"
+                ],
+                [
+                  "End date",
+                  "Contract end date"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ],
+                [
+                  "Supplier",
+                  "Supplier"
+                ]
+              ],
+              "read": [
+                "Workday worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "LC": {
+            "id": "LC",
+            "kind": "system",
+            "label": "Ledger clear check",
+            "system": "Okta",
+            "actions": [
+              "reconcile"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "WC"
+              }
+            ],
+            "preset": "ledger",
+            "sys": {
+              "system": "Okta",
+              "action": "check",
+              "object": "User",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Display name"
+                ],
+                [
+                  "Work email",
+                  "Login"
+                ],
+                [
+                  "Job title",
+                  "Title"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Business unit",
+                  "Department"
+                ],
+                [
+                  "End date",
+                  "Deactivate on"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "WC": {
+            "id": "WC",
+            "kind": "system",
+            "label": "Close the work order",
+            "system": "SAP Fieldglass",
+            "actions": [
+              "push",
+              "pull"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "wclose",
+            "sys": {
+              "system": "SAP Fieldglass",
+              "action": "close",
+              "object": "Work order",
+              "match": "Work order ID",
+              "map": [
+                [
+                  "Work order ID",
+                  "Work order ID"
+                ],
+                [
+                  "Start date",
+                  "Start date"
+                ],
+                [
+                  "End date",
+                  "End date"
+                ],
+                [
+                  "Bill rate",
+                  "Bill rate"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ]
+              ],
+              "read": [
+                "Fieldglass worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "PA"
+              }
+            ]
+          },
+          "PA": {
+            "id": "PA",
+            "kind": "parallel",
+            "label": "Before the last day",
+            "outs": [
+              {
+                "key": "b1",
+                "to": "HO",
+                "label": "Handover"
+              },
+              {
+                "key": "b2",
+                "to": "FT",
+                "label": "Final time"
+              },
+              {
+                "key": "b3",
+                "to": "RE",
+                "label": "Equipment"
+              },
+              {
+                "key": "b4",
+                "to": "XC",
+                "label": "Obligations"
+              }
+            ]
+          },
+          "HO": {
+            "id": "HO",
+            "kind": "task",
+            "label": "Knowledge handover",
+            "role": "hm",
+            "title": "Confirm handover is done",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "handover"
+          },
+          "FT": {
+            "id": "FT",
+            "kind": "collect",
+            "label": "Final timesheet & expenses",
+            "items": [
+              "Final timesheet",
+              "Final expenses"
+            ],
+            "verify": "person",
+            "checker": "persona",
+            "reviewer": "hm",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "finalts",
+            "from": "worker"
+          },
+          "RE": {
+            "id": "RE",
+            "kind": "task",
+            "label": "Return equipment",
+            "role": "it",
+            "title": "Collect laptop and badge",
+            "method": "courier",
+            "chaseDays": 5,
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "recover"
+          },
+          "XC": {
+            "id": "XC",
+            "kind": "collect",
+            "label": "Exit confirmations",
+            "items": [
+              "Confidentiality reminder acknowledged",
+              "Company data returned or deleted"
+            ],
+            "verify": "auto",
+            "checker": "esign",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "people_ops",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "M1"
+              }
+            ],
+            "preset": "exitconf",
+            "from": "worker"
+          },
+          "M1": {
+            "id": "M1",
+            "kind": "wait",
+            "label": "Wait for the last day",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RV"
+              }
+            ],
+            "w": {
+              "mode": "date",
+              "field": "end_date",
+              "amount": 0,
+              "unit": "days",
+              "dir": "before",
+              "time": "17:00",
+              "tz": "worker"
+            }
+          },
+          "RV": {
+            "id": "RV",
+            "kind": "system",
+            "label": "Remove access",
+            "system": "Okta",
+            "actions": [
+              "push",
+              "reconcile"
+            ],
+            "via": "sweeper",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "when": "last",
+            "outs": [
+              {
+                "key": "next",
+                "to": "HC"
+              }
+            ],
+            "preset": "revoke",
+            "sys": {
+              "system": "Okta",
+              "action": "close",
+              "object": "User",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Display name"
+                ],
+                [
+                  "Work email",
+                  "Login"
+                ],
+                [
+                  "Job title",
+                  "Title"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Business unit",
+                  "Department"
+                ],
+                [
+                  "End date",
+                  "Deactivate on"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "HC": {
+            "id": "HC",
+            "kind": "system",
+            "label": "Close in HR system",
+            "system": "Workday",
+            "actions": [
+              "push",
+              "pull"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "LC"
+              }
+            ],
+            "preset": "hrclose",
+            "sys": {
+              "system": "Workday",
+              "action": "close",
+              "object": "Contingent worker",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Legal name"
+                ],
+                [
+                  "Work email",
+                  "Work email"
+                ],
+                [
+                  "Start date",
+                  "Contract start date"
+                ],
+                [
+                  "End date",
+                  "Contract end date"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ],
+                [
+                  "Supplier",
+                  "Supplier"
+                ]
+              ],
+              "read": [
+                "Workday worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "LC": {
+            "id": "LC",
+            "kind": "system",
+            "label": "Ledger clear check",
+            "system": "Okta",
+            "actions": [
+              "reconcile"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "WC"
+              }
+            ],
+            "preset": "ledger",
+            "sys": {
+              "system": "Okta",
+              "action": "check",
+              "object": "User",
+              "match": "Work email",
+              "map": [
+                [
+                  "Worker name",
+                  "Display name"
+                ],
+                [
+                  "Work email",
+                  "Login"
+                ],
+                [
+                  "Job title",
+                  "Title"
+                ],
+                [
+                  "Hiring manager",
+                  "Manager"
+                ],
+                [
+                  "Business unit",
+                  "Department"
+                ],
+                [
+                  "End date",
+                  "Deactivate on"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": true
+            }
+          },
+          "WC": {
+            "id": "WC",
+            "kind": "system",
+            "label": "Close the work order",
+            "system": "SAP Fieldglass",
+            "actions": [
+              "push",
+              "pull"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "preset": "wclose",
+            "sys": {
+              "system": "SAP Fieldglass",
+              "action": "close",
+              "object": "Work order",
+              "match": "Work order ID",
+              "map": [
+                [
+                  "Work order ID",
+                  "Work order ID"
+                ],
+                [
+                  "Start date",
+                  "Start date"
+                ],
+                [
+                  "End date",
+                  "End date"
+                ],
+                [
+                  "Bill rate",
+                  "Bill rate"
+                ],
+                [
+                  "Cost center",
+                  "Cost center"
+                ]
+              ],
+              "read": [
+                "Fieldglass worker ID"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        },
+        "scope": {},
+        "name": "Contractor offboarding"
+      }
+    },
+    {
+      "id": "wf-access",
+      "tab": "workflows",
+      "name": "Site access request",
+      "kind": "main",
+      "records": [
+        "access_request"
+      ],
+      "event": "submitted",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-10-01",
+      "owner": "Security operations",
+      "priority": null,
+      "source": "zip",
+      "onReject": {
+        "recipients": [
+          "sponsor"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "CD"
+              }
+            ]
+          },
+          "CD": {
+            "id": "CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "CDf",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "AP_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagNode": "CDf",
+            "flagCont": "AP",
+            "flagWho": "sec"
+          },
+          "ID": {
+            "id": "ID",
+            "kind": "collect",
+            "label": "Identity & site details",
+            "items": [
+              "Photo ID",
+              "Date of birth",
+              "Signed site safety rules"
+            ],
+            "verify": "auto_person",
+            "checker": "persona",
+            "reviewer": "sec",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "sec",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "from": "worker",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BG"
+              }
+            ]
+          },
+          "BG": {
+            "id": "BG",
+            "kind": "collect",
+            "label": "Background check",
+            "items": [
+              "Criminal record"
+            ],
+            "verify": "auto",
+            "checker": "checkr",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "approval",
+            "failRole": "people_ops",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "pkg": "std",
+            "preset": "bgcheck",
+            "from": "worker",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BD"
+              }
+            ],
+            "failRoles": [
+              "hrbp",
+              "legal"
+            ],
+            "failMode": "all"
+          },
+          "BD": {
+            "id": "BD",
+            "kind": "system",
+            "label": "Issue the badge",
+            "system": "Badge system",
+            "actions": [
+              "push"
+            ],
+            "via": "",
+            "gives": "Site badge",
+            "reverse": "Deactivate the badge",
+            "reverseWhen": "after",
+            "reverseBy": "sec",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NT"
+              }
+            ],
+            "sys": {
+              "system": "Badge system",
+              "action": "create",
+              "object": "Badge",
+              "match": "Personal email",
+              "map": [
+                [
+                  "Worker name",
+                  "Cardholder name"
+                ],
+                [
+                  "Personal email",
+                  "Email"
+                ],
+                [
+                  "Date of birth",
+                  "Date of birth"
+                ],
+                [
+                  "Site",
+                  "Site"
+                ],
+                [
+                  "Start date",
+                  "Valid from"
+                ],
+                [
+                  "End date",
+                  "Valid until"
+                ],
+                [
+                  "Sponsor",
+                  "Sponsor"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "NT": {
+            "id": "NT",
+            "kind": "notify",
+            "label": "Badge ready",
+            "recipients": [
+              "worker",
+              "sponsor"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "CDf": {
+            "id": "CDf",
+            "kind": "appr",
+            "label": "Duplicate & ghost worker flagged: escalation",
+            "roles": [
+              "sec"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "who": "roles",
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "AP_A1"
+              }
+            ]
+          },
+          "AP_A1": {
+            "id": "AP_A1",
+            "kind": "appr",
+            "label": "Security approves access",
+            "roles": [
+              "sec"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "outs": [
+              {
+                "key": "next",
+                "to": "ID"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "CD"
+              }
+            ]
+          },
+          "CD": {
+            "id": "CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "CDf",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "AP_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagNode": "CDf",
+            "flagCont": "AP",
+            "flagWho": "sec"
+          },
+          "ID": {
+            "id": "ID",
+            "kind": "collect",
+            "label": "Identity & site details",
+            "items": [
+              "Photo ID",
+              "Date of birth",
+              "Signed site safety rules"
+            ],
+            "verify": "auto_person",
+            "checker": "persona",
+            "reviewer": "sec",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "sec",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "from": "worker",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BG"
+              }
+            ]
+          },
+          "BG": {
+            "id": "BG",
+            "kind": "collect",
+            "label": "Background check",
+            "items": [
+              "Criminal record"
+            ],
+            "verify": "auto",
+            "checker": "checkr",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "approval",
+            "failRole": "people_ops",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "pkg": "std",
+            "preset": "bgcheck",
+            "from": "worker",
+            "outs": [
+              {
+                "key": "next",
+                "to": "BD"
+              }
+            ],
+            "failRoles": [
+              "hrbp",
+              "legal"
+            ],
+            "failMode": "all"
+          },
+          "BD": {
+            "id": "BD",
+            "kind": "system",
+            "label": "Issue the badge",
+            "system": "Badge system",
+            "actions": [
+              "push"
+            ],
+            "via": "",
+            "gives": "Site badge",
+            "reverse": "Deactivate the badge",
+            "reverseWhen": "after",
+            "reverseBy": "sec",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NT"
+              }
+            ],
+            "sys": {
+              "system": "Badge system",
+              "action": "create",
+              "object": "Badge",
+              "match": "Personal email",
+              "map": [
+                [
+                  "Worker name",
+                  "Cardholder name"
+                ],
+                [
+                  "Personal email",
+                  "Email"
+                ],
+                [
+                  "Date of birth",
+                  "Date of birth"
+                ],
+                [
+                  "Site",
+                  "Site"
+                ],
+                [
+                  "Start date",
+                  "Valid from"
+                ],
+                [
+                  "End date",
+                  "Valid until"
+                ],
+                [
+                  "Sponsor",
+                  "Sponsor"
+                ]
+              ],
+              "read": [],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "people_ops",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "NT": {
+            "id": "NT",
+            "kind": "notify",
+            "label": "Badge ready",
+            "recipients": [
+              "worker",
+              "sponsor"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "CDf": {
+            "id": "CDf",
+            "kind": "appr",
+            "label": "Duplicate & ghost worker flagged: escalation",
+            "roles": [
+              "sec"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "who": "roles",
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "AP_A1"
+              }
+            ]
+          },
+          "AP_A1": {
+            "id": "AP_A1",
+            "kind": "appr",
+            "label": "Security approves access",
+            "roles": [
+              "sec"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "outs": [
+              {
+                "key": "next",
+                "to": "ID"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Site access request"
+      }
+    },
+    {
+      "id": "wf-doc",
+      "tab": "workflows",
+      "name": "Document renewal",
+      "kind": "main",
+      "records": [
+        "worker"
+      ],
+      "event": "doc_expiring",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "HR operations",
+      "priority": null,
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RN"
+              }
+            ]
+          },
+          "RN": {
+            "id": "RN",
+            "kind": "collect",
+            "label": "Renewed document",
+            "items": [
+              "Updated certificate"
+            ],
+            "verify": "auto_person",
+            "checker": "dw:docs",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "hrbp",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "from": "worker"
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RN"
+              }
+            ]
+          },
+          "RN": {
+            "id": "RN",
+            "kind": "collect",
+            "label": "Renewed document",
+            "items": [
+              "Updated certificate"
+            ],
+            "verify": "auto_person",
+            "checker": "dw:docs",
+            "reviewer": "people_ops",
+            "strength": "hard",
+            "failTo": "role",
+            "failRole": "hrbp",
+            "failFlow": "adverse",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "hm",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "from": "worker"
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        },
+        "scope": {},
+        "name": "Document renewal"
+      }
+    },
+    {
+      "id": "wf-invoice",
+      "tab": "workflows",
+      "name": "Invoice received",
+      "kind": "main",
+      "records": [
+        "invoice"
+      ],
+      "event": "received",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Accounts payable",
+      "priority": null,
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "DI"
+              }
+            ]
+          },
+          "DI": {
+            "id": "DI",
+            "kind": "dw",
+            "label": "Match the invoice",
+            "worker": "invoice",
+            "threshold": 90,
+            "fallback": "ap",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ]
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Matches?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "PY",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "invoice_matches",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "KX",
+                "label": "No"
+              }
+            ]
+          },
+          "PY": {
+            "id": "PY",
+            "kind": "system",
+            "label": "Release for payment",
+            "system": "SAP S/4HANA",
+            "actions": [
+              "push"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "sys": {
+              "system": "SAP S/4HANA",
+              "action": "update",
+              "object": "Supplier invoice",
+              "match": "Work order ID",
+              "map": [
+                [
+                  "Work order ID",
+                  "External reference"
+                ],
+                [
+                  "Total value",
+                  "Amount"
+                ]
+              ],
+              "read": [
+                "Posting status"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "ap",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "KX": {
+            "id": "KX",
+            "kind": "task",
+            "label": "Resolve exception",
+            "role": "ap",
+            "title": "Resolve the invoice exception with the supplier",
+            "blocking": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "DI"
+              }
+            ]
+          },
+          "DI": {
+            "id": "DI",
+            "kind": "dw",
+            "label": "Match the invoice",
+            "worker": "invoice",
+            "threshold": 90,
+            "fallback": "ap",
+            "outs": [
+              {
+                "key": "next",
+                "to": "C1"
+              }
+            ]
+          },
+          "C1": {
+            "id": "C1",
+            "kind": "cond",
+            "label": "Matches?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "PY",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "invoice_matches",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "KX",
+                "label": "No"
+              }
+            ]
+          },
+          "PY": {
+            "id": "PY",
+            "kind": "system",
+            "label": "Release for payment",
+            "system": "SAP S/4HANA",
+            "actions": [
+              "push"
+            ],
+            "via": "",
+            "gives": "",
+            "reverse": "",
+            "reverseWhen": "after",
+            "reverseBy": "it",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ],
+            "sys": {
+              "system": "SAP S/4HANA",
+              "action": "update",
+              "object": "Supplier invoice",
+              "match": "Work order ID",
+              "map": [
+                [
+                  "Work order ID",
+                  "External reference"
+                ],
+                [
+                  "Total value",
+                  "Amount"
+                ]
+              ],
+              "read": [
+                "Posting status"
+              ],
+              "wait": "confirm",
+              "waitH": 24,
+              "state": "Completed",
+              "onFail": "task",
+              "failRole": "ap",
+              "retries": 3,
+              "check": false
+            }
+          },
+          "KX": {
+            "id": "KX",
+            "kind": "task",
+            "label": "Resolve exception",
+            "role": "ap",
+            "title": "Resolve the invoice exception with the supplier",
+            "blocking": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          }
+        },
+        "scope": {},
+        "name": "Invoice received"
+      }
+    },
+    {
+      "id": "wf-wo-sub",
+      "tab": "workflows",
+      "name": "Work order submitted",
+      "kind": "main",
+      "records": [
+        "work_order"
+      ],
+      "event": "submitted",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "RW": {
+            "id": "RW",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RW",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "RW": {
+            "id": "RW",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RW",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Work order submitted"
+      }
+    },
+    {
+      "id": "wf-wo-sub-wo-uk-tech",
+      "tab": "workflows",
+      "name": "UK Technology work orders",
+      "kind": "main",
+      "records": [
+        "work_order"
+      ],
+      "event": "submitted",
+      "scope": {
+        "country": [
+          "UK"
+        ],
+        "business_unit": [
+          "Technology"
+        ]
+      },
+      "status": "live",
+      "version": 3,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "RW": {
+            "id": "RW",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm_mgr",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Over 20%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 20
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Rate review with Finance",
+            "roles": [
+              "proc",
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A5",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A4",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RW",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_A5": {
+            "id": "RA_A5",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "RW": {
+            "id": "RW",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm_mgr",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A3",
+                "label": "Over 20%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 20
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Rate review with Finance",
+            "roles": [
+              "proc",
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A5",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A4",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RW",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_A5": {
+            "id": "RA_A5",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        },
+        "scope": {
+          "country": [
+            "UK"
+          ],
+          "business_unit": [
+            "Technology"
+          ]
+        },
+        "name": "UK Technology work orders"
+      }
+    },
+    {
+      "id": "wf-wo-sub-wo-data",
+      "tab": "workflows",
+      "name": "Data and AI hires",
+      "kind": "main",
+      "records": [
+        "work_order"
+      ],
+      "event": "submitted",
+      "scope": {
+        "job_family": [
+          "Data"
+        ]
+      },
+      "status": "draft",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "RW": {
+            "id": "RW",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A2"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Data governance review",
+            "roles": [
+              "priv"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RW"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        }
+      },
+      "published": null
+    },
+    {
+      "id": "wf-jp",
+      "tab": "workflows",
+      "name": "Job posting created",
+      "kind": "main",
+      "records": [
+        "job_posting"
+      ],
+      "event": "created",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Send to suppliers",
+            "recipients": [
+              "proc"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "Headcount"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_POL",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A1",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Approve within plan",
+            "receipt": "Approved automatically: fits the approved plan",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_PL"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Send to suppliers",
+            "recipients": [
+              "proc"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_PL": {
+            "id": "RA_PL",
+            "kind": "plan",
+            "label": "Within plan?",
+            "plan": "Cost center plan, this quarter",
+            "fit": [
+              "Amount",
+              "Headcount"
+            ],
+            "outs": [
+              {
+                "key": "in",
+                "to": "RA_POL",
+                "label": "Inside plan"
+              },
+              {
+                "key": "out",
+                "to": "RA_A1",
+                "label": "Outside plan"
+              }
+            ]
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Approve within plan",
+            "receipt": "Approved automatically: fits the approved plan",
+            "fyi": "cco",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Budget owner",
+            "roles": [
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Over $250K?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Job posting created"
+      }
+    },
+    {
+      "id": "wf-sow-sub",
+      "tab": "workflows",
+      "name": "SOW created",
+      "kind": "main",
+      "records": [
+        "sow"
+      ],
+      "event": "created",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "sow_owner"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the SOW owner it’s approved",
+            "recipients": [
+              "sow_owner"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Procurement review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "supplier"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Legal needed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "any",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 500000
+                  },
+                  {
+                    "f": "terms_nonstandard",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Legal review",
+            "roles": [
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "scope"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance and VP review",
+            "roles": [
+              "fbp",
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the SOW owner it’s approved",
+            "recipients": [
+              "sow_owner"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Procurement review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "supplier"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Legal needed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "any",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 500000
+                  },
+                  {
+                    "f": "terms_nonstandard",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Legal review",
+            "roles": [
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "scope"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance and VP review",
+            "roles": [
+              "fbp",
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "SOW created"
+      }
+    },
+    {
+      "id": "wf-sow-co",
+      "tab": "workflows",
+      "name": "SOW change order submitted",
+      "kind": "main",
+      "records": [
+        "sow"
+      ],
+      "event": "change_order",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "basis": "running",
+      "onReject": {
+        "recipients": [
+          "sow_owner"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the SOW owner it’s approved",
+            "recipients": [
+              "sow_owner"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Procurement review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "supplier"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Scope changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "scope_changed",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Legal review",
+            "roles": [
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "scope"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance and VP review",
+            "roles": [
+              "fbp",
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the SOW owner it’s approved",
+            "recipients": [
+              "sow_owner"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Procurement review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "supplier"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Scope changed?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "scope_changed",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Legal review",
+            "roles": [
+              "legal"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "scope"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance review",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Finance and VP review",
+            "roles": [
+              "fbp",
+              "vpf"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "SOW change order submitted"
+      }
+    },
+    {
+      "id": "wf-ts-sub",
+      "tab": "workflows",
+      "name": "Timesheet submitted",
+      "kind": "main",
+      "records": [
+        "timesheet"
+      ],
+      "event": "submitted",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "HR operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "supplier_am"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the supplier it can invoice",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Over schedule?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "hours_over_schedule",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Overtime approval",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Approve scheduled hours",
+            "receipt": "Approved automatically: hours match the schedule and work order",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the supplier it can invoice",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Over schedule?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A1",
+                "label": "Yes",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "hours_over_schedule",
+                    "op": "yes"
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_POL",
+                "label": "No"
+              }
+            ]
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Overtime approval",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_POL": {
+            "id": "RA_POL",
+            "kind": "policy",
+            "label": "Approve scheduled hours",
+            "receipt": "Approved automatically: hours match the schedule and work order",
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Timesheet submitted"
+      }
+    },
+    {
+      "id": "wf-wo-chg",
+      "tab": "workflows",
+      "name": "Work order changed",
+      "kind": "main",
+      "records": [
+        "work_order"
+      ],
+      "event": "changed",
+      "scope": {},
+      "status": "live",
+      "version": 1,
+      "effective": "2026-09-01",
+      "owner": "Procurement operations",
+      "priority": null,
+      "source": "levv",
+      "onReject": {
+        "recipients": [
+          "hm"
+        ]
+      },
+      "draft": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        }
+      },
+      "published": {
+        "nodes": {
+          "T": {
+            "id": "T",
+            "kind": "trigger",
+            "label": "",
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_CB"
+              }
+            ]
+          },
+          "NA": {
+            "id": "NA",
+            "kind": "notify",
+            "label": "Tell the supplier",
+            "recipients": [
+              "supplier_am"
+            ],
+            "channel": "Email",
+            "outs": [
+              {
+                "key": "next",
+                "to": "END"
+              }
+            ]
+          },
+          "END": {
+            "id": "END",
+            "kind": "end",
+            "label": "",
+            "outcome": "completed",
+            "outs": []
+          },
+          "RA_A1": {
+            "id": "RA_A1",
+            "kind": "appr",
+            "label": "Business sign-off",
+            "roles": [
+              "hm",
+              "cco"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value",
+              "end_date",
+              "cost_center"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C1"
+              }
+            ]
+          },
+          "RA_C1": {
+            "id": "RA_C1",
+            "kind": "cond",
+            "label": "Rate over card?",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A2",
+                "label": "Over 10%",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "rate_vs_card_pct",
+                    "op": ">",
+                    "v": 10
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "RA_C2",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A2": {
+            "id": "RA_A2",
+            "kind": "appr",
+            "label": "Rate review",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "bill_rate"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_C2"
+              }
+            ]
+          },
+          "RA_C2": {
+            "id": "RA_C2",
+            "kind": "cond",
+            "label": "Value band",
+            "outs": [
+              {
+                "key": "p1",
+                "to": "RA_A4",
+                "label": "Over $1M",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 1000000
+                  }
+                ]
+              },
+              {
+                "key": "p2",
+                "to": "RA_A3",
+                "label": "Over $250K",
+                "join": "all",
+                "rows": [
+                  {
+                    "f": "total_value",
+                    "op": ">=",
+                    "v": 250000
+                  }
+                ]
+              },
+              {
+                "key": "else",
+                "to": "NA",
+                "label": "Otherwise"
+              }
+            ]
+          },
+          "RA_A3": {
+            "id": "RA_A3",
+            "kind": "appr",
+            "label": "Finance sign-off",
+            "roles": [
+              "fbp"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_A4": {
+            "id": "RA_A4",
+            "kind": "appr",
+            "label": "Executive sign-off",
+            "roles": [
+              "vpf",
+              "cfo"
+            ],
+            "mode": "order",
+            "authority": true,
+            "material": [
+              "total_value"
+            ],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [],
+            "outs": [
+              {
+                "key": "next",
+                "to": "NA"
+              }
+            ]
+          },
+          "RA_CB": {
+            "id": "RA_CB",
+            "kind": "dw",
+            "label": "Budget check",
+            "worker": "budget",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "note",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CD",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_CD",
+                "label": "Passed"
+              }
+            ]
+          },
+          "RA_CD": {
+            "id": "RA_CD",
+            "kind": "dw",
+            "label": "Duplicate & ghost worker",
+            "worker": "dup",
+            "threshold": 80,
+            "fallback": "proc",
+            "flagDo": "escalate",
+            "outs": [
+              {
+                "key": "flag",
+                "to": "RA_CDe",
+                "label": "Flagged"
+              },
+              {
+                "key": "pass",
+                "to": "RA_A1",
+                "label": "Passed"
+              }
+            ],
+            "flagWho": "proc",
+            "flagNode": "RA_CDe",
+            "flagCont": "RA_A1"
+          },
+          "RA_CDe": {
+            "id": "RA_CDe",
+            "kind": "appr",
+            "label": "Duplicate found: escalation",
+            "roles": [
+              "proc"
+            ],
+            "mode": "all",
+            "authority": false,
+            "material": [],
+            "reaskOnDecrease": true,
+            "sla": 48,
+            "reject": "requester",
+            "prechecks": [
+              "brief"
+            ],
+            "escalation": true,
+            "outs": [
+              {
+                "key": "next",
+                "to": "RA_A1"
+              }
+            ]
+          }
+        },
+        "scope": {},
+        "name": "Work order changed"
+      }
+    }
+  ]
+}

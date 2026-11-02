@@ -1,0 +1,711 @@
+{
+  "_about": "Single source of truth for record types, events, fields, comparison operators, Applies-to dimensions, step labels/descriptions and option lists. K = step kind display names. DESC = step-menu descriptions. ADD = step menu groups (ADD.workflows). FIELDS: id, l=label, g=group, t=type (money|num|pct|enum|bool|list|text), o=options. OPS: operators per field type; OPL: operator labels.",
+  "RECORDS": {
+    "job_posting": "Job posting",
+    "work_order": "Work order",
+    "sow": "SOW",
+    "onboarding": "Onboarding",
+    "assignment": "Assignment",
+    "offboarding": "Offboarding",
+    "access_request": "Access request",
+    "timesheet": "Timesheet",
+    "expense": "Expense",
+    "invoice": "Invoice",
+    "worker": "Worker"
+  },
+  "EVENTS": {
+    "submitted": "Submitted",
+    "changed": "Changed",
+    "change_order": "Change order submitted",
+    "approved": "Approved",
+    "end_30": "End date approaching",
+    "ended_early": "Ended early",
+    "milestone": "Milestone delivered",
+    "received": "Received",
+    "doc_expiring": "Document expiring",
+    "check_failed": "Check failed",
+    "rejected": "Rejected",
+    "cancelled": "Withdrawn or cancelled",
+    "accepted": "Accepted by supplier",
+    "confirmed": "Worker confirmed",
+    "started": "Started",
+    "extended": "Extended",
+    "closed": "Closed",
+    "paid": "Paid",
+    "doc_expired": "Document expired",
+    "created": "Created",
+    "filled": "Filled",
+    "ob_start": "Starts",
+    "ob_cleared": "Cleared to start",
+    "ob_done": "Completed",
+    "off_start": "Starts",
+    "off_done": "Completed"
+  },
+  "EVENTS_FOR": {
+    "work_order": [
+      "submitted",
+      "changed",
+      "approved",
+      "rejected",
+      "accepted",
+      "confirmed",
+      "cancelled"
+    ],
+    "assignment": [
+      "started",
+      "changed",
+      "extended",
+      "end_30",
+      "closed"
+    ],
+    "sow": [
+      "created",
+      "change_order",
+      "approved",
+      "milestone",
+      "closed"
+    ],
+    "timesheet": [
+      "submitted",
+      "approved",
+      "rejected"
+    ],
+    "expense": [
+      "submitted",
+      "approved",
+      "rejected"
+    ],
+    "invoice": [
+      "received",
+      "approved",
+      "paid"
+    ],
+    "worker": [
+      "doc_expiring",
+      "doc_expired"
+    ],
+    "onboarding": [
+      "ob_start",
+      "ob_cleared",
+      "check_failed",
+      "ob_done"
+    ],
+    "job_posting": [
+      "created",
+      "changed",
+      "approved",
+      "filled",
+      "cancelled"
+    ],
+    "offboarding": [
+      "off_start",
+      "off_done"
+    ],
+    "access_request": [
+      "submitted",
+      "approved",
+      "cancelled"
+    ]
+  },
+  "SOURCES": {
+    "levv": "Levv",
+    "fieldglass": "SAP Fieldglass",
+    "workday": "Workday",
+    "s4": "SAP S/4HANA",
+    "zip": "Zip",
+    "servicenow": "ServiceNow"
+  },
+  "FIELDS": [
+    {
+      "id": "total_value",
+      "l": "Total value",
+      "g": "Record",
+      "t": "money"
+    },
+    {
+      "id": "bill_rate",
+      "l": "Bill rate per hour",
+      "g": "Record",
+      "t": "money"
+    },
+    {
+      "id": "country",
+      "l": "Work country",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "UK",
+        "Canada",
+        "US",
+        "Germany"
+      ]
+    },
+    {
+      "id": "business_unit",
+      "l": "Business unit",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "Technology",
+        "Operations",
+        "Finance",
+        "Marketing"
+      ]
+    },
+    {
+      "id": "job_family",
+      "l": "Job family",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "Cloud",
+        "Data",
+        "Analytics",
+        "Design",
+        "Operations"
+      ]
+    },
+    {
+      "id": "engagement",
+      "l": "Engagement type",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "Off-payroll",
+        "Payrolled",
+        "Fixed fee",
+        "Time and materials"
+      ]
+    },
+    {
+      "id": "data_access",
+      "l": "Client data access",
+      "g": "Record",
+      "t": "bool",
+      "risk": true
+    },
+    {
+      "id": "digital_worker_access",
+      "l": "Vendor's digital worker has system access",
+      "g": "Record",
+      "t": "bool",
+      "risk": true
+    },
+    {
+      "id": "role_regulated",
+      "l": "Regulated role",
+      "g": "Record",
+      "t": "bool",
+      "risk": true
+    },
+    {
+      "id": "terms_nonstandard",
+      "l": "Non-standard terms",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "scope_changed",
+      "l": "Scope changed",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "changed_fields",
+      "l": "Fields changed",
+      "g": "Record",
+      "t": "list",
+      "o": [
+        "end_date",
+        "bill_rate",
+        "cost_center",
+        "scope"
+      ]
+    },
+    {
+      "id": "hours_over_schedule",
+      "l": "Hours over schedule",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "registration_required",
+      "l": "Registration required",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "decision_extend",
+      "l": "Manager chose to extend",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "urgent",
+      "l": "Urgent start",
+      "g": "Record",
+      "t": "bool"
+    },
+    {
+      "id": "worker_former_employee",
+      "l": "Worker is a former employee",
+      "g": "Related records",
+      "t": "bool"
+    },
+    {
+      "id": "supplier_tier",
+      "l": "Supplier tier",
+      "g": "Related records",
+      "t": "enum",
+      "o": [
+        "Preferred",
+        "Approved",
+        "New"
+      ]
+    },
+    {
+      "id": "rate_vs_card_pct",
+      "l": "Rate vs rate card (%)",
+      "g": "Levv-calculated",
+      "t": "pct",
+      "owner": "proc"
+    },
+    {
+      "id": "rate_vs_market_pct",
+      "l": "Rate vs market median (%)",
+      "g": "Levv-calculated",
+      "t": "pct"
+    },
+    {
+      "id": "budget_left_after",
+      "l": "Budget left after request",
+      "g": "Levv-calculated",
+      "t": "money"
+    },
+    {
+      "id": "months_engaged_after",
+      "l": "Months engaged after change",
+      "g": "Levv-calculated",
+      "t": "num"
+    },
+    {
+      "id": "duplicate_found",
+      "l": "Possible duplicate worker",
+      "g": "Levv-calculated",
+      "t": "bool"
+    },
+    {
+      "id": "days_to_start",
+      "l": "Days until start date",
+      "g": "Levv-calculated",
+      "t": "num"
+    },
+    {
+      "id": "invoice_matches",
+      "l": "Invoice matches time and work order",
+      "g": "Levv-calculated",
+      "t": "bool"
+    },
+    {
+      "id": "security_clearance",
+      "l": "Security clearance",
+      "g": "Custom fields",
+      "t": "enum",
+      "o": [
+        "None",
+        "Basic",
+        "Enhanced"
+      ]
+    },
+    {
+      "id": "project_code",
+      "l": "Project code",
+      "g": "Custom fields",
+      "t": "text"
+    },
+    {
+      "id": "cost_center",
+      "l": "Cost center",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "CC-100",
+        "CC-110",
+        "CC-200",
+        "CC-300",
+        "CC-400"
+      ]
+    },
+    {
+      "id": "legal_entity",
+      "l": "Legal entity",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "Levv Bank UK Ltd",
+        "Levv Bank US Inc",
+        "Levv Bank Canada Ltd",
+        "Levv Bank GmbH"
+      ]
+    },
+    {
+      "id": "site",
+      "l": "Site",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "London",
+        "New York",
+        "Toronto",
+        "Frankfurt",
+        "Remote"
+      ]
+    },
+    {
+      "id": "worker_type",
+      "l": "Worker type",
+      "g": "Record",
+      "t": "enum",
+      "o": [
+        "Agency contractor",
+        "Independent contractor",
+        "SOW consultant",
+        "Payrolled contractor"
+      ]
+    },
+    {
+      "id": "rate_change_pct",
+      "l": "Bill rate change (%)",
+      "g": "Levv-calculated",
+      "t": "pct"
+    }
+  ],
+  "FGROUPS": [
+    "Record",
+    "Related records",
+    "Levv-calculated",
+    "Custom fields"
+  ],
+  "OPS": {
+    "money": [
+      ">=",
+      ">",
+      "<",
+      "<="
+    ],
+    "num": [
+      ">=",
+      ">",
+      "<",
+      "<="
+    ],
+    "pct": [
+      ">=",
+      ">",
+      "<",
+      "<="
+    ],
+    "enum": [
+      "in",
+      "not_in"
+    ],
+    "bool": [
+      "yes",
+      "no"
+    ],
+    "list": [
+      "includes"
+    ],
+    "text": [
+      "is",
+      "contains"
+    ]
+  },
+  "OPL": {
+    ">=": "≥",
+    ">": ">",
+    "<": "<",
+    "<=": "≤",
+    "in": "is",
+    "not_in": "is not",
+    "yes": "is yes",
+    "no": "is no",
+    "includes": "includes",
+    "is": "is",
+    "contains": "contains"
+  },
+  "SCOPE_DIMS": [
+    [
+      "business_unit",
+      "Business unit"
+    ],
+    [
+      "cost_center",
+      "Cost center"
+    ],
+    [
+      "legal_entity",
+      "Legal entity"
+    ],
+    [
+      "country",
+      "Work country"
+    ]
+  ],
+  "SCOPE_MORE": [
+    [
+      "site",
+      "Site"
+    ],
+    [
+      "worker_type",
+      "Worker type"
+    ],
+    [
+      "job_family",
+      "Job family"
+    ]
+  ],
+  "APPROVES": {
+    "work_order|submitted": "Work orders",
+    "assignment|changed": "Assignment changes (extensions, rate, end date)",
+    "sow|change_order": "SOW change orders",
+    "timesheet|submitted": "Timesheets",
+    "expense|submitted": "Expenses",
+    "invoice|received": "Invoices",
+    "onboarding|check_failed": "Adverse background results",
+    "job_posting|created": "Job postings",
+    "sow|created": "SOWs",
+    "access_request|submitted": "Access requests"
+  },
+  "K": {
+    "trigger": "Start",
+    "cond": "If",
+    "plan": "Fits plan?",
+    "policy": "Auto-approve",
+    "appr": "Approve",
+    "notify": "Notify",
+    "update": "Update record",
+    "task": "Task",
+    "dw": "Digital Worker",
+    "wait": "Wait",
+    "parallel": "Parallel",
+    "runappr": "Request approval",
+    "runwf": "Run workflow",
+    "collect": "Collect & verify",
+    "system": "System",
+    "milestone": "Milestone",
+    "takeback": "Take back",
+    "end": "End"
+  },
+  "DESC": {
+    "cond": "Split the path using any field, including your own",
+    "plan": "Check the request fits a budget Finance already approved",
+    "appr": "Roles sign off. Levv finds the right people",
+    "policy": "Approve instantly and keep an audit receipt",
+    "runappr": "Get a decision: create one here, or use an existing approval flow",
+    "collect": "Ask for documents or checks and verify them, automatically or by a person",
+    "task": "A to-do for a person that isn’t a yes/no decision",
+    "system": "Create, update or check something in another system",
+    "update": "Set a field so later steps can react",
+    "notify": "Send an FYI, no action needed",
+    "milestone": "A checkpoint the worker reaches, like Cleared to start. Steps can be set to hold it up",
+    "wait": "Pause for a set time, or until a date on the record (e.g. 5 working days before the start date)",
+    "parallel": "Run branches at the same time",
+    "runwf": "Start another workflow",
+    "takeback": "Close what this assignment was given: remove, return, retain"
+  },
+  "FLAG_OPTS": {
+    "approvals": [
+      [
+        "note",
+        "Carry on: approvers see the flag in their brief"
+      ],
+      [
+        "escalate",
+        "Escalate: someone must decide"
+      ],
+      [
+        "reject",
+        "Reject it and send it back to the requester"
+      ]
+    ],
+    "workflows": [
+      [
+        "note",
+        "Carry on: the flag is recorded"
+      ],
+      [
+        "escalate",
+        "Escalate: someone must decide"
+      ],
+      [
+        "reject",
+        "Reject it and send it back to the requester"
+      ],
+      [
+        "stop",
+        "Stop the workflow and tell someone"
+      ]
+    ]
+  },
+  "ELSE_OPTS": {
+    "approvals": [
+      [
+        "continue",
+        "Carry on to the next step"
+      ],
+      [
+        "escalate",
+        "Escalate: someone must decide"
+      ],
+      [
+        "reject",
+        "Reject it and send it back to the requester"
+      ]
+    ],
+    "workflows": [
+      [
+        "continue",
+        "Carry on to the next step"
+      ],
+      [
+        "escalate",
+        "Escalate: someone must decide"
+      ],
+      [
+        "stop",
+        "Stop the workflow and tell someone"
+      ]
+    ]
+  },
+  "WAIT_DATES": {
+    "start_date": "Start date",
+    "end_date": "End date",
+    "wo_approved_at": "Work order approved",
+    "last_day": "Last day"
+  },
+  "WAIT_UNITS": {
+    "hours": "hours",
+    "days": "days",
+    "business_days": "working days",
+    "weeks": "weeks"
+  },
+  "HOURS": {
+    "1": 6,
+    "2": 16,
+    "3": 12,
+    "4": 20
+  },
+  "MATERIAL": {
+    "total_value": "Total value",
+    "end_date": "End date",
+    "bill_rate": "Bill rate",
+    "cost_center": "Cost center",
+    "scope": "Scope",
+    "data_access": "Data access",
+    "supplier": "Supplier and terms"
+  },
+  "APPROVAL_EVENTS": [
+    "submitted",
+    "changed",
+    "change_order",
+    "received",
+    "created"
+  ],
+  "DAY_EVENTS": [
+    "end_30",
+    "doc_expiring"
+  ],
+  "HOLDABLE": [
+    "collect",
+    "task",
+    "system",
+    "runappr",
+    "appr"
+  ],
+  "LEVV_F": [
+    "Worker name",
+    "Work email",
+    "Personal email",
+    "Job title",
+    "Start date",
+    "End date",
+    "Hiring manager",
+    "Cost center",
+    "Business unit",
+    "Legal entity",
+    "Site",
+    "Work country",
+    "Supplier",
+    "Bill rate",
+    "Total value",
+    "Work order ID",
+    "Levv worker ID",
+    "Sponsor",
+    "Date of birth"
+  ],
+  "REQ_COMMON": [
+    "Photo ID",
+    "Right to work",
+    "Proof of address",
+    "Criminal record",
+    "Employment history",
+    "Credit check",
+    "Sanctions check",
+    "Contractor agreement",
+    "Non-disclosure agreement",
+    "Code of conduct",
+    "Certificate of insurance",
+    "Bank details",
+    "Tax forms",
+    "Professional licence",
+    "Updated certificate",
+    "Final timesheet",
+    "Final expenses",
+    "Laptop",
+    "Building badge",
+    "Signed site safety rules",
+    "Date of birth"
+  ],
+  "ADD": {
+    "workflows": [
+      [
+        "Decide",
+        [
+          "cond"
+        ]
+      ],
+      [
+        "Approvals",
+        [
+          "appr",
+          "policy",
+          "plan"
+        ]
+      ],
+      [
+        "People",
+        [
+          "collect",
+          "task"
+        ]
+      ],
+      [
+        "Systems",
+        [
+          "system",
+          "notify"
+        ]
+      ],
+      [
+        "Timing",
+        [
+          "wait",
+          "parallel",
+          "runwf"
+        ]
+      ]
+    ]
+  }
+}

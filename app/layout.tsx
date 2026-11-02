@@ -19,6 +19,8 @@ import {
   Search,
   PanelLeftClose,
   PanelLeftOpen,
+  Inbox,
+  Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
@@ -41,6 +43,8 @@ const PAGE_SEARCH_ITEMS: PageSearchItem[] = [
   { label: 'My SOWs', href: '/my-items/sow', section: 'My Items', keywords: 'statements of work requests' },
   { label: 'My Job Postings', href: '/my-items/jobs', section: 'My Items', keywords: 'staffing requests roles' },
   { label: 'My Approvals', href: '/my-items/approvals', section: 'My Items', keywords: 'queue decisions' },
+  { label: 'Inbox', href: '/inbox', section: 'Main', keywords: 'approvals tasks flow changes to do' },
+  { label: 'Running workflows', href: '/runs', section: 'Main', keywords: 'runs pause resume stop', adminOnly: true },
   { label: 'Create Job Posting', href: '/requests/new/job/create/define', section: 'Create', keywords: 'new staffing request' },
   { label: 'Work Orders', href: '/cw/work-orders', section: 'Contingent Workforce', keywords: 'engagements assignments' },
   { label: 'Job Postings', href: '/cw/job-postings', section: 'Contingent Workforce', keywords: 'staffing intake requests' },
@@ -60,6 +64,7 @@ const PAGE_SEARCH_ITEMS: PageSearchItem[] = [
   { label: 'Company', href: '/admin/company', section: 'Settings', keywords: 'organization tenant', adminOnly: true },
   { label: 'Roles', href: '/admin/roles', section: 'Settings', keywords: 'permissions access', adminOnly: true },
   { label: 'Approval Chains', href: '/admin/approval-chains', section: 'Settings', keywords: 'routing approvers', adminOnly: true },
+  { label: 'Workflows', href: '/admin/workflows', section: 'Settings', keywords: 'flow studio builder approvals', adminOnly: true },
   { label: 'Financial Settings', href: '/admin/financial', section: 'Settings', keywords: 'currency budget', adminOnly: true },
   { label: 'Rates', href: '/admin/rates', section: 'Settings', keywords: 'bill pay markup', adminOnly: true },
   { label: 'Supplier Settings', href: '/admin/suppliers', section: 'Settings', keywords: 'vendors', adminOnly: true },
@@ -189,7 +194,15 @@ export default function RootLayout({
     pathname.startsWith('/external') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/demo') ||
+    pathname.startsWith('/flow-studio') ||
     pathname.startsWith('/tenant-not-found')
+  // 05 §6: cyan and slate-950, which the theme below would repaint blue and navy. `flex-1` is the rules' hook, so these
+  // pages grow the same way without it; every other page keeps the class and its look.
+  const isRunScreen =
+    pathname === '/runs' ||
+    pathname.startsWith('/runs/') ||
+    pathname === '/inbox' ||
+    pathname.startsWith('/inbox/')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -397,6 +410,20 @@ export default function RootLayout({
                   { label: 'Approvals', href: '/my-items/approvals' },
                 ]}
               />
+              <NavItem
+                label="Inbox"
+                href="/inbox"
+                icon={Inbox}
+                collapsed={sidebarCollapsed}
+              />
+              {isAdmin ? (
+                <NavItem
+                  label="Running workflows"
+                  href="/runs"
+                  icon={Workflow}
+                  collapsed={sidebarCollapsed}
+                />
+              ) : null}
             </NavSection>
 
             <NavSection label="Management" collapsed={sidebarCollapsed}>
@@ -513,7 +540,9 @@ export default function RootLayout({
             </div>
           </header>
 
-          <main className="levv-auth-main min-w-0 flex-1 bg-[#f4f7fb] p-5 sm:p-6 lg:p-8">
+          <main
+            className={`levv-auth-main min-w-0 ${isRunScreen ? 'grow basis-0' : 'flex-1'} bg-[#f4f7fb] p-5 sm:p-6 lg:p-8`}
+          >
             <SessionProvider
               value={{ user: sessionUser, checking: sessionChecking }}
             >

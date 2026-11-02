@@ -2,6 +2,9 @@ const localBackendUrl = process.env.LOCAL_BACKEND_URL?.replace(/\/+$/, '')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // `npm run lint` covers Flow Studio paths only. Existing code predates ESLint,
+  // so installing it must not start failing `next build`.
+  eslint: { ignoreDuringBuilds: true },
   // Django REST Framework uses trailing-slash routes. Avoid a local redirect
   // loop where Next removes the slash and Django immediately adds it back.
   skipTrailingSlashRedirect: Boolean(localBackendUrl),

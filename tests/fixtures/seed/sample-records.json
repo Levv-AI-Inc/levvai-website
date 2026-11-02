@@ -1,0 +1,659 @@
+{
+  "_about": "The 29 'Try a record' records used by Test and by the acceptance tests. Every expected result in docs/flow-studio/06-acceptance-tests.md is computed from these.",
+  "samples": [
+    {
+      "id": "WO-2214",
+      "title": "Senior cloud engineer",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "UK",
+      "business_unit": "Technology",
+      "job_family": "Cloud",
+      "total_value": 480000,
+      "bill_rate": 118,
+      "rate_vs_card_pct": 14,
+      "rate_vs_market_pct": 6,
+      "budget_left_after": 120000,
+      "data_access": true,
+      "engagement": "Off-payroll",
+      "role_regulated": false,
+      "supplier_tier": "Preferred",
+      "requester": "Priya Shah",
+      "note": "Worked example 1",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-100",
+      "site": "London",
+      "worker_type": "Independent contractor"
+    },
+    {
+      "id": "WO-2240",
+      "title": "Data engineer, trading data",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "UK",
+      "business_unit": "Technology",
+      "job_family": "Data",
+      "total_value": 210000,
+      "bill_rate": 96,
+      "rate_vs_card_pct": 7,
+      "rate_vs_market_pct": 2,
+      "budget_left_after": 40000,
+      "data_access": true,
+      "engagement": "Payrolled",
+      "role_regulated": true,
+      "duplicate_found": true,
+      "supplier_tier": "Approved",
+      "requester": "Tom Reed",
+      "note": "Regulated role, possible duplicate",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-110",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2231",
+      "title": "Operations analyst",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "Canada",
+      "business_unit": "Operations",
+      "job_family": "Operations",
+      "total_value": 95000,
+      "bill_rate": 58,
+      "rate_vs_card_pct": 3,
+      "rate_vs_market_pct": -2,
+      "budget_left_after": 30000,
+      "data_access": false,
+      "engagement": "Payrolled",
+      "role_regulated": false,
+      "supplier_tier": "Preferred",
+      "requester": "Grace Kim",
+      "note": "Catch-all flow, requester is an approver",
+      "legal_entity": "Levv Bank Canada Ltd",
+      "cost_center": "CC-200",
+      "site": "Toronto",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "ASN-881",
+      "title": "Data analyst extension and rate rise",
+      "record": "assignment",
+      "event": "changed",
+      "country": "UK",
+      "business_unit": "Finance",
+      "total_value": 326000,
+      "changed_fields": [
+        "end_date",
+        "bill_rate"
+      ],
+      "months_engaged_after": 20,
+      "budget_left_after": -36000,
+      "rate_vs_card_pct": 8,
+      "rate_vs_market_pct": 3,
+      "requester": "Omar Haddad",
+      "prev": {
+        "total_value": 230000,
+        "months_engaged_after": 14,
+        "budget_left_after": 60000,
+        "changed_fields": [],
+        "bill_rate": 92
+      },
+      "decided": [
+        "cco",
+        "hrbp"
+      ],
+      "edit": {
+        "label": "Manager shortens the extension to Mar 31",
+        "set": {
+          "total_value": 278000,
+          "months_engaged_after": 17
+        },
+        "decreased": [
+          "end_date",
+          "total_value"
+        ]
+      },
+      "note": "Worked example 2, edit mid-approval",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-300",
+      "site": "London",
+      "worker_type": "Agency contractor",
+      "bill_rate": 101,
+      "rate_change_pct": 9.8
+    },
+    {
+      "id": "SOW-77",
+      "title": "Document review program",
+      "record": "sow",
+      "event": "created",
+      "country": "US",
+      "business_unit": "Operations",
+      "total_value": 820000,
+      "engagement": "Fixed fee",
+      "digital_worker_access": true,
+      "data_access": false,
+      "terms_nonstandard": false,
+      "requester": "Raj Patel",
+      "note": "Worked example 3, vendor digital worker",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-200",
+      "site": "New York",
+      "worker_type": "SOW consultant"
+    },
+    {
+      "id": "SOW-77-CO1",
+      "title": "Document review: new module",
+      "record": "sow",
+      "event": "change_order",
+      "country": "US",
+      "business_unit": "Operations",
+      "total_value": 1060000,
+      "engagement": "Fixed fee",
+      "scope_changed": true,
+      "changed_fields": [
+        "scope"
+      ],
+      "digital_worker_access": true,
+      "requester": "Raj Patel",
+      "prev": {
+        "total_value": 820000,
+        "scope_changed": false,
+        "changed_fields": []
+      },
+      "note": "Change order: only what changed",
+      "original_total": 820000,
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-200",
+      "site": "New York",
+      "worker_type": "SOW consultant"
+    },
+    {
+      "id": "JP-5120",
+      "title": "Junior data analyst, 6 months (job posting)",
+      "record": "job_posting",
+      "event": "created",
+      "country": "US",
+      "business_unit": "Finance",
+      "total_value": 62000,
+      "budget_left_after": 140000,
+      "requester": "Omar Haddad",
+      "note": "Inside the approved plan",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-300",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "TS-9934",
+      "title": "Timesheet, week of Oct 12",
+      "record": "timesheet",
+      "event": "submitted",
+      "country": "Canada",
+      "business_unit": "Operations",
+      "hours_over_schedule": false,
+      "requester": "Grace Kim",
+      "note": "Scheduled hours only",
+      "legal_entity": "Levv Bank Canada Ltd",
+      "cost_center": "CC-200",
+      "site": "Toronto",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "ASN-902",
+      "title": "Cloud engineer, ending Nov 16",
+      "record": "assignment",
+      "event": "end_30",
+      "country": "UK",
+      "business_unit": "Technology",
+      "decision_extend": false,
+      "requester": "Tom Reed",
+      "note": "Offboarding",
+      "outcomesL": {
+        "Extend or end?": "done"
+      },
+      "outcomes": {
+        "K1": "done"
+      },
+      "other_assignments": [
+        {
+          "id": "ASN-944",
+          "needs": [
+            "System access"
+          ]
+        }
+      ],
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-100",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "ASN-907",
+      "title": "Designer, manager extends",
+      "record": "assignment",
+      "event": "end_30",
+      "country": "US",
+      "business_unit": "Marketing",
+      "decision_extend": true,
+      "requester": "Sofia Reyes",
+      "note": "Offboarding turns into an extension",
+      "total_value": 140000,
+      "budget_left_after": 20000,
+      "months_engaged_after": 12,
+      "changed_fields": [
+        "end_date"
+      ],
+      "prev": {
+        "total_value": 110000,
+        "months_engaged_after": 9,
+        "budget_left_after": 50000,
+        "changed_fields": []
+      },
+      "outcomes": {
+        "K1": "done"
+      },
+      "outcomesL": {
+        "Extend or end?": "done"
+      },
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-400",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2214-A",
+      "title": "Senior cloud engineer",
+      "record": "onboarding",
+      "event": "ob_start",
+      "country": "UK",
+      "business_unit": "Technology",
+      "registration_required": false,
+      "requester": "Priya Shah",
+      "note": "Onboarding, standard",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-100",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2240-A",
+      "title": "Data engineer, trading data",
+      "record": "onboarding",
+      "event": "ob_start",
+      "country": "UK",
+      "business_unit": "Technology",
+      "registration_required": true,
+      "requester": "Tom Reed",
+      "note": "Onboarding, regulated role",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-110",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2251-A",
+      "title": "Analyst, checks need attention",
+      "record": "onboarding",
+      "event": "ob_start",
+      "country": "US",
+      "business_unit": "Operations",
+      "registration_required": false,
+      "requester": "Grace Kim",
+      "outcomes": {
+        "ID": "unsure",
+        "BG": "fail"
+      },
+      "note": "ID unclear, background adverse",
+      "outcomesL": {
+        "Identity & eligibility": "unsure",
+        "Background check": "fail"
+      },
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-200",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "OB-2251",
+      "title": "Background check came back adverse",
+      "record": "onboarding",
+      "event": "check_failed",
+      "country": "US",
+      "business_unit": "Operations",
+      "requester": "Coordinator",
+      "note": "Called from onboarding",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-200",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "ASN-915",
+      "title": "Data analyst, ended early",
+      "record": "assignment",
+      "event": "ended_early",
+      "country": "UK",
+      "business_unit": "Finance",
+      "requester": "Omar Haddad",
+      "note": "Ended early",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-300",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WK-330",
+      "title": "Forklift certificate expiring",
+      "record": "worker",
+      "event": "doc_expiring",
+      "country": "Canada",
+      "business_unit": "Operations",
+      "requester": "Coordinator",
+      "note": "Document renewal",
+      "legal_entity": "Levv Bank Canada Ltd",
+      "cost_center": "CC-200",
+      "site": "Toronto",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "INV-8812",
+      "title": "Invoice doesn’t match timesheets",
+      "record": "invoice",
+      "event": "received",
+      "country": "US",
+      "business_unit": "Marketing",
+      "invoice_matches": false,
+      "requester": "Coordinator",
+      "note": "Exception path",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-400",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "INV-8813",
+      "title": "Invoice matches",
+      "record": "invoice",
+      "event": "received",
+      "country": "US",
+      "business_unit": "Marketing",
+      "invoice_matches": true,
+      "requester": "Coordinator",
+      "note": "Straight-through",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-400",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2260",
+      "title": "Cleared engineer, project Atlas",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "UK",
+      "business_unit": "Technology",
+      "job_family": "Cloud",
+      "total_value": 150000,
+      "rate_vs_card_pct": 4,
+      "rate_vs_market_pct": 1,
+      "budget_left_after": 90000,
+      "data_access": false,
+      "engagement": "Payrolled",
+      "security_clearance": "Enhanced",
+      "project_code": "ATLAS-7",
+      "requester": "Coordinator",
+      "note": "Custom fields",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-100",
+      "site": "London",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2270",
+      "title": "Data platform engineer, Germany",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "Germany",
+      "business_unit": "Technology",
+      "job_family": "Data",
+      "total_value": 260000,
+      "bill_rate": 104,
+      "rate_vs_card_pct": 5,
+      "rate_vs_market_pct": 1,
+      "budget_left_after": 80000,
+      "data_access": true,
+      "engagement": "Payrolled",
+      "role_regulated": false,
+      "supplier_tier": "Preferred",
+      "requester": "Coordinator",
+      "hiring_manager": "Tom Reed",
+      "note": "No eligible Privacy reviewer; Security delegate not eligible",
+      "legal_entity": "Levv Bank GmbH",
+      "cost_center": "CC-110",
+      "site": "Frankfurt",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2275",
+      "title": "Analytics lead, split funding",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "US",
+      "business_unit": "Finance",
+      "job_family": "Analytics",
+      "total_value": 340000,
+      "bill_rate": 121,
+      "rate_vs_card_pct": 12,
+      "rate_vs_market_pct": 4,
+      "budget_left_after": 60000,
+      "data_access": false,
+      "engagement": "Payrolled",
+      "role_regulated": false,
+      "supplier_tier": "Approved",
+      "requester": "Coordinator",
+      "hiring_manager": "Omar Haddad",
+      "cost_centers": [
+        "Finance",
+        "Marketing"
+      ],
+      "note": "Raised on behalf of the manager, two cost centers",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-300",
+      "site": "New York",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "WO-2280",
+      "title": "Ops contractor, no rate card yet",
+      "record": "work_order",
+      "event": "submitted",
+      "country": "Canada",
+      "business_unit": "Operations",
+      "job_family": "Operations",
+      "total_value": 120000,
+      "bill_rate": 64,
+      "rate_vs_card_pct": null,
+      "rate_vs_market_pct": 3,
+      "budget_left_after": 50000,
+      "data_access": false,
+      "engagement": "Payrolled",
+      "role_regulated": false,
+      "supplier_tier": "Preferred",
+      "requester": "Coordinator",
+      "hiring_manager": "Grace Kim",
+      "note": "Missing information",
+      "legal_entity": "Levv Bank Canada Ltd",
+      "cost_center": "CC-200",
+      "site": "Toronto",
+      "worker_type": "Agency contractor"
+    },
+    {
+      "id": "ASN-920",
+      "title": "Analyst rate change, two proposals",
+      "record": "assignment",
+      "event": "changed",
+      "country": "UK",
+      "business_unit": "Operations",
+      "total_value": 150000,
+      "changed_fields": [
+        "bill_rate"
+      ],
+      "months_engaged_after": 10,
+      "budget_left_after": 30000,
+      "requester": "Grace Kim",
+      "prev": {
+        "total_value": 140000,
+        "months_engaged_after": 10,
+        "budget_left_after": 40000,
+        "changed_fields": [],
+        "bill_rate": 80
+      },
+      "conflict": {
+        "field": "Bill rate",
+        "a": {
+          "by": "Grace Kim",
+          "v": "$96/h",
+          "total": 150000
+        },
+        "b": {
+          "by": "Raj Patel",
+          "v": "$102/h",
+          "total": 159000
+        }
+      },
+      "note": "Two pending changes",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-200",
+      "site": "London",
+      "worker_type": "Agency contractor",
+      "bill_rate": 83,
+      "rate_change_pct": 3.8
+    },
+    {
+      "id": "SOW-77-CO3",
+      "title": "Document review: third top-up",
+      "record": "sow",
+      "event": "change_order",
+      "country": "US",
+      "business_unit": "Operations",
+      "total_value": 1180000,
+      "original_total": 820000,
+      "engagement": "Fixed fee",
+      "scope_changed": false,
+      "changed_fields": [
+        "total_value"
+      ],
+      "digital_worker_access": true,
+      "requester": "Raj Patel",
+      "prev": {
+        "total_value": 1120000,
+        "scope_changed": false,
+        "changed_fields": []
+      },
+      "note": "Small change, large running total",
+      "legal_entity": "Levv Bank US Inc",
+      "cost_center": "CC-200",
+      "site": "New York",
+      "worker_type": "SOW consultant"
+    },
+    {
+      "id": "WO-2214-C",
+      "title": "Senior cloud engineer — rate change",
+      "record": "work_order",
+      "event": "changed",
+      "country": "UK",
+      "business_unit": "Technology",
+      "registration_required": false,
+      "requester": "Priya Shah",
+      "note": "Onboarding, standard",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-110",
+      "site": "London",
+      "worker_type": "Agency contractor",
+      "changed_fields": [
+        "bill_rate",
+        "cost_center"
+      ],
+      "bill_rate": 104,
+      "prev": {
+        "bill_rate": 95,
+        "cost_center": "CC-100"
+      },
+      "rate_change_pct": 9.5
+    },
+    {
+      "id": "OFF-902",
+      "title": "Cloud engineer, not extended",
+      "record": "offboarding",
+      "event": "off_start",
+      "country": "UK",
+      "business_unit": "Technology",
+      "decision_extend": false,
+      "requester": "Tom Reed",
+      "note": "",
+      "outcomesL": {
+        "Extend or end?": "done"
+      },
+      "outcomes": {
+        "K1": "done"
+      },
+      "other_assignments": [
+        {
+          "id": "ASN-944",
+          "needs": [
+            "System access"
+          ]
+        }
+      ],
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-100",
+      "site": "London",
+      "worker_type": "Agency contractor",
+      "reason": "end"
+    },
+    {
+      "id": "OFF-915",
+      "title": "Data analyst, ended early (ended early)",
+      "record": "offboarding",
+      "event": "off_start",
+      "country": "UK",
+      "business_unit": "Finance",
+      "requester": "Omar Haddad",
+      "note": "Ended early",
+      "legal_entity": "Levv Bank UK Ltd",
+      "cost_center": "CC-300",
+      "site": "London",
+      "worker_type": "Agency contractor",
+      "reason": "early"
+    },
+    {
+      "id": "AR-301",
+      "title": "Visiting engineer, 2 weeks on site",
+      "record": "access_request",
+      "event": "submitted",
+      "country": "Canada",
+      "business_unit": "Operations",
+      "site": "Toronto office",
+      "requester": "Grace Kim",
+      "sponsor": "Grace Kim",
+      "sponsor_delegate": "Raj Patel",
+      "worker_name": "Jordan Ellis",
+      "duplicate_found": false,
+      "note": "Raised in Zip by the sponsor"
+    },
+    {
+      "id": "AR-305",
+      "title": "Returning vendor technician",
+      "record": "access_request",
+      "event": "submitted",
+      "country": "UK",
+      "business_unit": "Technology",
+      "site": "London office",
+      "requester": "Tom Reed",
+      "sponsor": "Tom Reed",
+      "worker_name": "Sam Rivera",
+      "duplicate_found": true,
+      "note": "Already has an active badge"
+    }
+  ]
+}
