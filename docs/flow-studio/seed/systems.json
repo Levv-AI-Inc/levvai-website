@@ -1,0 +1,325 @@
+{
+  "_about": "Connected systems for System steps. SYS: status, objects it can create/update, fields it can bring back. SYS_ACT: actions. SYS_KEY: keys you can match an existing record on. SYS_MAP: default field mapping Levv field -> system field ('Nova matched these automatically').",
+  "SYS": {
+    "SAP Fieldglass": {
+      "st": "ok",
+      "seen": "4 min ago",
+      "obj": [
+        "Work order",
+        "Worker",
+        "Job posting",
+        "SOW",
+        "Timesheet",
+        "Invoice"
+      ],
+      "back": [
+        "Fieldglass worker ID",
+        "Work order status"
+      ]
+    },
+    "Workday": {
+      "st": "ok",
+      "seen": "2 min ago",
+      "obj": [
+        "Contingent worker",
+        "Position",
+        "Supervisory organization"
+      ],
+      "back": [
+        "Workday worker ID",
+        "Hire status"
+      ]
+    },
+    "SAP S/4HANA": {
+      "st": "ok",
+      "seen": "11 min ago",
+      "obj": [
+        "Purchase order",
+        "Service entry sheet",
+        "Supplier invoice"
+      ],
+      "back": [
+        "PO number",
+        "Posting status"
+      ]
+    },
+    "ServiceNow": {
+      "st": "ok",
+      "seen": "1 min ago",
+      "obj": [
+        "Access request",
+        "Hardware request",
+        "Incident"
+      ],
+      "back": [
+        "Ticket number",
+        "Ticket status"
+      ]
+    },
+    "Okta": {
+      "st": "ok",
+      "seen": "1 min ago",
+      "obj": [
+        "User",
+        "Group membership",
+        "App assignment"
+      ],
+      "back": [
+        "Okta user ID",
+        "Account status"
+      ]
+    },
+    "Microsoft Entra ID": {
+      "st": "ok",
+      "seen": "3 min ago",
+      "obj": [
+        "User",
+        "Group membership",
+        "Licence"
+      ],
+      "back": [
+        "Entra object ID",
+        "Account status"
+      ]
+    },
+    "Coupa": {
+      "st": "off",
+      "seen": "",
+      "obj": [
+        "Requisition",
+        "Purchase order",
+        "Invoice"
+      ],
+      "back": [
+        "Coupa PO number"
+      ]
+    },
+    "Badge system": {
+      "st": "ok",
+      "seen": "6 min ago",
+      "obj": [
+        "Badge",
+        "Access level"
+      ],
+      "back": [
+        "Badge number",
+        "Badge status"
+      ]
+    }
+  },
+  "SYS_ACT": {
+    "create": "Create",
+    "update": "Update",
+    "read": "Read",
+    "wait": "Wait for",
+    "close": "Close or deactivate",
+    "check": "Check it matches the ledger"
+  },
+  "SYS_KEY": {
+    "SAP Fieldglass": [
+      "Work order ID",
+      "Fieldglass worker ID"
+    ],
+    "Workday": [
+      "Work email",
+      "Workday worker ID"
+    ],
+    "SAP S/4HANA": [
+      "Work order ID",
+      "PO number"
+    ],
+    "ServiceNow": [
+      "Work email",
+      "Ticket number"
+    ],
+    "Okta": [
+      "Work email",
+      "Okta user ID"
+    ],
+    "Microsoft Entra ID": [
+      "Work email",
+      "Entra object ID"
+    ],
+    "Coupa": [
+      "Work order ID"
+    ],
+    "Badge system": [
+      "Personal email",
+      "Badge number"
+    ]
+  },
+  "SYS_MAP": {
+    "Contingent worker": [
+      [
+        "Worker name",
+        "Legal name"
+      ],
+      [
+        "Work email",
+        "Work email"
+      ],
+      [
+        "Start date",
+        "Contract start date"
+      ],
+      [
+        "End date",
+        "Contract end date"
+      ],
+      [
+        "Hiring manager",
+        "Manager"
+      ],
+      [
+        "Cost center",
+        "Cost center"
+      ],
+      [
+        "Supplier",
+        "Supplier"
+      ]
+    ],
+    "User": [
+      [
+        "Worker name",
+        "Display name"
+      ],
+      [
+        "Work email",
+        "Login"
+      ],
+      [
+        "Job title",
+        "Title"
+      ],
+      [
+        "Hiring manager",
+        "Manager"
+      ],
+      [
+        "Business unit",
+        "Department"
+      ],
+      [
+        "End date",
+        "Deactivate on"
+      ]
+    ],
+    "Work order": [
+      [
+        "Work order ID",
+        "Work order ID"
+      ],
+      [
+        "Start date",
+        "Start date"
+      ],
+      [
+        "End date",
+        "End date"
+      ],
+      [
+        "Bill rate",
+        "Bill rate"
+      ],
+      [
+        "Cost center",
+        "Cost center"
+      ]
+    ],
+    "Purchase order": [
+      [
+        "Work order ID",
+        "External reference"
+      ],
+      [
+        "Supplier",
+        "Vendor"
+      ],
+      [
+        "Cost center",
+        "Cost center"
+      ],
+      [
+        "Total value",
+        "Net value"
+      ]
+    ],
+    "Access request": [
+      [
+        "Worker name",
+        "Requested for"
+      ],
+      [
+        "Hiring manager",
+        "Opened by"
+      ],
+      [
+        "Start date",
+        "Needed by"
+      ],
+      [
+        "Job title",
+        "Role"
+      ]
+    ],
+    "Hardware request": [
+      [
+        "Worker name",
+        "Requested for"
+      ],
+      [
+        "Site",
+        "Ship to"
+      ],
+      [
+        "Start date",
+        "Needed by"
+      ]
+    ],
+    "_": [
+      [
+        "Worker name",
+        "Name"
+      ],
+      [
+        "Work email",
+        "Email"
+      ],
+      [
+        "Start date",
+        "Start date"
+      ]
+    ],
+    "Badge": [
+      [
+        "Worker name",
+        "Cardholder name"
+      ],
+      [
+        "Personal email",
+        "Email"
+      ],
+      [
+        "Date of birth",
+        "Date of birth"
+      ],
+      [
+        "Site",
+        "Site"
+      ],
+      [
+        "Start date",
+        "Valid from"
+      ],
+      [
+        "End date",
+        "Valid until"
+      ],
+      [
+        "Sponsor",
+        "Sponsor"
+      ]
+    ]
+  }
+}

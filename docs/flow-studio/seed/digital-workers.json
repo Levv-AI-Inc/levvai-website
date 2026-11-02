@@ -1,0 +1,332 @@
+{
+  "_about": "Digital Workers (Levv's automated helpers). They check and help; they NEVER approve or reject. CHECK_DW = the four checks with Passed/Flagged exits (budget, rate, dup, tenure). DW_SET = which ones the rail shows per context (the Chaser was removed from every rail in v34: it is built into steps). DWD/DWX = short and long descriptions for hover cards.",
+  "DW": {
+    "brief": {
+      "id": "brief",
+      "n": "Approver brief",
+      "s": "ready",
+      "p": "M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"
+    },
+    "rate": {
+      "id": "rate",
+      "n": "Rate check",
+      "s": "ready",
+      "p": "M3 3v18h18M7 14l4-4 4 4 5-5"
+    },
+    "budget": {
+      "id": "budget",
+      "n": "Budget check",
+      "s": "ready",
+      "p": "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"
+    },
+    "dup": {
+      "id": "dup",
+      "n": "Duplicate & ghost worker",
+      "s": "ready",
+      "p": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+    },
+    "tenure": {
+      "id": "tenure",
+      "n": "Tenure & classification",
+      "s": "ready",
+      "p": "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+    },
+    "chaser": {
+      "id": "chaser",
+      "n": "Chaser",
+      "s": "ready",
+      "p": "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"
+    },
+    "docs": {
+      "id": "docs",
+      "n": "Document collector",
+      "s": "ready",
+      "p": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15l2 2 4-4"
+    },
+    "access": {
+      "id": "access",
+      "n": "Access provisioner",
+      "s": "ready",
+      "p": "M15 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM2 21l7.5-7.5M13.5 9.5L21 2M18 5l3 3"
+    },
+    "timesheet": {
+      "id": "timesheet",
+      "n": "Timesheet builder",
+      "s": "ready",
+      "p": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"
+    },
+    "offboard": {
+      "id": "offboard",
+      "n": "Offboarding",
+      "s": "ready",
+      "p": "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+    },
+    "intake": {
+      "id": "intake",
+      "n": "Job posting writer",
+      "s": "ready",
+      "p": "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+    },
+    "invoice": {
+      "id": "invoice",
+      "n": "Invoice match",
+      "s": "setup",
+      "p": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM8 10h8M8 14h5"
+    },
+    "milestone": {
+      "id": "milestone",
+      "n": "Milestone tracker",
+      "s": "setup",
+      "p": "M4 22V4M4 4h13l-2 4 2 4H4"
+    },
+    "distribution": {
+      "id": "distribution",
+      "n": "Supplier distribution",
+      "s": "off",
+      "p": "M22 2L11 13M22 2l-7 20-4-9-9-4z"
+    },
+    "startguard": {
+      "id": "startguard",
+      "n": "Start-date guardian",
+      "s": "ready",
+      "p": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2M16 2l3 3"
+    },
+    "sweeper": {
+      "id": "sweeper",
+      "n": "Access sweeper",
+      "s": "ready",
+      "p": "M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5"
+    },
+    "recovery": {
+      "id": "recovery",
+      "n": "Equipment recovery",
+      "s": "ready",
+      "p": "M3 7h13v10H3zM16 10h4l2 3v4h-6M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"
+    },
+    "closer": {
+      "id": "closer",
+      "n": "Final pay closer",
+      "s": "ready",
+      "p": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM9 12l2 2 4-4"
+    }
+  },
+  "DWD": {
+    "brief": "Writes a two-line brief for each approver",
+    "rate": "Compares the rate with the rate card and market",
+    "budget": "Checks budget left after this request",
+    "dup": "Finds the same person under another supplier",
+    "tenure": "Counts months engaged and tenure caps",
+    "chaser": "Reminds and escalates on time limits",
+    "docs": "Collects and validates worker documents",
+    "access": "Grants and removes system access",
+    "timesheet": "Drafts timesheets and checks hours",
+    "offboard": "Runs end-date reminders",
+    "intake": "Turns a plain request into a job posting",
+    "invoice": "Matches invoices to time and milestones",
+    "milestone": "Tracks SOW deliverables",
+    "distribution": "Sends requisitions to suppliers",
+    "startguard": "Warns early if the start date is at risk",
+    "sweeper": "Removes ledger access and finds ghost access",
+    "recovery": "Arranges and chases equipment returns",
+    "closer": "Gets final time, expenses and invoice in"
+  },
+  "DWS": [
+    {
+      "id": "brief",
+      "n": "Approver brief",
+      "s": "ready",
+      "p": "M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"
+    },
+    {
+      "id": "rate",
+      "n": "Rate check",
+      "s": "ready",
+      "p": "M3 3v18h18M7 14l4-4 4 4 5-5"
+    },
+    {
+      "id": "budget",
+      "n": "Budget check",
+      "s": "ready",
+      "p": "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"
+    },
+    {
+      "id": "dup",
+      "n": "Duplicate & ghost worker",
+      "s": "ready",
+      "p": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+    },
+    {
+      "id": "tenure",
+      "n": "Tenure & classification",
+      "s": "ready",
+      "p": "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+    },
+    {
+      "id": "chaser",
+      "n": "Chaser",
+      "s": "ready",
+      "p": "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"
+    },
+    {
+      "id": "docs",
+      "n": "Document collector",
+      "s": "ready",
+      "p": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15l2 2 4-4"
+    },
+    {
+      "id": "access",
+      "n": "Access provisioner",
+      "s": "ready",
+      "p": "M15 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM2 21l7.5-7.5M13.5 9.5L21 2M18 5l3 3"
+    },
+    {
+      "id": "timesheet",
+      "n": "Timesheet builder",
+      "s": "ready",
+      "p": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"
+    },
+    {
+      "id": "offboard",
+      "n": "Offboarding",
+      "s": "ready",
+      "p": "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+    },
+    {
+      "id": "intake",
+      "n": "Job posting writer",
+      "s": "ready",
+      "p": "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+    },
+    {
+      "id": "invoice",
+      "n": "Invoice match",
+      "s": "setup",
+      "p": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM8 10h8M8 14h5"
+    },
+    {
+      "id": "milestone",
+      "n": "Milestone tracker",
+      "s": "setup",
+      "p": "M4 22V4M4 4h13l-2 4 2 4H4"
+    },
+    {
+      "id": "distribution",
+      "n": "Supplier distribution",
+      "s": "off",
+      "p": "M22 2L11 13M22 2l-7 20-4-9-9-4z"
+    },
+    {
+      "id": "startguard",
+      "n": "Start-date guardian",
+      "s": "ready",
+      "p": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2M16 2l3 3"
+    },
+    {
+      "id": "sweeper",
+      "n": "Access sweeper",
+      "s": "ready",
+      "p": "M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5"
+    },
+    {
+      "id": "recovery",
+      "n": "Equipment recovery",
+      "s": "ready",
+      "p": "M3 7h13v10H3zM16 10h4l2 3v4h-6M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"
+    },
+    {
+      "id": "closer",
+      "n": "Final pay closer",
+      "s": "ready",
+      "p": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM9 12l2 2 4-4"
+    }
+  ],
+  "DWX": {
+    "brief": {
+      "d": "Writes a short brief for each approver: what is being asked, what changed since last time, and anything unusual.",
+      "u": "Drop it on an Approve step."
+    },
+    "rate": {
+      "d": "Compares the bill rate with your rate card and the market.",
+      "u": "Put it on the line before an approver. Two exits: Passed and Flagged."
+    },
+    "budget": {
+      "d": "Checks how much budget is left on the cost center, plan or contract after this request.",
+      "u": "Put it on the line before an approver. Two exits: Passed and Flagged. Every approver sees the result in their brief."
+    },
+    "dup": {
+      "d": "Looks for the same person already working through another supplier, or old access never removed.",
+      "u": "Two exits: Passed and Flagged. Use Flagged to escalate to someone who must decide."
+    },
+    "tenure": {
+      "d": "Counts how long the worker has been engaged and warns before tenure or classification limits.",
+      "u": "Two exits: Passed and Flagged."
+    },
+    "chaser": {
+      "d": "Reminds people about anything due, then escalates to their manager when time limits pass.",
+      "u": "Add it anywhere in a workflow."
+    },
+    "intake": {
+      "d": "Turns a hiring manager’s plain description into a complete job posting with the right job family and rate range.",
+      "u": "Add it to a Job posting workflow."
+    },
+    "invoice": {
+      "d": "Matches each invoice line to approved time, expenses and milestones, and holds anything that doesn’t match.",
+      "u": "Add it to an Invoice workflow. Needs the S/4HANA connection."
+    },
+    "docs": {
+      "d": "Asks the worker for documents, checks they are valid and readable, and chases what is missing.",
+      "u": "Drop it on a Collect & verify step."
+    },
+    "access": {
+      "d": "Requests accounts and access in Okta or ServiceNow, only what the role needs, and records each one in the ledger.",
+      "u": "Drop it on a System step."
+    },
+    "startguard": {
+      "d": "Watches every onboarding item against the start date and warns early if the date is at risk, with who to chase.",
+      "u": "Add it to an Onboarding workflow."
+    },
+    "sweeper": {
+      "d": "Removes every account and access recorded in the ledger, then searches connected systems for anything missed (ghost access).",
+      "u": "Drop it on a System step in Offboarding."
+    },
+    "recovery": {
+      "d": "Arranges laptop and badge returns, sends courier labels and chases until everything is back.",
+      "u": "Add it to an Offboarding workflow."
+    },
+    "closer": {
+      "d": "Makes sure the final timesheet, expenses and invoice are in before the work order is closed.",
+      "u": "Add it to an Offboarding workflow."
+    }
+  },
+  "DW_SET": {
+    "workflows": [
+      "tenure",
+      "rate",
+      "budget",
+      "dup",
+      "intake",
+      "invoice"
+    ],
+    "onboarding": [
+      "docs",
+      "access",
+      "startguard"
+    ],
+    "offboarding": [
+      "sweeper",
+      "recovery",
+      "closer"
+    ],
+    "access": [
+      "dup",
+      "docs",
+      "access"
+    ]
+  },
+  "CHECK_DW": [
+    "budget",
+    "rate",
+    "dup",
+    "tenure"
+  ]
+}

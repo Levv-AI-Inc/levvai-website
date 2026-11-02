@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "moduleResolution": "bundler",
+    "allowJs": false,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/flow-studio/**/*",
+    "src/components/flow-studio/**/*",
+    "src/components/runs/**/*",
+    "tests/**/*",
+    "scripts/**/*.ts",
+    "app/flow-studio/**/*",
+    "app/admin/workflows/**/*",
+    "app/runs/**/*",
+    "app/inbox/**/*",
+    "app/api/flow-studio/**/*",
+    "app/api/runtime/**/*",
+    "app/api/test/**/*",
+    "vitest.config.ts",
+    "vitest.django.config.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": ["node_modules"]
+}
