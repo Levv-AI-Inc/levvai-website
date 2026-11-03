@@ -49,8 +49,7 @@ async function openPublish(page: Page): Promise<Locator> {
 }
 
 async function newWorkflow(page: Page): Promise<void> {
-  await pickerButton(page, WO).click();
-  await page.getByRole('option', { name: '+ New workflow' }).click();
+  await page.getByRole('button', { name: '+ New workflow' }).click();
   await expect(pickerButton(page, 'New workflow')).toBeVisible();
 }
 

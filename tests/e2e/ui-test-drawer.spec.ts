@@ -98,8 +98,7 @@ test('04 §8.3: changing the record re-runs and clicking a step switches the dra
 test('04 §8: a workflow with no samples says so, and Test closes with its button and Escape, with focus back on it', async ({ page }) => {
   await page.goto('/flow-studio/wf-wo-sub');
   await waitForCanvas(page);
-  await pickerButton(page, 'Work order submitted').click();
-  await page.getByRole('option', { name: '+ New workflow' }).click();
+  await page.getByRole('button', { name: '+ New workflow' }).click();
   await expect(pickerButton(page, 'New workflow')).toBeVisible();
   await choose(panelOf(page), 'Runs when', 'Expense submitted');
   await testButton(page).click();

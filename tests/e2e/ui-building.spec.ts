@@ -73,8 +73,7 @@ test.beforeAll(async ({ browser }) => {
   await signIn(page, 'Flow Admin');
   await page.goto('/flow-studio/wf-wo-sub');
   await waitForCanvas(page);
-  await pickerButton(page, 'Work order submitted').click();
-  await page.getByRole('option', { name: '+ New workflow' }).click();
+  await page.getByRole('button', { name: '+ New workflow' }).click();
   await expect(pickerButton(page, 'New workflow')).toBeVisible();
 });
 

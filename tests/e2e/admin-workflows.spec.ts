@@ -455,8 +455,7 @@ test.describe('M5: editing, embedded in the admin column', () => {
 
   test('+ New workflow stays under /admin/workflows; a stale draftRev shows the conflict toast', async ({ page }) => {
     const shell = await openEmbedded(page);
-    await pickerButton(shell, 'Work order submitted').click();
-    await page.getByRole('option', { name: '+ New workflow' }).click();
+    await shell.getByRole('button', { name: '+ New workflow' }).click();
     await expect(page).toHaveURL(/\/admin\/workflows\/nf101\?step=T$/);
     await expect(toastOf(shell)).toHaveText('New draft. Set when it runs, then press + to add steps');
     await expect(panelOf(shell).getByRole('heading', { name: 'Workflow settings' })).toBeVisible();

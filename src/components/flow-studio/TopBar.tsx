@@ -93,14 +93,13 @@ export function TopBar({ embedded, fit, workflow, summaries, ctx, novaCount, pan
                   else refocusPicker.current = true;
                   onOpenWorkflow(id);
                 }}
-                onNew={() => {
-                  setPickerOpen(false);
-                  onNewWorkflow();
-                }}
               />
             ) : null}
           </div>
           <span className="flex-none whitespace-nowrap text-xs text-slate-500">{statusText(workflow)}</span>
+          <button type="button" onClick={onNewWorkflow} className={`${buttonClass} flex-none !text-cyan-700`}>
+            {uiCopy.newWorkflow}
+          </button>
         </>
       ) : null}
     </>

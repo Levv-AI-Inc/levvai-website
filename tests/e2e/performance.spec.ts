@@ -119,7 +119,7 @@ test('the picker at 500 workflows opens, moves and navigates', async ({ page }) 
   await interactions(page, []);
   await pickerButton(page, 'Work order submitted').click();
   const list = page.getByRole('listbox');
-  await expect(list.getByRole('option')).toHaveCount(516);
+  await expect(list.getByRole('option')).toHaveCount(515);
   const open = await interactions(page, ['click', 'pointerup']);
   report('picker: worst interaction opening it', worst(open));
   expect(worst(open)).toBeLessThan(INTERACTION_LIMIT_MS);

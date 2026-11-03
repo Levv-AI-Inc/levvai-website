@@ -111,8 +111,7 @@ test('UI-N2 the picker lists workflows and their variations', async ({ page }) =
     if (heading) flat.push(`H ${heading}`);
     flat.push(`R ${name} | ${second}`);
   }
-  // Exactly one footer entry after the last workflow, and nothing else.
-  flat.push('R + New workflow');
+  // Nothing after the last workflow: + New workflow is a button in the top bar.
   expect(read.map((item) => `${item.type === 'heading' ? 'H' : 'R'} ${item.lines.join(' | ')}`)).toEqual(flat);
   expect(read.filter((item) => item.type === 'heading')).toHaveLength(13);
 

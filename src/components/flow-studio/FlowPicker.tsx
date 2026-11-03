@@ -13,17 +13,15 @@ interface FlowPickerProps {
   ctx: EngineContext;
   currentId: string;
   onOpen: (id: string) => void;
-  onNew: () => void;
   onClose: (returnFocus: boolean) => void;
   button: RefObject<HTMLButtonElement | null>;
 }
 
 const optionId = (id: string): string => `flow-picker-${id}`;
-const NEW_ID = '__new';
 const KEYBOARD_ROW = 'outline outline-2 -outline-offset-2 outline-cyan-600';
 
 /** 04 §3. A navigation list: rendered here rather than with SelectMenu, with the same keyboard model (§13.6). */
-export function FlowPicker({ summaries, ctx, currentId, onOpen, onNew, onClose, button }: FlowPickerProps) {
+export function FlowPicker({ summaries, ctx, currentId, onOpen, onClose, button }: FlowPickerProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState(currentId);
   // The list holds focus, so once arrows are in use the row they reached shows it (04 §14.3). A pointer has its own highlight.
@@ -40,7 +38,7 @@ export function FlowPicker({ summaries, ctx, currentId, onOpen, onNew, onClose, 
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, [button, onClose]);
 
-  const ids = useMemo(() => [...summaries.map((summary) => summary.id), NEW_ID], [summaries]);
+  const ids = useMemo(() => summaries.map((summary) => summary.id), [summaries]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const index = ids.indexOf(activeId);
@@ -52,8 +50,7 @@ export function FlowPicker({ summaries, ctx, currentId, onOpen, onNew, onClose, 
       listRef.current?.querySelector(`#${CSS.escape(optionId(next))}`)?.scrollIntoView({ block: 'nearest' });
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (activeId === NEW_ID) onNew();
-      else onOpen(activeId);
+      onOpen(activeId);
     } else if (event.key === 'Escape') {
       event.preventDefault();
       onClose(true);
@@ -108,18 +105,6 @@ export function FlowPicker({ summaries, ctx, currentId, onOpen, onNew, onClose, 
           </div>
         );
       })}
-      <div className="mt-1.5 border-t border-slate-200 pt-1.5">
-        <div
-          id={optionId(NEW_ID)}
-          role="option"
-          aria-selected={false}
-          onMouseMove={() => setActiveId(NEW_ID)}
-          onClick={onNew}
-          className={`w-full cursor-pointer rounded-lg px-2.5 py-[7px] text-[13.5px] font-semibold text-cyan-700 ${activeId === NEW_ID ? 'bg-slate-50' : ''} ${byKeyboard && activeId === NEW_ID ? KEYBOARD_ROW : ''}`}
-        >
-          {uiCopy.newWorkflow}
-        </div>
-      </div>
     </div>
   );
 }

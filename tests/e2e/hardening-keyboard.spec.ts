@@ -90,8 +90,8 @@ test('the whole of /flow-studio in Tab order: top bar, boxes in layout order, th
   await page.getByRole('link', { name: 'levv.' }).focus();
   const stops = await walk(page, 'body', 200);
   const names = stops.map((stop) => stop.name);
-  expect(names.slice(0, 5)).toEqual(['levv.', 'UK Technology work orders', 'Nova 2', 'Test', 'Publish'].map((name, index) => (index === 2 ? names[2] : name)));
-  expect(names[2]).toMatch(/^Nova/);
+  expect(names.slice(0, 6)).toEqual(['levv.', 'UK Technology work orders', '+ New workflow', 'Nova 2', 'Test', 'Publish'].map((name, index) => (index === 3 ? names[3] : name)));
+  expect(names[3]).toMatch(/^Nova/);
 
   const boxes = await canvasOf(page).getByRole('button').evaluateAll((elements) =>
     elements.map((element) => ({ name: element.getAttribute('aria-label') as string, x: element.getBoundingClientRect().x, plus: element.getAttribute('aria-label') === 'Add a step here' })),
@@ -103,8 +103,8 @@ test('the whole of /flow-studio in Tab order: top bar, boxes in layout order, th
   const xs = boxes.slice(0, firstPlus).map((box) => box.x);
   expect(xs).toEqual([...xs].sort((a, b) => a - b));
   // Focus scrolled nothing into a state where a stop was off screen (walk checked), and every canvas button was a stop, in that order.
-  expect(names.slice(5, 5 + boxes.length)).toEqual(boxes.map((box) => box.name));
-  const after = names.slice(5 + boxes.length);
+  expect(names.slice(6, 6 + boxes.length)).toEqual(boxes.map((box) => box.name));
+  const after = names.slice(6 + boxes.length);
   expect(after).toEqual(expect.arrayContaining(['Zoom out', 'Fit', 'Zoom in']));
   expect(after.indexOf('Zoom out')).toBeGreaterThan(0); // the rail's workers come first
 });
@@ -134,9 +134,9 @@ test('the flow picker: Enter opens, arrows show where they are, Enter goes, focu
   await expect(page).toHaveURL(/wf-wo-sub-wo-uk-tech$/);
   await expect(pickerButton(page, 'UK Technology work orders')).toBeFocused();
 
-  // + New workflow is reachable, and lands on the Start box with its panel open.
-  await page.keyboard.press('Enter');
-  for (let i = 0; i < 20; i += 1) await page.keyboard.press('ArrowDown');
+  // + New workflow is the next stop after the picker, and lands on the Start box with its panel open.
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: '+ New workflow' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'Workflow settings' })).toBeVisible();
   await expect(page).toHaveURL(/\?step=T$/);

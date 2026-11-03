@@ -792,6 +792,10 @@ A final re-check found three Medium defects and one Low. Each reproduced with a 
 
 **Account endpoint.** A pre-existing security issue in an existing account endpoint, outside Flow Studio, was reported to the team privately. Not changed here.
 
+### After launch
+
+- **"+ New workflow" is a button in the top bar, after the status, not the picker's footer row (04 §3, §12).** Asked for by the product owner: inside the picker it was easy to miss. Same string, same action and toast (§12 steps 1 to 3); the picker now lists workflows only. Its keyboard path is Tab from the picker button, then Enter. End-to-end tests that opened the picker to reach it now press the button, and the Tab order, the picker's contents and the 500-workflow option count expect it out of the list.
+
 ---
 
 ## Folder plan

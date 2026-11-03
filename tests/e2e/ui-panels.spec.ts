@@ -554,8 +554,7 @@ test('UI-RULE-01 rule tasks and rule-only rounds are visible in Test', async ({ 
   await expectTestPanel(page, 'EN-015');
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
-  await page.getByRole('button', { name: WO, exact: true }).and(page.locator('[aria-haspopup="listbox"]')).click();
-  await page.getByRole('option', { name: '+ New workflow' }).click();
+  await page.getByRole('button', { name: '+ New workflow' }).click();
   await expect(page.getByRole('banner').getByText('Draft', { exact: true })).toBeVisible();
   await (await plusAfter(page, 'T', 'next')).click();
   await panelOf(page).getByRole('button', { name: /^Notify Send an FYI/ }).click();
