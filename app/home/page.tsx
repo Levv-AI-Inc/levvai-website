@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  AlertTriangle,
   ArrowRight,
   ArrowUp,
   Briefcase,
@@ -12,6 +13,7 @@ import {
   ShieldAlert,
   Sparkles,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { getIntakes, IntakeApiError } from '@/lib/api/intake'
 import { usePolicyStatus, type StoredPolicyStatus } from '../../lib/policyStatus'
@@ -26,7 +28,16 @@ import {
   NOVA_JOB_DRAFT_STORAGE_KEY,
   type CWRequest,
 } from '../requests/new/job/context/CWRequestContext'
-import { LevvPage, levvUi } from '@/components/ui/levv-app'
+import {
+  LevvNotice,
+  LevvPage,
+  LevvPageHeader,
+  LevvPanel,
+  LevvPanelHeader,
+  LevvStatusBadge,
+  levvUi,
+  type LevvTone,
+} from '@/components/ui/levv-app'
 import { MOCK_WORKERS } from '@/lib/mockWorkers'
 
 interface ChatMessage {
@@ -149,36 +160,42 @@ const observations = [
   },
 ]
 
-const railVariants: Record<string, { card: string; eyebrow: string; badge: string; sub: string; action: string }> = {
-  best: {
-    card: 'border-[#bfdbfe] bg-[#eff6ff]',
-    eyebrow: 'text-[#2563eb]',
-    badge: 'bg-[#dbeafe] text-[#1d4ed8]',
-    sub: 'text-[#52637a]',
-    action: 'text-[#2563eb]',
-  },
-  warn: {
-    card: 'border-[#e5b766] bg-[#fff7e6]',
-    eyebrow: 'text-[#9a651e]',
-    badge: 'bg-[#f8e4b6] text-[#9a651e]',
-    sub: 'text-[#665742]',
-    action: 'text-[#9a651e]',
-  },
-  risk: {
-    card: 'border-[#e8b5ad] bg-[#fff4f1]',
-    eyebrow: 'text-[#a44135]',
-    badge: 'bg-[#f5d8d3] text-[#a44135]',
-    sub: 'text-[#66504b]',
-    action: 'text-[#a44135]',
-  },
-  default: {
-    card: 'border-[#dbe3ee] bg-white',
-    eyebrow: 'text-[#334155]',
-    badge: 'bg-[#eef2f7] text-[#52637a]',
-    sub: 'text-[#64748b]',
-    action: 'text-[#2563eb]',
-  },
+/* Rail tiles carry Nova's read of each option; the variant only ever shows as a status tone. */
+const railTones: Record<string, LevvTone> = {
+  best: 'blue',
+  warn: 'amber',
+  risk: 'rose',
+  default: 'slate',
 }
+
+const railToneDot: Record<LevvTone, string> = {
+  blue: 'bg-blue-600',
+  emerald: 'bg-emerald-500',
+  amber: 'bg-amber-500',
+  rose: 'bg-rose-500',
+  slate: 'bg-slate-400',
+}
+
+/* Nova writes rail labels in capitals ("RECORD REVIEW"); show them in sentence case, keeping real acronyms. */
+const KEEP_UPPERCASE = new Set(['SOW', 'SOWS', 'T&M', 'HR', 'HCM', 'IR35', 'AI', 'PO', 'CW', 'CWS', 'HQ', 'NY', 'SLA', 'MSA', 'KPI', 'ID'])
+
+function displayLabel(label: string) {
+  if (!label || label !== label.toUpperCase() || !/[A-Z]/.test(label)) return label
+  const words = label.split(/(\s+)/).map((word) => {
+    const core = word.replace(/[^A-Z0-9&]/g, '')
+    if (KEEP_UPPERCASE.has(core) || (/\d/.test(core) && /[A-Z]/.test(core))) return word
+    return word.toLowerCase()
+  })
+  const text = words.join('')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/* Bare textarea inside the composer: outranks the app layer's field styling (globals.css) so the composer owns the border and focus ring. */
+const BARE_TEXTAREA =
+  '[.levv-auth-shell_&&&]:!rounded-none [.levv-auth-shell_&&&]:!bg-transparent [.levv-auth-shell_&&&]:!shadow-none'
+
+const FOCUS_RING =
+  'outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2'
 
 function parseNovaResponse(raw: string): {
   text: string
@@ -614,7 +631,7 @@ export default function Home() {
           key={index}
           type="button"
           onClick={() => navigateToRoute(route)}
-          className="inline align-baseline font-semibold text-[#2563eb] underline decoration-[#93c5fd] underline-offset-2 hover:text-[#1d4ed8]"
+          className="inline rounded-sm align-baseline font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 transition-colors duration-150 ease-out hover:text-blue-800 hover:decoration-blue-600"
         >
           {part}
         </button>
@@ -648,7 +665,7 @@ export default function Home() {
       blocks.push(
         <Tag
           key={`list-${blocks.length}`}
-          className={`my-3 space-y-1.5 pl-5 ${listType === 'ul' ? 'list-disc' : 'list-decimal'}`}
+          className={`space-y-1.5 pl-5 marker:text-slate-400 ${listType === 'ul' ? 'list-disc' : 'list-decimal'}`}
         >
           {listItems.map((item, index) => (
             <li key={index} className="pl-1">
@@ -702,63 +719,57 @@ export default function Home() {
     setDismissedRailIndex(activeRailInfo?.index ?? null)
   }, [activeRailInfo])
 
+  const policyTone: LevvTone = policyActive ? 'emerald' : policyUploaded ? 'slate' : 'amber'
+
   const inputBox = (
-    <div className="rounded-xl border border-[#dbe3ee] bg-white shadow-[0_12px_35px_-26px_rgba(15,23,42,0.35)] transition focus-within:border-[#93b4f8] focus-within:ring-4 focus-within:ring-[#dbeafe]/70">
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={(event) => setInput(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault()
-            sendMessage()
-          }
-        }}
-        placeholder="Ask Nova to inspect an SOW, explain a blocker, or prepare an approval note..."
-        rows={1}
-        disabled={isLoading}
-        className="w-full resize-none bg-transparent px-5 pb-2 pt-4 text-[15px] leading-relaxed text-[#17213c] outline-none placeholder:text-[#94a3b8]"
-        style={{ minHeight: 32, maxHeight: 180 }}
-      />
-      <div className="flex items-center justify-between px-4 pb-3">
-        <div className="flex items-center gap-2">
-          <span
-            role="status"
-            aria-live="polite"
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase ${policyActive
-              ? 'border-[#b9dfcf] bg-[#eefaf5] text-[#1f3d38]'
-              : policyUploaded
-                ? 'border-[#d8d1c4] bg-[#f4f1ea] text-[#6b746f]'
-                : 'border-[#e8c5bf] bg-[#fff4f1] text-[#a44135]'
-              }`}
-            title={policyStatusTitle}
-          >
-            {policyActive ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-              <ShieldAlert className="h-3.5 w-3.5" />
-            )}
-            {policyActive
-              ? 'Policy active'
-              : policyUploaded
-                ? 'Policy deactivated'
-                : 'Policy inactive'}
+    <div className="rounded-xl border border-[var(--line-strong)] bg-white px-3 pb-3 pt-3 transition-[border-color,box-shadow] duration-150 ease-out hover:border-slate-400/60 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--focus)]">
+      <div className="flex items-start gap-3">
+        <NovaMark className="mt-1" />
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault()
+              sendMessage()
+            }
+          }}
+          placeholder="Ask Nova to inspect an SOW, explain a blocker, or prepare an approval note..."
+          aria-label="Message Nova"
+          rows={1}
+          disabled={isLoading}
+          className={`min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${BARE_TEXTAREA}`}
+          style={{ minHeight: 36, maxHeight: 180 }}
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span role="status" aria-live="polite" title={policyStatusTitle} className="inline-flex">
+            <LevvStatusBadge tone={policyTone} icon={policyActive ? CheckCircle2 : ShieldAlert}>
+              {policyActive
+                ? 'Policy active'
+                : policyUploaded
+                  ? 'Policy deactivated'
+                  : 'Policy inactive'}
+            </LevvStatusBadge>
           </span>
           {hasChat && (
             <button
               type="button"
               onClick={endConversation}
-              className="rounded-md px-2.5 py-1 text-[10px] font-bold uppercase text-[#6b746f] hover:bg-[#f4f1ea] hover:text-[#1e2528]"
+              className={`levv-press inline-flex h-7 items-center rounded-md px-2 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 ${FOCUS_RING}`}
             >
               End conversation
             </button>
           )}
         </div>
         <button
+          type="button"
           onClick={() => sendMessage()}
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#101b3c] text-white transition hover:bg-[#192a56] disabled:bg-[#e8edf5] disabled:text-[#94a3b8]"
+          className={`levv-press ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none ${FOCUS_RING}`}
         >
           <ArrowUp className="h-4 w-4" />
         </button>
@@ -768,174 +779,222 @@ export default function Home() {
 
   if (hasChat) {
     return (
-      <div className="h-[calc(100vh-7rem)] overflow-hidden bg-[#f4f1ea] lg:h-[calc(100vh-8rem)]">
-        <div ref={chatScrollRef} className="h-full overflow-y-auto">
-          <div className="mx-auto max-w-[1120px] space-y-5 px-6 py-8 pb-48">
-            <div className="flex items-center justify-between border-b border-[#d8d1c4] pb-4">
-              <div className="flex items-center gap-3 text-xs font-bold uppercase text-[#6b746f]">
-                <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-                Nova desk / {clockTime || '--:--'}
-              </div>
-            </div>
+      <LevvPage width="standard">
+        <section
+          aria-label="Nova desk"
+          className="flex h-[calc(100dvh-6.5rem)] flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white sm:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)]"
+        >
+          <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--line)] px-4 py-3 sm:px-5">
+            <NovaMark />
+            <p className="text-[13px] font-medium text-slate-900">
+              Nova desk <span className="text-slate-400">/</span>{' '}
+              <span className="font-normal tabular-nums text-slate-500">{clockTime || '--:--'}</span>
+            </p>
+            <span aria-hidden className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </header>
 
-            <div className={hasRail ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]' : ''}>
-              <div className="space-y-5">
-                {chatMessages.map((message, index) => (
-                  <div key={index} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                    <div className={message.role === 'user' ? 'max-w-[78%] rounded-lg bg-[#e4ddcf] px-5 py-3 text-sm text-[#1e2528]' : 'max-w-[88%] text-sm leading-7 text-[#3d4945]'}>
-                      {message.role === 'nova' ? renderNovaContent(message.content) : message.content}
-                      {message.role === 'nova' && message.actions && message.actions.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {message.actions.map((action) => {
-                            const isRoute = action.prompt.startsWith('/')
-                            return (
-                              <button
-                                key={action.label}
-                                type="button"
-                                onClick={() => handleAction(action, message)}
-                                className={
-                                  isRoute
-                                    ? 'inline-flex items-center gap-1.5 rounded-md bg-[#1f3d38] px-3 py-2 text-xs font-semibold text-white hover:bg-[#255345]'
-                                    : 'inline-flex items-center gap-1.5 rounded-md border border-[#cfc7b8] bg-[#fcfbf7] px-3 py-2 text-xs font-semibold text-[#1f3d38] hover:bg-[#f4f1ea]'
-                                }
-                              >
-                                {action.label}
-                                {isRoute && <ArrowRight className="h-3 w-3" />}
-                              </button>
-                            )
-                          })}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div ref={chatScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+                <div role="log" aria-label="Conversation with Nova" className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+                  {chatMessages.map((message, index) =>
+                    message.role === 'user' ? (
+                      <div key={index} className="flex justify-end">
+                        <div className="max-w-[78%] whitespace-pre-wrap break-words rounded-xl bg-slate-100 px-4 py-2.5 text-sm leading-6 text-slate-900">
+                          {message.content}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {isLoading && <div className="text-sm text-[#6b746f]">Nova is reviewing the record...</div>}
-                <div ref={chatEndRef} />
-              </div>
-
-              {activeRail && (
-                <aside className="hidden lg:block">
-                  <div className="sticky top-24 rounded-lg border border-[#cfc7b8] bg-[#fcfbf7] p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase text-[#1f3d38]">
-                        <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{activeRail.header}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={dismissRail}
-                        className="rounded-md p-1 text-[#8b918e] hover:bg-[#f4f1ea] hover:text-[#52605c]"
-                        aria-label="Hide Nova rail"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                    ) : (
+                      <div key={index} className="flex justify-start gap-3">
+                        <NovaMark className="mt-0.5" />
+                        <div className="min-w-0 max-w-[88%] text-sm leading-6 text-slate-700">
+                          {renderNovaContent(message.content)}
+                          {message.actions && message.actions.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {message.actions.map((action) => {
+                                const isRoute = action.prompt.startsWith('/')
+                                return (
+                                  <button
+                                    key={action.label}
+                                    type="button"
+                                    onClick={() => handleAction(action, message)}
+                                    className={`${isRoute ? levvUi.primaryButton : levvUi.secondaryButton} group`}
+                                  >
+                                    {action.label}
+                                    {isRoute && (
+                                      <ArrowRight className="transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+                                    )}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                  {isLoading && (
+                    <div role="status" className="flex items-center gap-3">
+                      <NovaMark />
+                      <span className="flex items-center gap-2 text-[13px] text-slate-500">
+                        <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--nova)] motion-reduce:animate-none" />
+                        Nova is reviewing the record...
+                      </span>
                     </div>
-                    <div className="space-y-2.5">
-                      {activeRail.tiles.map((tile, index) => (
-                        <RailTile
-                          key={`${tile.title}-${index}`}
-                          tile={tile}
-                          onClick={() => handleAction({ label: tile.action, prompt: tile.destination }, chatMessages[activeRailInfo!.index])}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </aside>
-              )}
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              </div>
+              <div className="shrink-0 px-4 pb-4 pt-2 sm:px-6">
+                <div className="mx-auto max-w-3xl">{inputBox}</div>
+              </div>
             </div>
+
+            {activeRail && (
+              <aside
+                aria-label={displayLabel(activeRail.header)}
+                className="hidden w-80 shrink-0 flex-col border-l border-[var(--line)] bg-[var(--surface-sunken)] lg:flex"
+              >
+                <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
+                  <h2 className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-slate-950">
+                    <Sparkles className="h-4 w-4 shrink-0 text-slate-400" />
+                    <span className="truncate">{displayLabel(activeRail.header)}</span>
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={dismissRail}
+                    className={`levv-press flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 ${FOCUS_RING}`}
+                    aria-label="Hide Nova rail"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-4 pt-1">
+                  {activeRail.tiles.map((tile, index) => (
+                    <RailTile
+                      key={`${tile.title}-${index}`}
+                      tile={tile}
+                      onClick={() => handleAction({ label: tile.action, prompt: tile.destination }, chatMessages[activeRailInfo!.index])}
+                    />
+                  ))}
+                </div>
+              </aside>
+            )}
           </div>
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-[#f4f7fb] via-[#f4f7fb] to-transparent pb-4 pt-12 lg:left-64">
-          <div className="mx-auto max-w-[1120px] px-6">{inputBox}</div>
-        </div>
-      </div>
+        </section>
+      </LevvPage>
     )
   }
 
   return (
-    <LevvPage width="standard" className="p-0 sm:p-0 lg:p-0">
-      <div className="mb-6">
-        <section className="rounded-lg border border-[#cfc7b8] bg-white p-6 shadow-[0_18px_45px_-36px_rgba(31,61,56,0.8)]">
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#6b746f]">
-                <span className="h-2 w-2 rounded-full bg-[#89d3bd]" />
-                Nova monitoring
-              </div>
-              <h1 className="mt-4 text-4xl font-semibold leading-tight text-[#1e2528]">Control desk</h1>
-              <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[#52605c]">
-                {pendingRequestCopy}
-              </p>
-              {pendingRequestsError && <p className="mt-2 text-sm font-medium text-[#9a651e]">{pendingRequestsError}</p>}
-            </div>
-          </div>
-          <div className="mt-6">{inputBox}</div>
+    <LevvPage width="standard">
+      <div className="space-y-6">
+        <LevvPageHeader
+          title="Control desk"
+          description={<span aria-live="polite">{pendingRequestCopy}</span>}
+          actions={<LevvStatusBadge tone="emerald">Nova monitoring</LevvStatusBadge>}
+        />
 
-          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            <Link
+        {pendingRequestsError && (
+          <LevvNotice tone="amber" icon={AlertTriangle}>
+            {pendingRequestsError}
+          </LevvNotice>
+        )}
+
+        <section aria-label="Ask Nova" className="space-y-3">
+          {inputBox}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StartLink
               href="/requests/sow/create"
               onClick={clearSowDrafts}
-              className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#bfc9c0] bg-[#f7fbf8] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(31,61,56,0.85)] transition hover:-translate-y-0.5 hover:border-[#89d3bd] hover:bg-[#eefaf5] hover:shadow-[0_18px_38px_-28px_rgba(31,61,56,0.75)] focus:outline-none focus:ring-2 focus:ring-[#89d3bd] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#1f3d38] text-white shadow-sm">
-                  <FileText className="h-5 w-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-semibold text-[#1e2528]">Create SOW</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-[#52605c]">Scope, terms, and commercials</span>
-                </span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-[#1f3d38] transition group-hover:translate-x-0.5" />
-            </Link>
-            <Link
+              icon={FileText}
+              title="Create SOW"
+              detail="Scope, terms, and commercials"
+            />
+            <StartLink
               href="/requests/new/job/create/define"
               onClick={clearJobDrafts}
-              className="group flex min-h-[76px] items-center justify-between gap-4 rounded-lg border border-[#d8c49a] bg-[#fffaf0] px-4 py-3 text-left shadow-[0_14px_35px_-30px_rgba(154,101,30,0.75)] transition hover:-translate-y-0.5 hover:border-[#e5b766] hover:bg-[#fff7e6] hover:shadow-[0_18px_38px_-28px_rgba(154,101,30,0.7)] focus:outline-none focus:ring-2 focus:ring-[#e5b766] focus:ring-offset-2 focus:ring-offset-[#fcfbf7]"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#9a651e] text-white shadow-sm">
-                  <Briefcase className="h-5 w-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-semibold text-[#1e2528]">Create Job Posting</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-[#665742]">Role, suppliers, and rates</span>
-                </span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-[#9a651e] transition group-hover:translate-x-0.5" />
-            </Link>
+              icon={Briefcase}
+              title="Create Job Posting"
+              detail="Role, suppliers, and rates"
+            />
           </div>
         </section>
-      </div>
 
-      <div>
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#2563eb]">
-            <Sparkles className="h-3.5 w-3.5" />
-            Nova brief
-          </div>
-          {observations.map((item) => (
-            <div key={item.id} className="rounded-[16px] border border-[#e1e8f2] bg-white p-4 shadow-[0_10px_30px_-25px_rgba(15,23,42,0.35)]">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-md bg-[#eaf2ff] px-2 py-1 text-[10px] font-bold uppercase text-[#2563eb]">{item.tag}</span>
-                <span className="text-[10px] font-bold uppercase text-[#64748b]">{item.severity}</span>
-                <span className="text-[10px] text-[#94a3b8]">{item.time}</span>
-              </div>
-              <p className="text-sm leading-6 text-[#334155]">{item.body}</p>
-              <div className="mt-4 flex items-center gap-2">
-                <button onClick={() => sendMessage(item.prompt)} className={levvUi.primaryButton}>
-                  {item.primary}
-                </button>
-                <button onClick={() => router.push(item.href)} className="rounded-lg px-3 py-2 text-xs font-semibold text-[#52637a] hover:bg-[#f1f5f9]">
-                  Open record
-                </button>
-                <CheckCircle2 className="ml-auto h-4 w-4 text-[#059669]" />
-              </div>
-            </div>
-          ))}
-        </section>
+        <LevvPanel>
+          <LevvPanelHeader
+            icon={Sparkles}
+            title="Nova brief"
+            className="border-b border-[var(--line)] px-5 py-3.5"
+          />
+          <ul className="divide-y divide-[var(--line)]">
+            {observations.map((item) => (
+              <li key={item.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                  <h3 className="text-sm font-semibold text-slate-950">{item.tag}</h3>
+                  <LevvStatusBadge tone="amber">{item.severity}</LevvStatusBadge>
+                  <span className="text-xs text-slate-500 sm:ml-auto">{item.time}</span>
+                </div>
+                <p className="mt-2 max-w-[80ch] text-sm leading-6 text-slate-700">{item.body}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => sendMessage(item.prompt)} className={levvUi.primaryButton}>
+                    {item.primary}
+                  </button>
+                  <Link href={item.href} className={levvUi.ghostButton}>
+                    Open record
+                  </Link>
+                  <CheckCircle2 aria-hidden className="ml-auto h-4 w-4 shrink-0 text-emerald-600" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </LevvPanel>
       </div>
     </LevvPage>
+  )
+}
+
+/* Nova's mark: the navy chip with the sky icon, as in LevvNovaPrompt. */
+function NovaMark({ className = '' }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)] ${className}`}
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+    </span>
+  )
+}
+
+function StartLink({
+  href,
+  onClick,
+  icon: Icon,
+  title,
+  detail,
+}: {
+  href: string
+  onClick: () => void
+  icon: LucideIcon
+  title: string
+  detail: string
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`levv-press group flex min-h-[64px] min-w-0 items-center gap-3 rounded-xl border border-[var(--line)] bg-white px-4 py-3 hover:border-[var(--line-strong)] hover:bg-slate-50 ${FOCUS_RING}`}
+    >
+      <Icon aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-slate-950">{title}</span>
+        <span className="mt-0.5 block text-xs text-slate-500">{detail}</span>
+      </span>
+      <ArrowRight
+        aria-hidden
+        className="h-4 w-4 shrink-0 text-slate-400 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-slate-700"
+      />
+    </Link>
   )
 }
 
@@ -946,33 +1005,38 @@ function RailTile({
   tile: RailTileData
   onClick: () => void
 }) {
-  const variant = railVariants[tile.variant] || railVariants.default
+  const tone = railTones[tile.variant] || railTones.default
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${variant.card}`}
+      className={`levv-press group block w-full rounded-lg border border-[var(--line)] bg-white p-3 text-left hover:border-[var(--line-strong)] ${FOCUS_RING}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className={`text-[10px] font-bold uppercase ${variant.eyebrow}`}>
-          {tile.eyebrow}
+      {(tile.eyebrow || tile.badge) && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
+            {tone !== 'slate' && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${railToneDot[tone]}`} />}
+            <span className="truncate">{displayLabel(tile.eyebrow)}</span>
+          </span>
+          {tile.badge && (
+            <LevvStatusBadge tone={tone} dot={false}>
+              {displayLabel(tile.badge)}
+            </LevvStatusBadge>
+          )}
         </div>
-        {tile.badge && (
-          <div className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase ${variant.badge}`}>
-            {tile.badge}
-          </div>
-        )}
-      </div>
-      <div className="mt-2 text-sm font-semibold text-[#17213c]">
+      )}
+      <div className="mt-1.5 text-[13px] font-semibold text-slate-950">
         {tile.title}
       </div>
-      <div className={`mt-1 text-xs leading-5 ${variant.sub}`}>
-        {tile.subtitle}
-      </div>
-      <div className={`mt-3 inline-flex items-center gap-1.5 text-xs font-semibold ${variant.action}`}>
+      {tile.subtitle && (
+        <div className="mt-0.5 text-xs leading-5 text-slate-500">
+          {tile.subtitle}
+        </div>
+      )}
+      <div className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-blue-700">
         {tile.action}
-        <ArrowRight className="h-3 w-3" />
+        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
       </div>
     </button>
   )

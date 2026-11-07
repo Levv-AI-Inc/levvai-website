@@ -101,7 +101,7 @@ export function RunDialog({ title, text, field, confirm, danger, onCancel, onCon
 
   return createPortal(
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-slate-950/50 p-4"
+      className="levv-spec fixed inset-0 z-40 grid place-items-center bg-slate-950/50 p-4"
       onMouseDown={(event: MouseEvent) => {
         if (event.target === event.currentTarget) onCancel();
       }}
@@ -171,7 +171,7 @@ export function useLoad<T>(path: string): [Loaded<T>, () => void] {
 
 export function PageFrame({ title, right, children }: { title: ReactNode; right?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-5 text-[14px] leading-normal text-slate-900">
+    <div className="levv-spec flex flex-col gap-5 text-[14px] leading-normal text-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">{title}</div>
         {right}

@@ -117,7 +117,7 @@ export function PublishDialog({ workflow, ctx, editing, onClose }: PublishDialog
   return createPortal(
     <div
       onClick={onScrimClick}
-      className="fixed inset-0 z-40 grid place-items-center bg-slate-950/55 p-4 text-[14px] leading-[1.5] text-slate-900"
+      className="levv-spec fixed inset-0 z-40 grid place-items-center bg-slate-950/55 p-4 text-[14px] leading-[1.5] text-slate-900"
     >
       <div
         ref={dialogRef}

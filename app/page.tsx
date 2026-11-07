@@ -1,308 +1,841 @@
 'use client'
 
+/*
+  Landing page. Kind: software (site-kind software). Built with the taste skill's rules in the project's own stack.
+  Deal: hero split (product window on a lit sky ground, one result card) · nav centre (mega re-dealt: four anchors,
+  no sub-pages) · footer columns · close word (the name set across the column) · rhythm dark band (Nova) ·
+  buttons tonal · moment line-carries-colour on the dark band · palette and type: the Levv brand (navy, Levv blue,
+  sky; Archivo wide display after the wordmark, Inter text).
+*/
+
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowRight,
-  BadgeCheck,
   Check,
-  CheckCircle2,
-  ChevronRight,
+  ChevronDown,
+  CircleDashed,
   Clock3,
-  FileText,
-  GitBranch,
-  Layers3,
-  LockKeyhole,
+  Lock,
   Menu,
-  RefreshCcw,
-  Route,
   ShieldCheck,
   Sparkles,
-  TimerReset,
-  UserCheck,
-  Users,
   X,
-  Zap,
 } from 'lucide-react'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+
+const CONTACT = 'mailto:hello@levv.ai'
+
+const NAV = [
+  ['Worker record', '#record'],
+  ['Controls', '#controls'],
+  ['Nova', '#nova'],
+  ['Integrations', '#integrations'],
+] as const
 
 const lifecycleStages = [
   {
     label: 'Requisition',
-    icon: FileText,
     title: 'Start with a governed request, not an email thread.',
     description:
       'Structured intake checks role type, location, budget, and classification before the request enters an approval queue.',
     tags: ['Role type check', 'Budget guardrails', 'Automatic routing'],
-    metricA: '< 4h',
-    metricALabel: 'Average cycle time',
-    metricB: 'Zero',
-    metricBLabel: 'Manual handoffs',
   },
   {
     label: 'Approval',
-    icon: BadgeCheck,
     title: 'Route every decision with the right context attached.',
     description:
       'Policy-aware approval chains send requests to the correct business, finance, and procurement owners with a complete audit history.',
     tags: ['Dynamic approvers', 'SLA escalation', 'Decision history'],
-    metricA: '100%',
-    metricALabel: 'Route coverage',
-    metricB: '1 record',
-    metricBLabel: 'Decision context',
   },
   {
     label: 'Onboarding',
-    icon: UserCheck,
     title: 'Turn an approved work order into a ready worker.',
     description:
       'Levv matches the worker to the correct onboarding policy, coordinates stakeholders, and gates access until every hard requirement clears.',
     tags: ['Identity checks', 'Supplier tasks', 'System access'],
-    metricA: 'Live',
-    metricALabel: 'Readiness status',
-    metricB: 'Policy-led',
-    metricBLabel: 'Task orchestration',
   },
   {
-    label: 'In-engagement',
-    icon: Clock3,
+    label: 'In engagement',
     title: 'Keep time, tenure, and cost on one operating record.',
     description:
       'Monitor timesheets, extensions, worker tenure, and compliance events without rebuilding the story across spreadsheets and inboxes.',
     tags: ['Time capture', 'Tenure alerts', 'Cost visibility'],
-    metricA: 'Weekly',
-    metricALabel: 'Control cadence',
-    metricB: 'Always on',
-    metricBLabel: 'Policy monitoring',
   },
   {
     label: 'Offboarding',
-    icon: RefreshCcw,
     title: 'Close access and obligations when the work ends.',
     description:
       'End dates trigger the right deprovisioning, asset, finance, and supplier actions with completion evidence retained on the worker record.',
     tags: ['Access removal', 'Asset recovery', 'Audit evidence'],
-    metricA: 'Day zero',
-    metricALabel: 'Exit trigger',
-    metricB: 'Tracked',
-    metricBLabel: 'Every unwind task',
-  },
-]
-
-const frictionPoints = [
-  {
-    icon: ShieldCheck,
-    title: 'Classification risk',
-    copy: 'Worker type and jurisdiction checks happen before a request becomes operational exposure.',
-  },
-  {
-    icon: Users,
-    title: 'Co-employment drift',
-    copy: 'Tenure and ownership remain visible across assignments, suppliers, and extensions.',
-  },
-  {
-    icon: LockKeyhole,
-    title: 'Access without governance',
-    copy: 'System access is gated by onboarding readiness and unwound when work ends.',
-  },
-  {
-    icon: Layers3,
-    title: 'Approval without context',
-    copy: 'Every decision carries policy, commercial, worker, and supplier context with it.',
-  },
-]
-
-const novaCapabilities = [
-  {
-    icon: Route,
-    title: 'Autonomous routing',
-    copy: 'Reads each request, applies your policy, and routes it to the right approval chain.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Classification enforcement',
-    copy: 'Evaluates worker type and jurisdiction rules before an engagement can proceed.',
-  },
-  {
-    icon: TimerReset,
-    title: 'Offboarding trigger',
-    copy: 'Tracks end dates and initiates deprovisioning at the moment your policy requires.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Tenure monitoring',
-    copy: 'Surfaces thresholds early and routes extension decisions to accountable owners.',
   },
 ]
 
 const requisitions = [
-  ['REQ-0091', 'Senior DevOps Engineer', 'Pending approval', 'amber'],
-  ['REQ-0090', 'UX Research Lead', 'Approved', 'emerald'],
-  ['REQ-0089', 'ERP Integration Consultant', 'In onboarding', 'blue'],
-  ['REQ-0088', 'Data Privacy Counsel', 'Classification review', 'rose'],
+  { id: 'REQ-0091', role: 'Senior DevOps Engineer', status: 'Pending approval', tone: 'amber', stage: 1 },
+  { id: 'REQ-0090', role: 'UX Research Lead', status: 'Approved', tone: 'emerald', stage: 2 },
+  { id: 'REQ-0089', role: 'ERP Integration Consultant', status: 'In onboarding', tone: 'blue', stage: 2 },
+  { id: 'REQ-0088', role: 'Data Privacy Counsel', status: 'Classification review', tone: 'rose', stage: 0 },
+] as const
+
+const novaTrace = [
+  ['req:8821 received', 'classification:check running'],
+  ['policy:IR35 matched', 'routing to VP Engineering'],
+  ['approval:granted', 'onboarding tasks dispatched'],
+  ['tenure:monitor set', 'alert at day 180 / limit day 270'],
 ]
 
-const approvals = [
-  ['REQ-0091', 'Sarah Chen, VP Engineering', 'Due today 17:00', 'Awaiting'],
-  ['REQ-0087', 'Marcus Webb, CPO', 'Due yesterday', 'Approved'],
-  ['REQ-0085', 'Dana Park, CFO', 'Due 3 days ago', 'Approved'],
+const novaCapabilities = [
+  ['Autonomous routing', 'Reads each request, applies your policy, and routes it to the right approval chain.'],
+  ['Classification enforcement', 'Evaluates worker type and jurisdiction rules before an engagement can proceed.'],
+  ['Offboarding trigger', 'Tracks end dates and initiates deprovisioning at the moment your policy requires.'],
+  ['Tenure monitoring', 'Surfaces thresholds early and routes extension decisions to accountable owners.'],
 ]
 
-function BrandMark() {
+const questions = [
+  [
+    'Does Nova approve requests?',
+    'No. Nova reads the request, applies your policy and routes it. A person approves, and never the person who raised the request.',
+  ],
+  [
+    'Which systems does Levv connect to?',
+    'Workday HCM for the worker record and onboarding tasks, DocuSign for agreements and attestations, and Microsoft Teams and Slack for approvals and notifications.',
+  ],
+  [
+    'Do we have to replace the tools we use today?',
+    'No. Levv comes with guided onboarding and works beside the systems you keep. There is no rip-and-replace.',
+  ],
+  [
+    'Who works in Levv?',
+    'Procurement, HR, finance, hiring managers, suppliers and workers, each with their own view of the same worker record.',
+  ],
+  [
+    'Can we change how approvals are routed?',
+    'Yes. Admins design each workflow in Flow Studio: who approves, in what order, and what happens when nobody eligible is available.',
+  ],
+]
+
+const TONE_DOT = { amber: 'bg-amber-500', emerald: 'bg-emerald-500', blue: 'bg-blue-600', rose: 'bg-rose-500' } as const
+
+/* =========================
+   Shared pieces
+========================= */
+const WRAP = 'wrap mx-auto w-full max-w-[1264px] px-5 sm:px-8'
+const DISPLAY_FACE = 'font-display font-medium tracking-[-0.032em]'
+const DISPLAY = `${DISPLAY_FACE} [font-stretch:112%]`
+const BUTTON =
+  'levv-press inline-flex h-11 items-center justify-center gap-2 rounded-lg px-5 text-[15px] font-medium outline-none hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2'
+const MAIN_BUTTON = `${BUTTON} bg-blue-600 text-white hover:bg-blue-700`
+const TONAL_BUTTON = `${BUTTON} bg-blue-50 text-blue-700 hover:bg-blue-100`
+const UNDERLINE =
+  'bg-gradient-to-r from-current to-current bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size,color] duration-200 ease-out hover:bg-[length:100%_1px]'
+
+function MainAction({ developerMode, onRequest, className = '' }: { developerMode: boolean; onRequest: () => void; className?: string }) {
+  if (developerMode) {
+    return (
+      <button type="button" onClick={onRequest} className={`${MAIN_BUTTON} ${className}`}>
+        Request early access
+      </button>
+    )
+  }
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-white shadow-sm">
-      <GitBranch className="h-4 w-4" strokeWidth={2.4} />
+    <a href={CONTACT} className={`${MAIN_BUTTON} ${className}`}>
+      Contact Levv
+    </a>
+  )
+}
+
+function Mark({ size = 32 }: { size?: number }) {
+  return (
+    <span className="flex shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-[var(--line)]" style={{ width: size, height: size }}>
+      <Image src="/logos/levvai-mark.png" alt="" width={700} height={780} className="h-[68%] w-auto object-contain" priority />
     </span>
   )
 }
 
-function PrimaryButton({
-  children,
-  onClick,
-  className = '',
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  className?: string
-}) {
+function StatusDot({ tone }: { tone: keyof typeof TONE_DOT }) {
+  return <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT[tone]}`} />
+}
+
+function Track({ at, size = 'sm' }: { at: number; size?: 'sm' | 'md' }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex h-11 items-center justify-center gap-2 rounded-md bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${className}`}
-    >
-      {children}
-    </button>
+    <span aria-hidden className="flex items-center gap-[3px]">
+      {lifecycleStages.map((stage, index) => (
+        <span
+          key={stage.label}
+          className={`rounded-full transition-[width,background-color] duration-300 ease-out ${size === 'md' ? 'h-2' : 'h-1.5'} ${
+            index === at ? `${size === 'md' ? 'w-7' : 'w-4'} bg-blue-600` : index < at ? `${size === 'md' ? 'w-4' : 'w-2.5'} bg-slate-400` : `${size === 'md' ? 'w-4' : 'w-2.5'} bg-slate-200`
+          }`}
+        />
+      ))}
+    </span>
   )
 }
 
-function WorkflowNode({
-  icon: Icon,
-  label,
-  status,
-  className,
-}: {
-  icon: typeof FileText
-  label: string
-  status: string
-  className: string
-}) {
+/** The product's own window, drawn in live HTML. */
+function AppWindow({ path, children, className = '' }: { path: string; children: ReactNode; className?: string }) {
   return (
-    <div
-      className={`absolute z-10 w-36 rounded-md border border-blue-200 bg-white p-3 shadow-[0_12px_30px_-18px_rgba(30,64,175,0.45)] sm:w-40 ${className}`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-50 text-blue-600">
-          <Icon className="h-4 w-4" />
+    <div className={`overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-[0_24px_60px_-28px_rgb(10_17_40/0.35),0_2px_6px_rgb(10_17_40/0.05)] ${className}`}>
+      <div className="flex h-10 items-center gap-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] px-4">
+        <span className="flex gap-1.5" aria-hidden>
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
         </span>
-        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <span className="truncate text-xs text-slate-600">{path}</span>
       </div>
-      <p className="mt-3 text-xs font-semibold text-slate-900">{label}</p>
-      <p className="mt-1 text-[10px] font-medium uppercase text-blue-600">
-        {status}
-      </p>
+      {children}
     </div>
   )
 }
 
-function WorkflowVisual() {
-  const mobileStages = [
-    { icon: FileText, label: 'Requisition', status: 'Request captured' },
-    { icon: BadgeCheck, label: 'Approval', status: 'Policy matched' },
-    { icon: UserCheck, label: 'Onboarding', status: 'Tasks dispatched' },
-    { icon: Clock3, label: 'In-engagement', status: 'Controls active' },
-    { icon: RefreshCcw, label: 'Offboarding', status: 'Exit scheduled' },
-  ]
-
+/* =========================
+   Hero visual: a request on its way to approval
+========================= */
+function HeroVisual() {
   return (
-    <div className="overflow-hidden rounded-lg border border-blue-200 bg-white shadow-[0_28px_80px_-48px_rgba(30,64,175,0.55)]">
-      <div className="flex h-10 items-center justify-between border-b border-blue-100 bg-blue-50/70 px-4">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-blue-300" />
-          <span className="h-2 w-2 rounded-full bg-blue-300" />
-          <span className="h-2 w-2 rounded-full bg-blue-300" />
-          <span className="ml-2 font-mono text-[10px] text-slate-400">
-            levv.io / workforce-graph
-          </span>
-        </div>
-        <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="sm:hidden">Live</span>
-          <span className="hidden sm:inline">Nova is routing</span>
-        </span>
-      </div>
-
-      <div className="grid gap-2 bg-blue-50/30 p-4 sm:hidden">
-        {mobileStages.map(({ icon: Icon, label, status }, index) => (
-          <div key={label} className="relative flex items-center gap-3">
-            {index < mobileStages.length - 1 ? (
-              <span className="absolute left-4 top-10 h-4 w-px bg-blue-200" />
-            ) : null}
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-blue-200 bg-white text-blue-600">
-              <Icon className="h-4 w-4" />
-            </span>
-            <div className="flex min-h-12 flex-1 items-center justify-between gap-3 rounded-md border border-blue-100 bg-white px-3 py-2">
+    <div className="relative h-full min-h-[300px] overflow-hidden rounded-2xl bg-[#e9f1fd] lg:min-h-0">
+      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_80%_at_85%_0%,#ffffff_0%,rgb(255_255_255/0)_60%)]" />
+      <div className="absolute -bottom-12 left-6 top-6 w-[calc(100%-1.5rem+28px)] sm:left-12 sm:top-12 sm:w-[calc(100%-3rem+28px)] lg:left-16 lg:top-16 lg:w-[calc(100%-4rem+28px)]">
+        <AppWindow path="acme.levvai.com / requests / REQ-0091" className="h-full">
+          <div className="grid sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
+            <ul className="hidden border-r border-[var(--line)] py-2 sm:block" aria-label="Requests">
+              {requisitions.map((req, index) => (
+                <li key={req.id} className={`px-4 py-2.5 ${index === 0 ? 'bg-blue-50' : ''}`}>
+                  <div className="flex items-center gap-2 text-[11px] tabular-nums text-slate-600">
+                    <StatusDot tone={req.tone} />
+                    {req.id}
+                  </div>
+                  <div className={`mt-0.5 truncate text-[13px] ${index === 0 ? 'font-semibold text-slate-950' : 'font-medium text-slate-700'}`}>{req.role}</div>
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-4 p-5 pr-10 sm:pr-12">
               <div>
-                <p className="text-xs font-semibold text-slate-900">{label}</p>
-                <p className="mt-0.5 text-[10px] text-slate-500">{status}</p>
+                <div className="text-[11px] tabular-nums text-slate-500">REQ-0091</div>
+                <div className="mt-0.5 text-[15px] font-semibold text-slate-950">Senior DevOps Engineer</div>
+                <div className="mt-2 flex items-center gap-2.5 text-xs text-slate-600">
+                  <Track at={1} />
+                  Approval
+                </div>
               </div>
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+              <dl className="space-y-2 border-t border-[var(--line)] pt-3 text-xs">
+                {[
+                  ['Classification', 'IR35 policy matched'],
+                  ['Approver', 'Sarah Chen, VP Engineering'],
+                  ['Due', 'Today 17:00'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-3">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="truncate text-right font-medium text-slate-900">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20">
+                <Clock3 className="h-3.5 w-3.5" /> Awaiting decision
+              </div>
+              <div className="hidden border-t border-[var(--line)] pt-3 sm:block">
+                <div className="text-xs font-medium text-slate-500">Approval chain</div>
+                <ol className="mt-2 space-y-2 text-xs">
+                  {[
+                    ['Cost centre owner', 'Approved', 'done'],
+                    ['VP Engineering', 'Deciding', 'now'],
+                    ['Procurement', 'Next', 'next'],
+                  ].map(([who, state, at]) => (
+                    <li key={who} className="flex items-center gap-2">
+                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${at === 'done' ? 'bg-slate-900 text-white' : at === 'now' ? 'bg-blue-600 ring-4 ring-blue-100' : 'border border-[var(--line-strong)]'}`}>
+                        {at === 'done' ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                      </span>
+                      <span className="font-medium text-slate-900">{who}</span>
+                      <span className="ml-auto text-slate-500">{state}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="hidden border-t border-[var(--line)] pt-3 sm:block">
+                <div className="text-xs font-medium text-slate-500">Onboarding, after approval</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {['Right to work', 'Laptop and VPN', 'Workday account'].map((task) => (
+                    <span key={task} className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+                      <Lock className="h-3 w-3" /> {task}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        ))}
+        </AppWindow>
       </div>
-
-      <div className="relative hidden h-[360px] overflow-hidden bg-blue-50/40 sm:block">
-        <div className="absolute left-[12%] top-1/2 h-px w-[31%] -translate-y-1/2 rotate-[-17deg] bg-blue-300" />
-        <div className="absolute left-[12%] top-1/2 h-px w-[31%] -translate-y-1/2 rotate-[17deg] bg-blue-300" />
-        <div className="absolute left-[42%] top-[31%] h-px w-[23%] bg-blue-400" />
-        <div className="absolute left-[42%] top-[68%] h-px w-[23%] bg-blue-400" />
-        <div className="absolute left-[64%] top-1/2 h-px w-[24%] -translate-y-1/2 rotate-[17deg] bg-blue-300" />
-        <div className="absolute left-[64%] top-1/2 h-px w-[24%] -translate-y-1/2 rotate-[-17deg] bg-blue-300" />
-
-        <div className="absolute left-[4%] top-1/2 z-10 -translate-y-1/2 text-center">
-          <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-600 shadow-sm">
-            <FileText className="h-4 w-4" />
+      <div className="absolute bottom-4 left-4 right-4 rounded-xl sm:bottom-8 sm:left-8 sm:right-auto sm:w-[min(300px,calc(100%-4rem))] border border-[var(--line)] bg-white p-4 sm:bottom-8 sm:left-8 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 motion-safe:delay-500 motion-safe:fill-mode-both">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-950">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)]">
+            <Sparkles className="h-3.5 w-3.5" />
           </span>
-          <span className="mt-2 block text-[10px] font-semibold text-slate-500">
-            Requisition
-          </span>
+          Nova routed REQ-0091
+          <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
         </div>
-
-        <WorkflowNode
-          icon={BadgeCheck}
-          label="Approval"
-          status="Policy matched"
-          className="left-[25%] top-[10%]"
-        />
-        <WorkflowNode
-          icon={UserCheck}
-          label="Onboarding"
-          status="Ready to launch"
-          className="left-[25%] bottom-[9%]"
-        />
-        <WorkflowNode
-          icon={ShieldCheck}
-          label="Compliance"
-          status="Monitoring"
-          className="right-[24%] top-[10%]"
-        />
-        <WorkflowNode
-          icon={Clock3}
-          label="Timesheets"
-          status="Open · W24"
-          className="right-[24%] bottom-[9%]"
-        />
-
-        <div className="absolute right-[4%] top-1/2 z-10 -translate-y-1/2 text-center">
-          <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-700 bg-white text-slate-700 shadow-sm">
-            <RefreshCcw className="h-4 w-4" />
-          </span>
-          <span className="mt-2 block text-[10px] font-semibold text-slate-500">
-            Offboarding
-          </span>
-        </div>
+        <p className="mt-2 text-[13px] leading-snug text-slate-600">IR35 policy matched. Sent to Sarah Chen, VP Engineering, with the budget and supplier attached.</p>
       </div>
     </div>
+  )
+}
+
+/* =========================
+   The worker record, stage by stage
+========================= */
+function RecordFrame() {
+  const [active, setActive] = useState(1)
+  const stage = lifecycleStages[active]
+
+  return (
+    <AppWindow path="acme.levvai.com / workers / record">
+      <div role="tablist" aria-label="Lifecycle stage" className="flex flex-wrap border-b border-[var(--line)] px-2 sm:flex-nowrap">
+        {lifecycleStages.map((item, index) => {
+          const selected = index === active
+          return (
+            <button
+              key={item.label}
+              type="button"
+              role="tab"
+              id={`stage-tab-${index}`}
+              aria-selected={selected}
+              aria-controls="stage-panel"
+              onClick={() => setActive(index)}
+              className={`relative flex h-11 shrink-0 items-center gap-2 px-2.5 text-[13px] font-medium transition-colors duration-150 sm:h-12 sm:px-4 sm:text-sm ${
+                selected ? 'text-slate-950' : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] tabular-nums ${index < active ? 'bg-slate-900 text-white' : selected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                {index < active ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+              </span>
+              {item.label}
+              <span aria-hidden className={`absolute inset-x-3 bottom-0 h-0.5 rounded-full transition-colors duration-200 ${selected ? 'bg-blue-600' : 'bg-transparent'}`} />
+            </button>
+          )
+        })}
+      </div>
+      <div className="grid md:grid-cols-[260px_minmax(0,1fr)]">
+        <ul className="hidden border-r border-[var(--line)] py-2 md:block" aria-label="Requests">
+          {requisitions.map((req, index) => (
+            <li key={req.id} className={`flex items-center justify-between gap-3 px-5 py-3 ${index === 0 ? 'bg-[var(--surface-sunken)]' : ''}`}>
+              <div className="min-w-0">
+                <div className="text-[11px] tabular-nums text-slate-500">{req.id}</div>
+                <div className="truncate text-[13px] font-medium text-slate-900">{req.role}</div>
+              </div>
+              <StatusDot tone={req.tone} />
+            </li>
+          ))}
+        </ul>
+        <div id="stage-panel" role="tabpanel" aria-labelledby={`stage-tab-${active}`} className="min-h-[300px] p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[13px] text-slate-500">REQ-0091 · Senior DevOps Engineer</div>
+            <div className="flex items-center gap-2.5 text-[13px] text-slate-600">
+              <Track at={active} size="md" />
+              Stage {active + 1} of 5
+            </div>
+          </div>
+          <h3 key={`t-${active}`} className="mt-6 max-w-xl text-xl font-semibold leading-snug text-slate-950 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+            {stage.title}
+          </h3>
+          <p key={`d-${active}`} className="mt-2 max-w-xl text-[15px] leading-relaxed text-slate-600 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+            {stage.description}
+          </p>
+          <ul className="mt-6 grid gap-2 sm:grid-cols-3">
+            {stage.tags.map((tag, index) => (
+              <li
+                key={`${active}-${tag}`}
+                style={{ animationDelay: `${index * 60}ms` }}
+                className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-2.5 text-[13px] font-medium text-slate-800 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300 motion-safe:fill-mode-both"
+              >
+                <Check className="h-4 w-4 text-emerald-600" />
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </AppWindow>
+  )
+}
+
+/* =========================
+   Control fragments
+========================= */
+function Fragment({ children }: { children: ReactNode }) {
+  return <div className="rounded-lg border border-[var(--line)] bg-white p-4 text-[13px]">{children}</div>
+}
+
+function ClassificationFragment() {
+  return (
+    <Fragment>
+      {[
+        ['Worker type', 'Contractor'],
+        ['Jurisdiction', 'United Kingdom'],
+        ['IR35', 'Policy matched'],
+      ].map(([label, value]) => (
+        <div key={label} className="flex items-center justify-between gap-3 border-b border-[var(--line)] py-2 first:pt-0 last:border-0 last:pb-0">
+          <span className="text-slate-500">{label}</span>
+          <span className="flex items-center gap-1.5 font-medium text-slate-900">
+            <Check className="h-3.5 w-3.5 text-emerald-600" /> {value}
+          </span>
+        </div>
+      ))}
+    </Fragment>
+  )
+}
+
+function TenureFragment() {
+  return (
+    <Fragment>
+      <div className="flex items-baseline justify-between">
+        <span className="text-slate-500">Tenure</span>
+        <span className="font-medium tabular-nums text-slate-900">Day 180 of 270</span>
+      </div>
+      <div className="relative mt-3 h-2 rounded-full bg-slate-100">
+        <div className="h-2 w-2/3 rounded-full bg-blue-600" />
+        <span aria-hidden className="absolute -top-1 left-2/3 h-4 w-px bg-amber-500" />
+      </div>
+      <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-amber-800">
+        <Clock3 className="h-3.5 w-3.5" /> Extension decision routed to the cost centre owner
+      </div>
+    </Fragment>
+  )
+}
+
+function AccessFragment() {
+  return (
+    <Fragment>
+      {[
+        ['Right to work', 'Verified', true],
+        ['Laptop and VPN', 'Waiting on right to work', false],
+        ['Workday account', 'Waiting on right to work', false],
+      ].map(([label, value, ready]) => (
+        <div key={label as string} className="flex items-center justify-between gap-3 border-b border-[var(--line)] py-2 first:pt-0 last:border-0 last:pb-0">
+          <span className="font-medium text-slate-900">{label}</span>
+          <span className={`flex items-center gap-1.5 text-xs ${ready ? 'text-emerald-700' : 'text-slate-500'}`}>
+            {ready ? <Check className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />} {value}
+          </span>
+        </div>
+      ))}
+    </Fragment>
+  )
+}
+
+function ApprovalFragment() {
+  return (
+    <Fragment>
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium text-slate-900">Sarah Chen, VP Engineering</span>
+        <span className="text-xs tabular-nums text-slate-500">Due today 17:00</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {['Policy', 'Rate card', 'Supplier', 'Worker', 'Budget'].map((chip) => (
+          <span key={chip} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+            {chip}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <span className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">Approve</span>
+        <span className="rounded-md border border-[var(--line-strong)] px-2.5 py-1 text-xs font-medium text-slate-700">Ask a question</span>
+      </div>
+    </Fragment>
+  )
+}
+
+const controls = [
+  {
+    title: 'Checks classification before work starts',
+    copy: 'Worker type and jurisdiction checks happen before a request becomes operational exposure.',
+    fragment: <ClassificationFragment />,
+  },
+  {
+    title: 'Tracks tenure across assignments',
+    copy: 'Tenure and ownership remain visible across assignments, suppliers, and extensions.',
+    fragment: <TenureFragment />,
+  },
+  {
+    title: 'Gates access on onboarding readiness',
+    copy: 'System access is gated by onboarding readiness and unwound when work ends.',
+    fragment: <AccessFragment />,
+  },
+  {
+    title: 'Sends each approval with its context',
+    copy: 'Every decision carries policy, commercial, worker, and supplier context with it.',
+    fragment: <ApprovalFragment />,
+  },
+]
+
+/* =========================
+   Integrations: one record in the middle, the systems around it
+========================= */
+function IntegrationsDiagram() {
+  const lanes = [
+    { name: 'Workday HCM', job: 'Worker record and onboarding tasks', icons: [] as string[] },
+    { name: 'DocuSign', job: 'Agreements and attestations', icons: [] as string[] },
+    { name: 'Microsoft Teams and Slack', job: 'Approvals and notifications', icons: ['/integrations/teams.svg', '/integrations/slack.svg'] },
+  ]
+  return (
+    <div className="group grid items-center gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-6 sm:p-10 lg:grid-cols-[minmax(0,0.75fr)_7rem_minmax(0,1fr)] lg:gap-0 lg:p-14">
+      <div className="flex items-center gap-4 rounded-xl border border-[var(--line)] bg-white p-6">
+        <Mark size={48} />
+        <div>
+          <div className="text-[17px] font-semibold text-slate-950">Levv worker record</div>
+          <div className="mt-0.5 text-[13px] text-slate-500">Requests, approvals, timesheets</div>
+        </div>
+      </div>
+      <div aria-hidden className="relative hidden self-stretch lg:block">
+        <svg className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+          {[16.7, 50, 83.3].map((y, index) => (
+            <g key={y}>
+              <path d={`M 0 50 C 55 50, 45 ${y}, 100 ${y}`} fill="none" stroke="var(--line-strong)" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 1.25 }} />
+              <path
+                d={`M 0 50 C 55 50, 45 ${y}, 100 ${y}`}
+                fill="none"
+                stroke="var(--accent)"
+                vectorEffect="non-scaling-stroke"
+                pathLength={100}
+                className="levv-pulse"
+                style={{ strokeWidth: 2, animationDelay: `${index * 0.45}s` } as CSSProperties}
+              />
+            </g>
+          ))}
+        </svg>
+      </div>
+      <ul className="space-y-3">
+        {lanes.map((lane) => (
+          <li key={lane.name} className="flex min-h-[88px] items-center gap-4 rounded-xl border border-[var(--line)] bg-white px-6 py-5">
+            {lane.icons.length ? (
+              <span className="flex shrink-0 items-center gap-1.5">
+                {lane.icons.map((src) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={src} src={src} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+                ))}
+              </span>
+            ) : null}
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold text-slate-950">{lane.name}</div>
+              <div className="text-[13px] text-slate-500">{lane.job}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* =========================
+   Page
+========================= */
+export default function LandingPage() {
+  const [accessOpen, setAccessOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [developerMode, setDeveloperMode] = useState(false)
+  const novaRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+  }, [])
+
+  // The dealt moment, mounted by the taste kit's own loader (public/assets/moments).
+  useEffect(() => {
+    const host = novaRef.current
+    if (!host) return
+    let cancelled = false
+    let unmount: ((root?: Document) => void) | undefined
+    ;(window as unknown as { __momentsManual?: boolean }).__momentsManual = true
+    import(/* webpackIgnore: true */ '/assets/moments/moments.js' as string)
+      .then((moments: { mount: (el: Element) => Promise<unknown>; unmountAll: (root?: Document) => void }) => {
+        if (cancelled) return
+        unmount = moments.unmountAll
+        return moments.mount(host)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+      unmount?.(document)
+    }
+  }, [])
+
+  return (
+    <>
+      <a href="#top" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-pop">
+        Skip to content
+      </a>
+
+      <header className="nav sticky top-0 z-40 border-b border-[var(--line)] bg-white text-slate-950">
+        <div className={`${WRAP} flex h-16 items-center justify-between md:grid md:grid-cols-[1fr_auto_1fr]`}>
+          <Link href="/" className="flex items-center gap-3 justify-self-start rounded-lg" aria-label="Levv home">
+            <Mark />
+            <Image src="/logos/levvai-wordmark.png" alt="LEVVAI" width={1250} height={250} className="h-[0.8rem] w-auto" priority />
+          </Link>
+
+          <nav aria-label="Primary" className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+            {NAV.map(([label, href]) => (
+              <a key={href} href={href} className={`${UNDERLINE} inline-flex min-h-[44px] items-center hover:text-slate-950 sm:min-h-0`}>
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-3 justify-self-end">
+            {developerMode ? (
+              <Link href="/auth/login" className={`hidden text-sm font-medium text-slate-700 hover:text-slate-950 md:inline ${UNDERLINE}`}>
+                Sign in
+              </Link>
+            ) : null}
+            <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} className="hidden h-9 px-4 text-sm md:inline-flex" />
+            <button
+              type="button"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
+              onClick={() => setMobileOpen((current) => !current)}
+              className="levv-press flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] text-slate-700 md:hidden"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
+        </div>
+
+        {mobileOpen ? (
+          <div id="mobile-menu" className="fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col bg-white px-5 pb-8 pt-4 md:hidden">
+            <nav aria-label="Mobile" className="grid gap-1">
+              {NAV.map(([label, href]) => (
+                <a key={href} href={href} onClick={() => setMobileOpen(false)} className={`${DISPLAY} flex h-14 items-center border-b border-[var(--line)] text-2xl`}>
+                  {label}
+                </a>
+              ))}
+            </nav>
+            <div className="mt-auto grid gap-3">
+              {developerMode ? (
+                <Link href="/auth/login" className={`${TONAL_BUTTON} w-full`}>
+                  Sign in
+                </Link>
+              ) : null}
+              <MainAction developerMode={developerMode} onRequest={() => { setMobileOpen(false); setAccessOpen(true) }} className="w-full" />
+            </div>
+          </div>
+        ) : null}
+      </header>
+
+      <main id="top" className="bg-white text-slate-950">
+        {/* Hero: split */}
+        <section className="lg:min-h-[100svh]" data-enter>
+          <div className={`${WRAP} grid gap-10 py-12 sm:py-16 lg:h-[calc(100svh-4rem)] lg:min-h-[640px] lg:grid-cols-12 lg:items-start lg:gap-6 lg:py-14`}>
+            <div className="flex flex-col lg:col-span-6 lg:pr-8 lg:pt-10">
+              <h1 className={`${DISPLAY} text-[2.5rem] leading-[1.02] sm:text-5xl lg:text-[3.75rem] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:fill-mode-both`}>
+                External workforce management for enterprises
+              </h1>
+              <p className="mt-6 max-w-[42ch] text-[17px] leading-[1.55] text-slate-600 sm:text-xl sm:leading-[1.5] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:delay-100 motion-safe:fill-mode-both">
+                Levv keeps every contractor and SOW engagement on one worker record, from requisition to offboarding. Nova applies your policy and routes each approval to its owner.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:delay-200 motion-safe:fill-mode-both">
+                <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} />
+                <a href="#record" className={TONAL_BUTTON}>
+                  See how it works
+                </a>
+              </div>
+              <p className="mt-6 text-[13px] text-slate-500 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 motion-safe:delay-300 motion-safe:fill-mode-both">
+                Built by practitioners from complex extended-workforce programs.
+              </p>
+            </div>
+            <div className="h-[500px] sm:h-[520px] lg:col-span-6 lg:col-start-7 lg:h-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-1000 motion-safe:delay-150 motion-safe:fill-mode-both">
+              <HeroVisual />
+            </div>
+          </div>
+        </section>
+
+        {/* The product big: the worker record */}
+        <section id="record" className="border-t border-[var(--line)] bg-[var(--surface-sunken)] py-20 sm:py-28 lg:min-h-[100svh]">
+          <div className={WRAP}>
+            <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
+              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Five stages. One record.</h2>
+              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+                Policy checks, approvals, onboarding tasks, time and exit steps stay on the same record, so nobody rebuilds the story from inboxes.
+              </p>
+            </div>
+            <div className="mt-10 sm:mt-14">
+              <RecordFrame />
+            </div>
+          </div>
+        </section>
+
+        {/* Controls: 2x2 */}
+        <section id="controls" className="py-20 sm:py-28 lg:min-h-[100svh]">
+          <div className={WRAP}>
+            <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
+              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Classification, <span className="whitespace-nowrap">co-employment</span>, and access.</h2>
+              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+                Levv checks the four risks of external work on the record itself, as each request moves.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-x-10 gap-y-12 sm:mt-14 md:grid-cols-2">
+              {controls.map((control) => (
+                <article key={control.title} className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-950">{control.title}</h3>
+                    <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{control.copy}</p>
+                  </div>
+                  <div className="mt-auto">{control.fragment}</div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Nova: the dark band, with the dealt moment */}
+        <section
+          id="nova"
+          ref={novaRef}
+          data-moment="line-carries-colour"
+          data-moment-opts='{"from":"base"}'
+          className="relative bg-[var(--rail)] py-20 text-white [--accent:var(--nova)] [--bg:#ffffff] [--r-lg:16px] sm:py-28"
+        >
+          <div className={`${WRAP} grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-6`}>
+            <div className="lg:col-span-5">
+              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl`}>Nova routes every request to the person who decides</h2>
+              <p className="mt-6 max-w-[44ch] text-[17px] leading-relaxed text-slate-300">
+                Nova is the decision engine in Levv’s workflow layer. It reads policy, applies rules and closes operational loops while people keep the decision.
+              </p>
+              <p className="mt-4 max-w-[44ch] text-[15px] leading-relaxed text-slate-400">
+                Nova never approves or rejects. A person does, and never the one who raised the request.
+              </p>
+              <dl className="mt-10 grid gap-5 sm:grid-cols-2">
+                {novaCapabilities.map(([title, copy]) => (
+                  <div key={title}>
+                    <dt className="text-[15px] font-semibold text-white">{title}</dt>
+                    <dd className="mt-1 text-[13px] leading-relaxed text-slate-400">{copy}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div className="lg:col-span-6 lg:col-start-7">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3.5 text-[13px] text-slate-300">
+                  <Sparkles className="h-4 w-4 text-[var(--nova)]" />
+                  Nova, live trace for REQ-0091
+                  <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Running
+                  </span>
+                </div>
+                <ol className="space-y-px p-2 font-mono text-[13px]">
+                  {novaTrace.map(([event, outcome], index) => (
+                    <li key={event} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04]">
+                      <span className="pt-0.5 text-[var(--nova)]">{index < novaTrace.length - 1 ? <Check className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}</span>
+                      <span>
+                        <span className="block text-white">{event}</span>
+                        <span className="block text-slate-400">{outcome}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="flex items-center gap-3 border-t border-white/10 px-5 py-4 text-[13px] text-slate-300">
+                  <ShieldCheck className="h-4 w-4 text-[var(--nova)]" />
+                  Decision waiting with Sarah Chen, VP Engineering
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Integrations: hub diagram */}
+        <section id="integrations" className="py-20 sm:py-28 lg:min-h-[100svh]">
+          <div className={WRAP}>
+            <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
+              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Works with Workday, DocuSign, Teams and Slack</h2>
+              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+                An operational record for procurement, HR, finance, suppliers, and workers, connected to the systems they already use.
+              </p>
+            </div>
+            <div className="mt-10 sm:mt-14">
+              <IntegrationsDiagram />
+            </div>
+          </div>
+        </section>
+
+        {/* Questions */}
+        <section id="questions" className="bg-[var(--surface-sunken)] py-20 sm:py-28">
+          <div className={`${WRAP} grid gap-10 lg:grid-cols-12 lg:gap-6`}>
+            <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-5`}>Questions about Levv</h2>
+            <div className="divide-y divide-[var(--line)] border-y border-[var(--line)] lg:col-span-6 lg:col-start-7">
+              {questions.map(([question, answer]) => (
+                <details key={question} className="group">
+                  <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between gap-6 py-4 text-[17px] font-medium text-slate-950 [&::-webkit-details-marker]:hidden">
+                    {question}
+                    <ChevronDown className="h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ease-out group-open:rotate-180" />
+                  </summary>
+                  <p className="max-w-[62ch] pb-6 text-[15px] leading-relaxed text-slate-600">{answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer id="contact" className="closing bg-white text-slate-950">
+        {/* Close: the line, the button, then the name set across the column */}
+        <div className={`${WRAP} pt-20 sm:pt-28`}>
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className={`${DISPLAY} max-w-[16ch] text-4xl leading-[1.05] sm:text-5xl`}>The operating system for external work.</h2>
+              <p className="mt-5 max-w-[48ch] text-[17px] leading-relaxed text-slate-600">
+                Replace spreadsheets and manual approval threads with one governed system, one audit trail, and one current worker record.
+              </p>
+            </div>
+            <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} className="h-12 px-6 text-base sm:self-start lg:self-end" />
+          </div>
+          <div aria-hidden className={`${DISPLAY} mt-16 select-none whitespace-nowrap text-center text-[19.5vw] leading-[0.8] tracking-[0.06em] text-[var(--rail)] [font-stretch:125%] xl:text-[15.4rem]`}>
+            LEVVAI
+          </div>
+        </div>
+
+        <div className="bg-[var(--surface-sunken)]">
+          <div className={`${WRAP} grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-12`}>
+            <div className="lg:col-span-5">
+              <div className="flex items-center gap-3">
+                <Mark />
+                <Image src="/logos/levvai-wordmark.png" alt="LEVVAI" width={1250} height={250} className="h-[0.8rem] w-auto" />
+              </div>
+              <p className="mt-4 text-sm text-slate-500">External workforce infrastructure.</p>
+            </div>
+            <nav aria-label="Product" className="lg:col-span-3 lg:col-start-7">
+              <h3 className="text-sm font-semibold text-slate-950">Product</h3>
+              <ul className="mt-3 text-sm text-slate-600 sm:space-y-2">
+                {[...NAV, ['Questions', '#questions'] as const].map(([label, href]) => (
+                  <li key={href}>
+                    <a href={href} className={`${UNDERLINE} inline-flex min-h-[44px] items-center hover:text-slate-950 sm:min-h-0`}>
+                      {label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <nav aria-label="Company" className="lg:col-span-3 lg:col-start-10">
+              <h3 className="text-sm font-semibold text-slate-950">Company</h3>
+              <ul className="mt-3 text-sm text-slate-600 sm:space-y-2">
+                <li>
+                  <Link href="/security" className={`${UNDERLINE} inline-flex min-h-[44px] items-center hover:text-slate-950 sm:min-h-0`}>
+                    Security
+                  </Link>
+                </li>
+                <li>
+                  <a href={CONTACT} className={`${UNDERLINE} inline-flex min-h-[44px] items-center hover:text-slate-950 sm:min-h-0`}>
+                    Contact
+                  </a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+          <div className={`${WRAP} flex flex-col gap-2 pb-8 text-xs text-slate-500 sm:flex-row sm:justify-between`}>
+            <span>© 2026 Levv. External workforce infrastructure.</span>
+            <span>Product names and logos are trademarks of their owners.</span>
+          </div>
+        </div>
+      </footer>
+
+      <RequestAccessModal open={accessOpen} onClose={() => setAccessOpen(false)} />
+    </>
   )
 }
 
@@ -322,11 +855,13 @@ function RequestAccessModal({
 
   useEffect(() => {
     if (!open) return
+
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
+
     window.addEventListener('keydown', handleEscape)
     return () => {
       document.body.style.overflow = previousOverflow
@@ -338,6 +873,7 @@ function RequestAccessModal({
     event.preventDefault()
     setSending(true)
     setSendError('')
+
     try {
       const response = await fetch('/request-access', {
         method: 'POST',
@@ -345,9 +881,11 @@ function RequestAccessModal({
         body: JSON.stringify({ firstName, company, workEmail }),
       })
       const payload = await response.json().catch(() => ({}))
+
       if (!response.ok) {
         throw new Error(payload.error || payload.detail || 'Unable to send request.')
       }
+
       setSent(true)
     } catch (error) {
       setSendError(
@@ -360,9 +898,12 @@ function RequestAccessModal({
 
   if (!open) return null
 
+  const field =
+    'h-11 w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 text-[15px] text-slate-900 outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus)]'
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -372,553 +913,59 @@ function RequestAccessModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="access-title"
-        className="w-full max-w-md rounded-lg border border-blue-100 bg-white p-6 shadow-2xl sm:p-8"
+        className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-white p-6 shadow-pop sm:p-8 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200"
       >
         <div className="flex items-start justify-between gap-5">
-          <div>
-            <span className="text-xs font-semibold uppercase text-blue-600">
-              Early access
-            </span>
-            <h2 id="access-title" className="mt-2 text-2xl font-semibold text-slate-950">
-              See Levv in your workflow.
-            </h2>
-          </div>
+          <h2 id="access-title" className={`${DISPLAY} text-2xl leading-tight`}>
+            See Levv in your workflow.
+          </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close request form"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+            className="levv-press flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {sent ? (
-          <div className="py-12 text-center">
-            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <Check className="h-6 w-6" />
+          <div className="py-10 text-center">
+            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <Check className="h-5 w-5" />
             </span>
             <p className="mt-4 font-semibold text-slate-950">Request received.</p>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-1.5 text-sm text-slate-500">
               We will follow up directly with next steps.
             </p>
           </div>
         ) : (
-          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
-                First name
-              </span>
-              <input
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                required
-                className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
+              <span className="mb-1.5 block text-[13px] font-medium text-slate-700">First name</span>
+              <input value={firstName} onChange={(event) => setFirstName(event.target.value)} required autoComplete="given-name" className={field} />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Company
-              </span>
-              <input
-                value={company}
-                onChange={(event) => setCompany(event.target.value)}
-                required
-                className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
+              <span className="mb-1.5 block text-[13px] font-medium text-slate-700">Company</span>
+              <input value={company} onChange={(event) => setCompany(event.target.value)} required autoComplete="organization" className={field} />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Work email
-              </span>
-              <input
-                type="email"
-                value={workEmail}
-                onChange={(event) => setWorkEmail(event.target.value)}
-                required
-                className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
+              <span className="mb-1.5 block text-[13px] font-medium text-slate-700">Work email</span>
+              <input type="email" value={workEmail} onChange={(event) => setWorkEmail(event.target.value)} required autoComplete="email" className={field} />
             </label>
             {sendError ? (
-              <p className="text-sm text-rose-600">{sendError}</p>
+              <p role="alert" className="text-sm text-rose-700">
+                {sendError}
+              </p>
             ) : null}
-            <button
-              type="submit"
-              disabled={sending}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="submit" disabled={sending} className={`${MAIN_BUTTON} w-full disabled:cursor-not-allowed disabled:opacity-60`}>
               {sending ? 'Sending request...' : 'Request access'}
               {!sending ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
-            <p className="text-center text-xs text-slate-400">
-              Direct response. No mailing list.
-            </p>
+            <p className="text-center text-xs text-slate-500">Direct response. No mailing list.</p>
           </form>
         )}
       </div>
-    </div>
-  )
-}
-
-export default function LandingPage() {
-  const [accessOpen, setAccessOpen] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [activeStage, setActiveStage] = useState(0)
-  const [developerMode, setDeveloperMode] = useState(false)
-  const stage = lifecycleStages[activeStage]
-
-  useEffect(() => {
-    setDeveloperMode(window.localStorage.getItem('developer') === 'true')
-  }, [])
-
-  return (
-    <div className="min-h-screen overflow-hidden bg-white text-slate-950 [&_h1]:tracking-normal [&_h2]:tracking-normal [&_h3]:tracking-normal">
-      <header className="sticky top-0 z-40 border-b border-blue-100 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Levv home">
-            <BrandMark />
-            <span className="text-base font-semibold text-slate-950">Levv</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#platform" className="transition hover:text-blue-600">
-              Platform
-            </a>
-            <a href="#lifecycle" className="transition hover:text-blue-600">
-              Lifecycle
-            </a>
-            <a href="#nova" className="transition hover:text-blue-600">
-              Nova AI
-            </a>
-            <a href="#integrations" className="transition hover:text-blue-600">
-              Integrations
-            </a>
-          </nav>
-
-          {developerMode ? (
-            <div className="hidden items-center gap-3 md:flex">
-              <Link
-                href="/auth/login"
-                className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              >
-                Sign in
-              </Link>
-              <PrimaryButton onClick={() => setAccessOpen(true)}>
-                Request access
-              </PrimaryButton>
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            aria-label="Toggle navigation"
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((current) => !current)}
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-700 md:hidden"
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-
-        {mobileOpen ? (
-          <div className="border-t border-blue-100 bg-white px-5 py-5 md:hidden">
-            <nav className="grid gap-1 text-sm font-medium text-slate-700">
-              {[
-                ['Platform', '#platform'],
-                ['Lifecycle', '#lifecycle'],
-                ['Nova AI', '#nova'],
-                ['Integrations', '#integrations'],
-              ].map(([label, href]) => (
-                <a
-                  key={href}
-                  href={href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-md px-3 py-3 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-            {developerMode ? (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <Link
-                  href="/auth/login"
-                  className="inline-flex h-11 items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-slate-700"
-                >
-                  Sign in
-                </Link>
-                <PrimaryButton onClick={() => setAccessOpen(true)} className="px-3">
-                  Request access
-                </PrimaryButton>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </header>
-
-      <main>
-        <section id="platform" className="relative border-b border-blue-100 bg-white">
-          <div className="mx-auto max-w-7xl px-5 pb-16 pt-20 text-center sm:px-8 sm:pt-24 lg:pb-20">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-                <Zap className="h-3.5 w-3.5" />
-                AI-native external workforce operations
-              </span>
-              <h1 className="mx-auto mt-7 max-w-4xl text-4xl font-semibold leading-[1.08] text-slate-950 sm:text-5xl lg:text-6xl">
-                The operating system for{' '}
-                <span className="text-blue-600">external work.</span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-                Levv executes requisitions, applies workforce policy, routes every
-                approval, and keeps the worker record current from onboarding to exit.
-              </p>
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                {developerMode ? (
-                  <PrimaryButton onClick={() => setAccessOpen(true)}>
-                    Request early access
-                    <ArrowRight className="h-4 w-4" />
-                  </PrimaryButton>
-                ) : null}
-                <a
-                  href="#lifecycle"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  See how it works
-                  <ChevronRight className="h-4 w-4" />
-                </a>
-              </div>
-              <p className="mt-8 text-xs text-slate-400">
-                Built by practitioners from complex extended-workforce programs.
-              </p>
-            </div>
-
-            <div className="mx-auto mt-12 max-w-6xl text-left">
-              <WorkflowVisual />
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-blue-50/70 py-20 sm:py-24">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8">
-            <p className="text-xs font-semibold uppercase text-blue-600">
-              The friction points
-            </p>
-            <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-              Classification, co-employment, and access.
-              <span className="block text-slate-500">Resolved on one operating record.</span>
-            </h2>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {frictionPoints.map(({ icon: Icon, title, copy }) => (
-                <article
-                  key={title}
-                  className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-600">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <h3 className="mt-5 text-sm font-semibold text-slate-950">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{copy}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="lifecycle" className="border-y border-blue-100 bg-white py-20 sm:py-24">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8">
-            <p className="text-xs font-semibold uppercase text-blue-600">
-              End-to-end lifecycle
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold text-slate-950 sm:text-4xl">
-              Five stages. One record.
-            </h2>
-
-            <div className="mt-10 overflow-hidden rounded-lg border border-blue-200 bg-white shadow-sm">
-              <div className="grid grid-cols-2 border-b border-blue-100 bg-blue-50/50 sm:grid-cols-5">
-                {lifecycleStages.map(({ label, icon: Icon }, index) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setActiveStage(index)}
-                    className={`flex h-16 items-center gap-2 border-b-2 px-4 text-left text-xs font-semibold transition sm:border-b-2 ${
-                      activeStage === index
-                        ? 'border-blue-600 bg-white text-blue-700'
-                        : 'border-transparent text-slate-500 hover:bg-white hover:text-slate-900'
-                    }`}
-                  >
-                    <span className="text-[10px] text-blue-500">0{index + 1}</span>
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{label}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div
-                key={stage.label}
-                className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_240px] lg:p-10"
-              >
-                <div>
-                  <h3 className="max-w-2xl text-xl font-semibold text-slate-950 sm:text-2xl">
-                    {stage.title}
-                  </h3>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-                    {stage.description}
-                  </p>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {stage.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <dl className="grid grid-cols-2 gap-4 border-t border-blue-100 pt-6 lg:grid-cols-1 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-                  <div>
-                    <dt className="text-2xl font-semibold text-blue-600">{stage.metricA}</dt>
-                    <dd className="mt-1 text-xs text-slate-500">{stage.metricALabel}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-2xl font-semibold text-blue-600">{stage.metricB}</dt>
-                    <dd className="mt-1 text-xs text-slate-500">{stage.metricBLabel}</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-blue-200 bg-blue-50/60 px-5 py-3 text-xs text-slate-500">
-              <span className="flex items-center gap-2 font-semibold uppercase text-blue-700">
-                <ShieldCheck className="h-4 w-4" />
-                Governance rail
-              </span>
-              <span>Worker classification</span>
-              <span>Co-employment tenure limits</span>
-              <span>Access deprovisioning</span>
-              <span>Regulatory audit trail</span>
-            </div>
-          </div>
-        </section>
-
-        <section id="nova" className="border-b border-blue-100 bg-blue-50 py-20 sm:py-24">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8">
-            <div className="grid gap-10 lg:grid-cols-2 lg:items-end">
-              <div>
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase text-blue-600">
-                  <Zap className="h-4 w-4" />
-                  Nova — the AI engine
-                </p>
-                <h2 className="mt-5 max-w-xl text-3xl font-semibold leading-tight sm:text-5xl">
-                  Nova does not show you more data.
-                  <span className="block text-blue-600">It closes the loop.</span>
-                </h2>
-              </div>
-              <p className="max-w-xl text-base leading-7 text-slate-600">
-                Nova is the decision engine embedded in Levv’s workflow layer. It
-                reads policy, applies rules, routes actions, and closes operational
-                loops while preserving human accountability.
-              </p>
-            </div>
-
-            <div className="mt-12 grid gap-4 md:grid-cols-2">
-              {novaCapabilities.map(({ icon: Icon, title, copy }) => (
-                <article key={title} className="rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
-                  <div className="flex gap-4">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-600">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-950">{title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-8 overflow-hidden rounded-lg border border-blue-200 bg-white p-5 font-mono text-[11px] leading-6 text-blue-700 shadow-sm sm:p-6">
-              <p className="text-slate-400">● nova.engine — live trace</p>
-              <p>→ req:8821 received — classification:check running</p>
-              <p>→ policy:IR35 matched — routing to VP Engineering</p>
-              <p>→ approval:granted — onboarding tasks dispatched</p>
-              <p>→ tenure:monitor set — alert at day 180 / limit day 270</p>
-            </div>
-          </div>
-        </section>
-
-        <section id="integrations" className="bg-white py-20 sm:py-24">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8">
-            <p className="text-xs font-semibold uppercase text-blue-600">System of record</p>
-            <div className="mt-4 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-              <div>
-                <h2 className="max-w-2xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-                  One surface. Requisitions, approvals, timesheets.
-                </h2>
-                <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-                  An operational record for procurement, HR, finance, suppliers,
-                  and workers — connected to the systems they already use.
-                </p>
-              </div>
-              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Nova active
-              </span>
-            </div>
-
-            <div className="mt-10 overflow-hidden rounded-lg border border-blue-200 bg-white shadow-[0_24px_70px_-45px_rgba(30,64,175,0.5)]">
-              <div className="flex h-11 items-center border-b border-blue-100 bg-blue-50/60 px-4">
-                <span className="h-2 w-2 rounded-full bg-blue-300" />
-                <span className="ml-2 h-2 w-2 rounded-full bg-blue-300" />
-                <span className="ml-2 h-2 w-2 rounded-full bg-blue-300" />
-                <span className="ml-3 font-mono text-[10px] text-slate-400">
-                  Levv — Workforce Operations
-                </span>
-              </div>
-              <div className="grid lg:grid-cols-[1fr_1fr_1.05fr]">
-                <div className="border-b border-blue-100 p-4 lg:border-b-0 lg:border-r">
-                  <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase text-blue-700">
-                    <FileText className="h-3.5 w-3.5" /> Requisitions
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {requisitions.map(([id, role, status, tone]) => (
-                      <div key={id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-mono text-[10px] text-slate-400">{id}</span>
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              tone === 'amber'
-                                ? 'bg-amber-400'
-                                : tone === 'emerald'
-                                  ? 'bg-emerald-400'
-                                  : tone === 'rose'
-                                    ? 'bg-rose-400'
-                                    : 'bg-blue-400'
-                            }`}
-                          />
-                        </div>
-                        <p className="mt-2 text-xs font-semibold text-slate-900">{role}</p>
-                        <p className="mt-2 text-[10px] text-slate-500">{status}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-b border-blue-100 p-4 lg:border-b-0 lg:border-r">
-                  <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase text-blue-700">
-                    <BadgeCheck className="h-3.5 w-3.5" /> Approval queue
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {approvals.map(([id, owner, due, status]) => (
-                      <div key={id} className="rounded-md border border-slate-200 bg-white p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <span className="font-mono text-[10px] text-slate-400">{id}</span>
-                            <p className="mt-2 text-xs font-medium text-slate-800">{owner}</p>
-                            <p className="mt-1 text-[10px] text-slate-400">{due}</p>
-                          </div>
-                          <span className={`rounded-full px-2 py-1 text-[9px] font-medium ${status === 'Approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                            {status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-[10px] leading-5 text-blue-700">
-                    Nova escalated REQ-0091 to the backup approver before its SLA breach.
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase text-blue-700">
-                    <Clock3 className="h-3.5 w-3.5" /> Timesheets — W24
-                  </h3>
-                  <div className="mt-4 overflow-hidden rounded-md border border-slate-200">
-                    <table className="w-full text-left text-[10px]">
-                      <thead className="bg-slate-50 text-slate-400">
-                        <tr>
-                          <th className="px-3 py-2 font-medium">Worker</th>
-                          <th className="px-3 py-2 font-medium">Role</th>
-                          <th className="px-3 py-2 font-medium">Hrs</th>
-                          <th className="px-3 py-2 font-medium">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-600">
-                        <tr><td className="px-3 py-3 font-medium text-slate-800">J. Markov</td><td className="px-3 py-3">Cloud Architect</td><td className="px-3 py-3">38</td><td className="px-3 py-3 text-blue-600">Submitted</td></tr>
-                        <tr><td className="px-3 py-3 font-medium text-slate-800">T. Osei</td><td className="px-3 py-3">Data Engineer</td><td className="px-3 py-3">40</td><td className="px-3 py-3 text-emerald-600">Approved</td></tr>
-                        <tr><td className="px-3 py-3 font-medium text-slate-800">R. Nakamura</td><td className="px-3 py-3">Security Analyst</td><td className="px-3 py-3">35</td><td className="px-3 py-3 text-amber-600">Pending</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <p className="mt-5 text-[10px] font-medium uppercase text-slate-400">
-                    Connected systems
-                  </p>
-                  <div className="mt-3 grid gap-2">
-                    {[
-                      ['/logos/workday.svg', 'Workday HCM', 'Worker record and onboarding tasks'],
-                      ['/logos/docusign.svg', 'DocuSign', 'Agreements and attestations'],
-                      ['/logos/teams.svg', 'Microsoft Teams', 'Approvals and notifications'],
-                    ].map(([src, name, detail]) => (
-                      <div key={name} className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt="" className="h-5 w-5 object-contain" />
-                        <div>
-                          <p className="text-[10px] font-semibold text-slate-800">{name}</p>
-                          <p className="mt-0.5 text-[9px] text-slate-400">{detail}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-blue-100 bg-blue-50 py-16 sm:py-20">
-          <div className="mx-auto grid max-w-7xl gap-8 px-5 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="text-xs font-semibold uppercase text-blue-600">Ready to operate</p>
-              <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-                Stop managing your workforce in email.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-                Replace spreadsheets and manual approval threads with one governed
-                system, one audit trail, and one current worker record.
-              </p>
-            </div>
-            {developerMode ? (
-              <div className="lg:text-right">
-                <PrimaryButton onClick={() => setAccessOpen(true)}>
-                  Request early access
-                  <ArrowRight className="h-4 w-4" />
-                </PrimaryButton>
-                <p className="mt-3 text-xs text-slate-400">
-                  Guided onboarding. No rip-and-replace.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      </main>
-
-      <footer className="bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-900">
-            <BrandMark />
-            Levv
-          </div>
-          <span>© 2026 Levv. External workforce infrastructure.</span>
-          <div className="flex items-center gap-5">
-            <Link href="/security" className="transition hover:text-blue-600">Security</Link>
-            <a href="#" className="transition hover:text-blue-600">Privacy</a>
-            <a href="mailto:hello@levv.ai" className="transition hover:text-blue-600">Contact</a>
-          </div>
-        </div>
-      </footer>
-
-      <RequestAccessModal open={accessOpen} onClose={() => setAccessOpen(false)} />
     </div>
   )
 }

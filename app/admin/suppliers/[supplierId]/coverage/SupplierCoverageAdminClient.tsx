@@ -136,7 +136,7 @@ export default function SupplierCoverageAdminClient() {
       <div className="space-y-6">
         <LevvPageHeader
           eyebrow={
-            <Link href="/admin/suppliers" className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]">
+            <Link href="/admin/suppliers" className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-600/30">
               <ArrowLeft className="h-4 w-4" /> Supplier settings
             </Link>
           }

@@ -7,8 +7,26 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ElementType,
+  type ReactNode,
 } from 'react'
-import { Ban, Check, FileSpreadsheet, Pencil, Plus, RotateCcw, Search, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
+import {
+  AlertCircle,
+  Ban,
+  Check,
+  CheckCircle2,
+  Info,
+  Loader2,
+  Lock,
+  Pencil,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  Users,
+  X,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { parseUser } from '@/lib/intelligence'
@@ -41,10 +59,16 @@ import {
 } from '@/lib/accessControlRoles'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 import {
+  LevvNotice,
   LevvPage,
   LevvPageHeader,
   LevvPanel,
+  LevvSearchField,
+  LevvSelect,
+  LevvStatusBadge,
+  LevvToolbar,
   levvUi,
+  type LevvTone,
 } from '@/components/ui/levv-app'
 
 type UserRow = AdminUserRecord
@@ -130,18 +154,41 @@ function toCostCenterDisplay(row: UserRow): string {
   return row.costCenter || row.costCenterName || '—'
 }
 
-function statusBadgeClass(status: string): string {
-  switch (status) {
+/** Invited reads blue (in progress); a failed delivery needs attention, a revoked one is closed. */
+function statusTone(row: UserRow): LevvTone {
+  switch (row.status) {
     case 'active':
-      return 'bg-emerald-100 text-emerald-700'
+      return 'emerald'
     case 'invited':
-      return 'bg-blue-100 text-blue-700'
-    case 'disabled':
-      return 'bg-slate-200 text-slate-700'
+      if (row.invitationStatus === 'revoked') return 'slate'
+      return row.invitationDeliveryStatus === 'failed' ? 'amber' : 'blue'
     default:
-      return 'bg-slate-100 text-slate-700'
+      return 'slate'
   }
 }
+
+/* =========================
+   Local recipes
+   Row actions are quiet until hovered; textareas and notes share the input and notice vocabulary.
+========================= */
+const ROW_ACTION =
+  'levv-press inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:shrink-0'
+
+const rowAction = (tone: 'default' | 'danger' = 'default') =>
+  `${ROW_ACTION} ${
+    tone === 'danger'
+      ? 'hover:bg-rose-50 hover:text-rose-700'
+      : 'hover:bg-slate-100 hover:text-slate-950'
+  }`
+
+const TEXTAREA =
+  'block w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-[13px] leading-5 text-slate-900 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-slate-400 hover:border-slate-400/60 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus)]'
+
+const FIELD_LABEL = `${levvUi.label} mb-1.5 block`
+
+const CHECKBOX = 'mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600'
+
+const TD = `${levvUi.td} border-t border-[var(--line)]`
 
 function upsertUser(existing: UserRow[], incoming: UserRow): UserRow[] {
   const incomingEmail = incoming.email.toLowerCase()
@@ -1098,470 +1145,552 @@ export default function AdminUsersPage() {
     reader.readAsArrayBuffer(file)
   }
 
+  const selectedBusinessUnitLabel =
+    businessUnitOptions.find((option) => option.value === addUserForm.businessUnit)?.label
+  const selectedCostCenterLabel =
+    costCenterOptions.find((option) => option.value === addUserForm.costCenter)?.label
+
   return (
     <LevvPage width="wide" className="p-0 sm:p-0 lg:p-0">
       <div className="space-y-6">
-      <LevvPageHeader
-        title="Users"
-        description="Manage users, roles, and access across the tenant."
-        actions={
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 pr-4 text-sm font-semibold text-slate-500 shadow-sm md:flex">
-            <span className="rounded-lg bg-slate-950 p-2 text-blue-400">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            Tenant access control
-          </div>
-          <button
-            onClick={openAddUserModal}
-            className={levvUi.primaryButton}
-          >
-            <Plus className="h-4 w-4" />
-            Invite User
-          </button>
-        </div>
-        }
-      />
+        <LevvPageHeader
+          title="Users"
+          description="Manage users, roles, and access across the tenant."
+          actions={
+            <>
+              <span className="mr-2 hidden items-center gap-1.5 text-[13px] text-slate-500 md:inline-flex">
+                <ShieldCheck className="h-4 w-4 text-slate-400" />
+                Tenant access control
+              </span>
+              <button
+                type="button"
+                onClick={openAddUserModal}
+                className={levvUi.primaryButton}
+              >
+                <Plus className="h-4 w-4" />
+                Invite User
+              </button>
+            </>
+          }
+        />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <LevvPanel className="p-6">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="rounded-md bg-[#1f3d38] p-2 text-[#89d3bd]">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-950">
-                AI Assistant
-              </h2>
-              <p className="text-xs text-slate-500">
-                Describe a user update and Nova will stage it in the table.
-              </p>
-            </div>
-          </div>
-          <textarea
-            value={assistantPrompt}
-            onChange={(event) => setAssistantPrompt(event.target.value)}
-            className="w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-            rows={3}
-            placeholder="Make Amy Schneider inactive and move her to Procurement"
-          />
-          {assistantError ? (
-            <p className="mt-2 text-xs font-medium text-rose-600">
-              {assistantError}
+        <LevvPanel className="grid divide-y divide-[var(--line)] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:divide-x lg:divide-y-0">
+          <div className="flex min-w-0 flex-col px-5 py-4">
+            <h2 className="text-[15px] font-semibold text-slate-950">
+              AI Assistant
+            </h2>
+            <p className="mt-0.5 text-[13px] text-slate-500">
+              Describe a user update and Nova will stage it in the table.
             </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void handleAssistantGenerate()}
-            disabled={assistantLoading || !assistantPrompt.trim()}
-            className="mt-3 rounded-md bg-[#1f3d38] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#244a43] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {assistantLoading ? 'Generating...' : 'Update via AI'}
-          </button>
+            <div className="relative mt-3 flex flex-1 flex-col">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)]"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
+              <textarea
+                value={assistantPrompt}
+                onChange={(event) => setAssistantPrompt(event.target.value)}
+                className={`${TEXTAREA} flex-1 resize-none pl-11 sm:pr-32`}
+                rows={2}
+                placeholder="Make Amy Schneider inactive and move her to Procurement"
+              />
+              <button
+                type="button"
+                onClick={() => void handleAssistantGenerate()}
+                disabled={assistantLoading || !assistantPrompt.trim()}
+                className="levv-press mt-2 inline-flex h-7 items-center rounded-md px-2.5 text-xs font-semibold text-blue-700 outline-none hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 sm:absolute sm:bottom-1.5 sm:right-1.5 sm:mt-0"
+              >
+                {assistantLoading ? 'Generating...' : 'Update via AI'}
+              </button>
+            </div>
+            {assistantError ? (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
+                <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+                {assistantError}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 flex-col px-5 py-4">
+            <h2 className="text-[15px] font-semibold text-slate-950">
+              Mass User Upload
+            </h2>
+            <p className="mt-0.5 text-[13px] text-slate-500">
+              Upload an .xlsx, .xls, or .csv file with columns like name, email,
+              role, status, businessUnit, costCenter, and ssoEnabled.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <div className="mt-auto pt-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={levvUi.secondaryButton}
+              >
+                <Upload className="h-4 w-4" />
+                Select Excel File
+              </button>
+            </div>
+            {uploadError ? (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
+                <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+                {uploadError}
+              </p>
+            ) : null}
+          </div>
         </LevvPanel>
 
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center shadow-sm">
-          <div className="mb-3 rounded-md bg-slate-50 p-3">
-            <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
-          </div>
-          <h2 className="text-sm font-semibold text-slate-950">
-            Mass User Upload
-          </h2>
-          <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
-            Upload an .xlsx, .xls, or .csv file with columns like name, email,
-            role, status, businessUnit, costCenter, and ssoEnabled.
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Upload className="h-4 w-4" />
-            Select Excel File
-          </button>
-          {uploadError ? (
-            <p className="mt-2 text-xs font-medium text-rose-600">
-              {uploadError}
+        {!forbidden && invitationNotice ? (
+          <LevvNotice tone="emerald" icon={CheckCircle2}>
+            {invitationNotice}
+          </LevvNotice>
+        ) : null}
+
+        {!forbidden && invitationActionError ? (
+          <LevvNotice tone="rose" icon={AlertCircle}>
+            {invitationActionError}
+          </LevvNotice>
+        ) : null}
+
+        <div className="space-y-3">
+          <LevvToolbar>
+            <LevvSearchField
+              type="text"
+              className="w-full sm:w-auto sm:min-w-[10rem] sm:flex-1"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search users"
+            />
+
+            <LevvSelect
+              className="w-full sm:w-32"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="">All statuses</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </LevvSelect>
+
+            <LevvSelect
+              className="w-full sm:w-36"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+            >
+              <option value="">All roles</option>
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </LevvSelect>
+
+            <LevvSelect
+              className="w-full sm:w-44"
+              value={businessUnitFilter}
+              onChange={(event) => setBusinessUnitFilter(event.target.value)}
+              disabled={businessUnitsLoading}
+            >
+              <option value="">All business units</option>
+              {businessUnitOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </LevvSelect>
+
+            <input
+              value={costCenterFilter}
+              onChange={(event) => setCostCenterFilter(event.target.value)}
+              placeholder="Cost center ID"
+              className={`${levvUi.input} w-full sm:w-32`}
+            />
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              className={levvUi.ghostButton}
+            >
+              Clear filters
+            </button>
+          </LevvToolbar>
+
+          {businessUnitsLoading && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400 motion-reduce:animate-none" />
+              Loading business units...
             </p>
-          ) : null}
+          )}
+
+          {businessUnitsError && (
+            <p className="flex items-start gap-1.5 text-xs text-rose-700">
+              <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+              {businessUnitsError}
+            </p>
+          )}
+
+          <div className={levvUi.tableShell}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left">
+                <thead>
+                  <tr>
+                    <th className={levvUi.th}>Name</th>
+                    <th className={levvUi.th}>Email</th>
+                    <th className={levvUi.th}>Status</th>
+                    <th className={levvUi.th}>Role</th>
+                    <th className={levvUi.th}>Business Unit</th>
+                    <th className={levvUi.th}>Cost Center</th>
+                    <th className={levvUi.th}>SSO</th>
+                    <th className={`${levvUi.th} sticky right-0 bg-[var(--surface-sunken)] text-right shadow-[inset_1px_0_0_var(--line)]`}>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {!loading &&
+                    !forbidden &&
+                    usersForTable.map((user) => (
+                      <tr
+                        key={`${user.membershipId || user.userId || user.email}-${user.name}`}
+                        className="group"
+                      >
+                        <td className={TD}>
+                          <span className="whitespace-nowrap font-medium text-slate-950">
+                          {isFeatureEnabled('user_detail_v2') && user.membershipId ? (
+                            <Link
+                              href={`/admin/users/${encodeURIComponent(user.membershipId)}?return_to=${encodeURIComponent(currentListHref)}`}
+                              className="rounded-sm outline-none transition-colors duration-150 hover:text-blue-700 hover:underline focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                            >
+                              {user.name}
+                            </Link>
+                          ) : (
+                            user.name
+                          )}
+                          </span>
+                        </td>
+                        <td className={TD}>
+                          {user.email || '—'}
+                        </td>
+                        <td className={TD}>
+                          <LevvStatusBadge tone={statusTone(user)}>
+                            {toTitleCase(user.status)}
+                          </LevvStatusBadge>
+                        </td>
+                        <td className={TD}>
+                          {getAccessRole(user.role).label}
+                        </td>
+                        <td className={TD}>
+                          {user.businessUnit || user.businessUnitId || '—'}
+                        </td>
+                        <td className={`${TD} tabular-nums`}>
+                          {toCostCenterDisplay(user)}
+                        </td>
+                        <td className={TD}>
+                          <span className={user.ssoEnabled ? 'text-slate-900' : 'text-slate-400'}>
+                            {user.ssoEnabled ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className={`${TD} sticky right-0 bg-white text-right shadow-[inset_1px_0_0_var(--line)] transition-colors duration-150 group-hover:bg-[var(--surface-sunken)]`}>
+                          <div className="-my-1.5 flex justify-end gap-1">
+                            {user.status === 'invited' && user.invitationId ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleInvitationAction(user, 'resend')}
+                                  disabled={invitationActionId === user.invitationId}
+                                  className={rowAction()}
+                                  title={user.invitationDeliveryError || 'Invalidate the old link and send a new invitation'}
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                  {user.invitationDeliveryStatus === 'failed' ? 'Retry invite' : 'Resend'}
+                                </button>
+                                {user.invitationStatus !== 'revoked' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleInvitationAction(user, 'revoke')}
+                                    disabled={invitationActionId === user.invitationId}
+                                    className={rowAction('danger')}
+                                  >
+                                    <Ban className="h-3.5 w-3.5" />
+                                    Revoke
+                                  </button>
+                                ) : null}
+                              </>
+                            ) : null}
+                            {user.status !== 'invited' || !user.invitationId ? (
+                              <button
+                                type="button"
+                                onClick={() => openEditUserModal(user)}
+                                className={rowAction()}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Edit access
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            {loading ? (
+              <TableState icon={Loader2} spin>
+                Loading users...
+              </TableState>
+            ) : forbidden ? (
+              <TableState icon={Lock}>
+                You do not have permission to view tenant users. Admin access is required.
+              </TableState>
+            ) : error ? (
+              <TableState icon={AlertCircle} tone="rose" alert>
+                {error}
+              </TableState>
+            ) : usersForTable.length === 0 ? (
+              <TableState icon={Users}>No users found.</TableState>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {isAddUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-              <div>
-                <h2 className="text-lg font-black text-slate-900">Invite user</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  Configure the membership before sending a single-use invitation.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeAddUserModal}
-                disabled={addingUser}
-                className="rounded-xl p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                aria-label="Close invite user modal"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="px-6 pt-5">
-              <ol className="grid grid-cols-3 gap-2" aria-label="Invitation steps">
-                {(['Identity', 'Access', 'Review'] as const).map((label, index) => {
-                  const step = (index + 1) as 1 | 2 | 3
-                  return (
-                    <li key={label}>
-                      <button
-                        type="button"
-                        onClick={() => goToInvitationStep(step)}
-                        className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold ${
-                          addUserStep === step
-                            ? 'border-blue-300 bg-blue-50 text-blue-800'
-                            : 'border-slate-200 text-slate-500'
+        <UsersDialog
+          titleId="invite-user-title"
+          title="Invite user"
+          description="Configure the membership before sending a single-use invitation."
+          closeLabel="Close invite user modal"
+          onClose={closeAddUserModal}
+          closeDisabled={addingUser}
+          nav={
+            <ol
+              className="flex items-center gap-2 border-b border-[var(--line)] px-6 py-3"
+              aria-label="Invitation steps"
+            >
+              {(['Identity', 'Access', 'Review'] as const).map((label, index) => {
+                const step = (index + 1) as 1 | 2 | 3
+                const active = addUserStep === step
+                const done = addUserStep > step
+                return (
+                  <li
+                    key={label}
+                    className={`flex min-w-0 items-center gap-2 ${index < 2 ? 'flex-1' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => goToInvitationStep(step)}
+                      aria-current={active ? 'step' : undefined}
+                      className={`levv-press flex shrink-0 items-center gap-2 rounded-md py-1 pl-1 pr-2 text-[13px] outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                        active
+                          ? 'font-semibold text-slate-950'
+                          : done
+                            ? 'font-medium text-slate-700'
+                            : 'text-slate-500'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums transition-colors duration-200 ${
+                          done
+                            ? 'bg-blue-600 text-white'
+                            : active
+                              ? 'bg-slate-900 text-white'
+                              : 'border border-[var(--line-strong)] bg-white text-slate-500'
                         }`}
                       >
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px]">
-                          {addUserStep > step ? <Check className="h-3 w-3" /> : step}
-                        </span>
-                        {label}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ol>
-            </div>
-
-            <div className="px-6 py-5">
-              {addUserStep === 1 ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-bold text-slate-800">
-                      Name <RequiredIndicator />
-                    </label>
-                    <input
-                      value={addUserForm.name}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, name: event.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      placeholder="Jane Doe"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-bold text-slate-800">
-                      Email <RequiredIndicator />
-                    </label>
-                    <input
-                      type="email"
-                      value={addUserForm.email}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, email: event.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      placeholder="jane.doe@company.com"
-                    />
-                  </div>
-                  <label className="md:col-span-2 flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
-                    <span>
-                      <span className="block text-sm font-bold text-slate-800">Use SSO</span>
-                      <span className="mt-1 block text-xs text-slate-500">The invitee will accept the membership and continue through the tenant SSO provider.</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={addUserForm.ssoEnabled}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, ssoEnabled: event.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                    />
-                  </label>
-                </div>
-              ) : null}
-
-              {addUserStep === 2 ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-bold text-slate-800">Access role</label>
-                    <select
-                      value={addUserForm.role}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, role: event.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    >
-                      {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                    <p className="mt-2 text-xs text-slate-500">{getAccessRole(addUserForm.role).description}</p>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-bold text-slate-800">Business-unit default</label>
-                    <select
-                      value={addUserForm.businessUnit}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, businessUnit: event.target.value, costCenter: '' }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                      disabled={businessUnitsLoading}
-                    >
-                      <option value="">No business-unit default</option>
-                      {businessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-bold text-slate-800">Cost-center default</label>
-                    <select
-                      value={addUserForm.costCenter}
-                      onChange={(event) => setAddUserForm((current) => ({ ...current, costCenter: event.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                      disabled={costCentersLoading}
-                    >
-                      <option value="">No cost-center default</option>
-                      {costCenterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </div>
-                  <p className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900">
-                    Organization defaults prefill work; they do not grant record access. The selected role is the reviewed tenant access preset.
-                  </p>
-                  {(businessUnitsError || costCentersError) ? (
-                    <p className="md:col-span-2 text-sm text-rose-600">{businessUnitsError || costCentersError}</p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {addUserStep === 3 ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-2">
-                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Identity</p><p className="mt-1 font-bold text-slate-900">{addUserForm.name.trim()}</p><p className="text-slate-600">{addUserForm.email.trim()}</p></div>
-                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Authentication</p><p className="mt-1 font-bold text-slate-900">{addUserForm.ssoEnabled ? 'Single sign-on' : 'Password'}</p><p className="text-slate-600">Single-use, expiring invitation</p></div>
-                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Access</p><p className="mt-1 font-bold text-slate-900">{getAccessRole(addUserForm.role).label}</p><p className="text-slate-600">Membership remains inactive until acceptance.</p></div>
-                    <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Working defaults</p><p className="mt-1 text-slate-700">{businessUnitOptions.find((option) => option.value === addUserForm.businessUnit)?.label || 'No business unit'}</p><p className="text-slate-600">{costCenterOptions.find((option) => option.value === addUserForm.costCenter)?.label || 'No cost center'}</p></div>
-                  </div>
-                  <p className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    Sending creates exactly this invited membership. Resending will invalidate its previous link; acceptance cannot replace the reviewed role or defaults.
-                  </p>
-                </div>
-              ) : null}
-
-              {addUserError ? <p className="mt-4 text-sm font-medium text-rose-600">{addUserError}</p> : null}
-            </div>
-
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-between">
+                        {done ? <Check className="h-3 w-3" strokeWidth={3} /> : step}
+                      </span>
+                      {label}
+                    </button>
+                    {index < 2 ? (
+                      <span
+                        aria-hidden
+                        className={`h-px min-w-3 flex-1 transition-colors duration-200 ${done ? 'bg-blue-600' : 'bg-[var(--line)]'}`}
+                      />
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ol>
+          }
+          footer={
+            <>
               <button
                 type="button"
                 onClick={closeAddUserModal}
                 disabled={addingUser}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className={levvUi.ghostButton}
               >
                 Cancel
               </button>
-              <div className="flex gap-3">
-                {addUserStep > 1 ? <button type="button" onClick={() => goToInvitationStep((addUserStep - 1) as 1 | 2)} disabled={addingUser} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">Back</button> : null}
-                {addUserStep < 3 ? (
-                  <button type="button" onClick={() => goToInvitationStep((addUserStep + 1) as 2 | 3)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">Continue</button>
-                ) : (
-                  <button type="button" onClick={() => void submitAddUser()} disabled={addingUser} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">
-                    {addingUser ? 'Sending invitation...' : 'Send invitation'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+              {addUserStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => goToInvitationStep((addUserStep - 1) as 1 | 2)}
+                  disabled={addingUser}
+                  className={levvUi.secondaryButton}
+                >
+                  Back
+                </button>
+              ) : null}
+              {addUserStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => goToInvitationStep((addUserStep + 1) as 2 | 3)}
+                  className={levvUi.primaryButton}
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void submitAddUser()}
+                  disabled={addingUser}
+                  className={levvUi.primaryButton}
+                >
+                  {addingUser ? 'Sending invitation...' : 'Send invitation'}
+                </button>
+              )}
+            </>
+          }
+        >
+          {addUserStep === 1 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-black text-slate-900">Edit user access</h2>
-                </div>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  Update the user record and assign a preconfigured access role.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditUserModal}
-                disabled={savingUser}
-                className="rounded-xl p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                aria-label="Close edit user modal"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 px-6 py-5 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">
+                <label className={FIELD_LABEL}>
                   Name <RequiredIndicator />
                 </label>
                 <input
-                  value={editUserForm.name}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={addUserForm.name}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, name: event.target.value }))}
+                  className={levvUi.input}
+                  placeholder="Jane Doe"
+                  autoFocus
                 />
               </div>
-
               <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">
+                <label className={FIELD_LABEL}>
                   Email <RequiredIndicator />
                 </label>
                 <input
                   type="email"
-                  value={editUserForm.email}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      email: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={addUserForm.email}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, email: event.target.value }))}
+                  className={levvUi.input}
+                  placeholder="jane.doe@company.com"
                 />
               </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">Access role</label>
-                <select
-                  value={editUserForm.role}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      role: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                >
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">Status</label>
-                <select
-                  value={editUserForm.status}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">Business unit</label>
-                <select
-                  value={editUserForm.businessUnit}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      businessUnit: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <option value="">No business unit</option>
-                  {businessUnitOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-bold text-slate-800">Cost center</label>
-                <select
-                  value={editUserForm.costCenter}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      costCenter: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <option value="">No cost center</option>
-                  {allCostCenterOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
-                  <div>
-                    <p className="font-bold text-slate-900">
-                      {getAccessRole(editUserForm.role).label} permissions
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {getAccessRole(editUserForm.role).description}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {getAccessRole(editUserForm.role).permissions.map((permission) => (
-                        <span
-                          key={permission}
-                          className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-800"
-                        >
-                          {permission}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <label className="md:col-span-2 flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
-                <span className="text-sm font-bold text-slate-800">SSO enabled</span>
+              <label className="flex cursor-pointer items-start gap-3 border-t border-[var(--line)] pt-4 md:col-span-2">
                 <input
                   type="checkbox"
-                  checked={editUserForm.ssoEnabled}
-                  onChange={(event) =>
-                    setEditUserForm((current) => ({
-                      ...current,
-                      ssoEnabled: event.target.checked,
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                  checked={addUserForm.ssoEnabled}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, ssoEnabled: event.target.checked }))}
+                  className={CHECKBOX}
                 />
+                <span>
+                  <span className="block text-[13px] font-medium text-slate-900">Use SSO</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">The invitee will accept the membership and continue through the tenant SSO provider.</span>
+                </span>
               </label>
+            </div>
+          ) : null}
 
-              {editUserError ? (
-                <p className="md:col-span-2 text-sm font-medium text-rose-600">
-                  {editUserError}
-                </p>
+          {addUserStep === 2 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className={FIELD_LABEL}>Access role</label>
+                <LevvSelect
+                  value={addUserForm.role}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, role: event.target.value }))}
+                >
+                  {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </LevvSelect>
+                <p className="mt-1.5 text-xs text-slate-500">{getAccessRole(addUserForm.role).description}</p>
+              </div>
+              <div>
+                <label className={FIELD_LABEL}>Business-unit default</label>
+                <LevvSelect
+                  value={addUserForm.businessUnit}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, businessUnit: event.target.value, costCenter: '' }))}
+                  disabled={businessUnitsLoading}
+                >
+                  <option value="">No business-unit default</option>
+                  {businessUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </LevvSelect>
+              </div>
+              <div>
+                <label className={FIELD_LABEL}>Cost-center default</label>
+                <LevvSelect
+                  value={addUserForm.costCenter}
+                  onChange={(event) => setAddUserForm((current) => ({ ...current, costCenter: event.target.value }))}
+                  disabled={costCentersLoading}
+                >
+                  <option value="">No cost-center default</option>
+                  {costCenterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </LevvSelect>
+              </div>
+              <FormNote className="md:col-span-2">
+                Organization defaults prefill work; they do not grant record access. The selected role is the reviewed tenant access preset.
+              </FormNote>
+              {(businessUnitsError || costCentersError) ? (
+                <FormError className="md:col-span-2">{businessUnitsError || costCentersError}</FormError>
               ) : null}
             </div>
+          ) : null}
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4">
+          {addUserStep === 3 ? (
+            <div className="space-y-4">
+              <div className="-mt-2 divide-y divide-[var(--line)] border-b border-[var(--line)] text-[13px]">
+                <ReviewRow label="Identity">
+                  <p className="font-medium text-slate-900">{addUserForm.name.trim()}</p>
+                  <p className="text-slate-500">{addUserForm.email.trim()}</p>
+                </ReviewRow>
+                <ReviewRow label="Authentication">
+                  <p className="font-medium text-slate-900">{addUserForm.ssoEnabled ? 'Single sign-on' : 'Password'}</p>
+                  <p className="text-slate-500">Single-use, expiring invitation</p>
+                </ReviewRow>
+                <ReviewRow label="Access">
+                  <p className="font-medium text-slate-900">{getAccessRole(addUserForm.role).label}</p>
+                  <p className="text-slate-500">Membership remains inactive until acceptance.</p>
+                </ReviewRow>
+                <ReviewRow label="Working defaults">
+                  <p className="font-medium text-slate-900">{selectedBusinessUnitLabel || 'No business unit'}</p>
+                  <p className="text-slate-500">{selectedCostCenterLabel || 'No cost center'}</p>
+                </ReviewRow>
+              </div>
+              <FormNote>
+                Sending creates exactly this invited membership. Resending will invalidate its previous link; acceptance cannot replace the reviewed role or defaults.
+              </FormNote>
+            </div>
+          ) : null}
+
+          {addUserError ? <FormError className="mt-4">{addUserError}</FormError> : null}
+        </UsersDialog>
+      )}
+
+      {editingUser && (
+        <UsersDialog
+          titleId="edit-user-title"
+          title="Edit user access"
+          description="Update the user record and assign a preconfigured access role."
+          closeLabel="Close edit user modal"
+          onClose={closeEditUserModal}
+          closeDisabled={savingUser}
+          footer={
+            <>
               <button
                 type="button"
                 onClick={closeEditUserModal}
                 disabled={savingUser}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className={levvUi.ghostButton}
               >
                 Cancel
               </button>
@@ -1569,203 +1698,186 @@ export default function AdminUsersPage() {
                 type="button"
                 onClick={() => void submitEditUser()}
                 disabled={savingUser}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className={levvUi.primaryButton}
               >
                 {savingUser ? 'Saving...' : 'Save changes'}
               </button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className={FIELD_LABEL}>
+                Name <RequiredIndicator />
+              </label>
+              <input
+                value={editUserForm.name}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+              />
             </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Email <RequiredIndicator />
+              </label>
+              <input
+                type="email"
+                value={editUserForm.email}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+              />
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>Access role</label>
+              <LevvSelect
+                value={editUserForm.role}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    role: event.target.value,
+                  }))
+                }
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>Status</label>
+              <LevvSelect
+                value={editUserForm.status}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    status: event.target.value,
+                  }))
+                }
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>Business unit</label>
+              <LevvSelect
+                value={editUserForm.businessUnit}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    businessUnit: event.target.value,
+                  }))
+                }
+              >
+                <option value="">No business unit</option>
+                {businessUnitOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>Cost center</label>
+              <LevvSelect
+                value={editUserForm.costCenter}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    costCenter: event.target.value,
+                  }))
+                }
+              >
+                <option value="">No cost center</option>
+                {allCostCenterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </div>
+
+            <div className="rounded-lg bg-[var(--surface-sunken)] px-4 py-3.5 md:col-span-2">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-slate-900">
+                    {getAccessRole(editUserForm.role).label} permissions
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-slate-500">
+                    {getAccessRole(editUserForm.role).description}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {getAccessRole(editUserForm.role).permissions.map((permission) => (
+                      <span
+                        key={permission}
+                        className="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-[var(--line)]"
+                      >
+                        {permission}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3 md:col-span-2">
+              <input
+                type="checkbox"
+                checked={editUserForm.ssoEnabled}
+                onChange={(event) =>
+                  setEditUserForm((current) => ({
+                    ...current,
+                    ssoEnabled: event.target.checked,
+                  }))
+                }
+                className={CHECKBOX}
+              />
+              <span className="text-[13px] font-medium text-slate-900">SSO enabled</span>
+            </label>
+
+            {editUserError ? (
+              <FormError className="md:col-span-2">{editUserError}</FormError>
+            ) : null}
           </div>
-        </div>
+        </UsersDialog>
       )}
 
       {isAddBusinessUnitModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Add Business Unit
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Create a business unit for this tenant.
-                </p>
-              </div>
+        <UsersDialog
+          titleId="add-business-unit-title"
+          title="Add Business Unit"
+          description="Create a business unit for this tenant."
+          closeLabel="Close add business unit modal"
+          onClose={closeAddBusinessUnitModal}
+          closeDisabled={creatingBusinessUnit}
+          layer="z-[60]"
+          footer={
+            <>
               <button
                 type="button"
                 onClick={closeAddBusinessUnitModal}
-                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                aria-label="Close add business unit modal"
-                disabled={creatingBusinessUnit}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Code
-                  <RequiredIndicator />
-                </label>
-                <input
-                  value={addBusinessUnitForm.code}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      code: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="FIN"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Name
-                  <RequiredIndicator />
-                </label>
-                <input
-                  value={addBusinessUnitForm.name}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="Finance"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Parent Business Unit
-                </label>
-                <select
-                  value={addBusinessUnitForm.parent}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      parent: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                >
-                  <option value="">None</option>
-                  {businessUnits
-                    .filter((unit) => unit.code)
-                    .map((unit) => (
-                      <option key={String(unit.id)} value={unit.code}>
-                        {unit.name} ({unit.code})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Status
-                </label>
-                <select
-                  value={addBusinessUnitForm.status}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                >
-                  {BUSINESS_UNIT_STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Description
-                </label>
-                <textarea
-                  value={addBusinessUnitForm.description}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="Finance business unit"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Legal Entity ID
-                </label>
-                <input
-                  value={addBusinessUnitForm.legalEntityId}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      legalEntityId: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="LE-001"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  GL Account ID
-                </label>
-                <input
-                  value={addBusinessUnitForm.glAccountId}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      glAccountId: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="GL-1000"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
-                  Company ID
-                </label>
-                <input
-                  value={addBusinessUnitForm.company}
-                  onChange={(event) =>
-                    setAddBusinessUnitForm((current) => ({
-                      ...current,
-                      company: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border px-3 py-2 text-sm"
-                  placeholder="2"
-                />
-              </div>
-
-              {addBusinessUnitError && (
-                <p className="md:col-span-2 text-sm text-rose-600">
-                  {addBusinessUnitError}
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 border-t px-6 py-4">
-              <button
-                type="button"
-                onClick={closeAddBusinessUnitModal}
-                className="rounded-md border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className={levvUi.ghostButton}
                 disabled={creatingBusinessUnit}
               >
                 Cancel
@@ -1773,254 +1885,296 @@ export default function AdminUsersPage() {
               <button
                 type="button"
                 onClick={() => void submitAddBusinessUnit()}
-                className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-                  creatingBusinessUnit
-                    ? 'cursor-not-allowed bg-gray-400'
-                    : 'bg-black hover:bg-gray-900'
-                }`}
+                className={levvUi.primaryButton}
                 disabled={creatingBusinessUnit}
               >
                 {creatingBusinessUnit
                   ? 'Creating...'
                   : 'Create Business Unit'}
               </button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className={FIELD_LABEL}>
+                Code
+                <RequiredIndicator />
+              </label>
+              <input
+                value={addBusinessUnitForm.code}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    code: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+                placeholder="FIN"
+              />
             </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Name
+                <RequiredIndicator />
+              </label>
+              <input
+                value={addBusinessUnitForm.name}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+                placeholder="Finance"
+              />
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Parent Business Unit
+              </label>
+              <LevvSelect
+                value={addBusinessUnitForm.parent}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    parent: event.target.value,
+                  }))
+                }
+              >
+                <option value="">None</option>
+                {businessUnits
+                  .filter((unit) => unit.code)
+                  .map((unit) => (
+                    <option key={String(unit.id)} value={unit.code}>
+                      {unit.name} ({unit.code})
+                    </option>
+                  ))}
+              </LevvSelect>
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Status
+              </label>
+              <LevvSelect
+                value={addBusinessUnitForm.status}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    status: event.target.value,
+                  }))
+                }
+              >
+                {BUSINESS_UNIT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={FIELD_LABEL}>
+                Description
+              </label>
+              <textarea
+                value={addBusinessUnitForm.description}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                className={`${TEXTAREA} resize-y`}
+                placeholder="Finance business unit"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Legal Entity ID
+              </label>
+              <input
+                value={addBusinessUnitForm.legalEntityId}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    legalEntityId: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+                placeholder="LE-001"
+              />
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                GL Account ID
+              </label>
+              <input
+                value={addBusinessUnitForm.glAccountId}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    glAccountId: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+                placeholder="GL-1000"
+              />
+            </div>
+
+            <div>
+              <label className={FIELD_LABEL}>
+                Company ID
+              </label>
+              <input
+                value={addBusinessUnitForm.company}
+                onChange={(event) =>
+                  setAddBusinessUnitForm((current) => ({
+                    ...current,
+                    company: event.target.value,
+                  }))
+                }
+                className={levvUi.input}
+                placeholder="2"
+              />
+            </div>
+
+            {addBusinessUnitError && (
+              <FormError className="md:col-span-2">
+                {addBusinessUnitError}
+              </FormError>
+            )}
           </div>
-        </div>
+        </UsersDialog>
       )}
+    </LevvPage>
+  )
+}
 
-      <LevvPanel className="p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-          <div className="group relative">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search users"
-              className="w-full rounded-md border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-            />
+/* =========================
+   Local pieces
+   A modal shell, the table's load / empty / error states, and the small notes inside forms.
+========================= */
+function UsersDialog({
+  titleId,
+  title,
+  description,
+  closeLabel,
+  onClose,
+  closeDisabled,
+  layer = 'z-50',
+  nav,
+  footer,
+  children,
+}: {
+  titleId: string
+  title: ReactNode
+  description: ReactNode
+  closeLabel: string
+  onClose: () => void
+  closeDisabled: boolean
+  layer?: string
+  nav?: ReactNode
+  footer: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={`fixed inset-0 ${layer} flex items-center justify-center bg-slate-950/30 p-4 animate-in fade-in duration-200 motion-reduce:animate-none`}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-pop animate-in fade-in zoom-in-[0.97] duration-200 ease-out motion-reduce:animate-none"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-6 py-4">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-slate-950">
+              {title}
+            </h2>
+            <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>
           </div>
-
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-          >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={roleFilter}
-            onChange={(event) => setRoleFilter(event.target.value)}
-            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-          >
-            <option value="">All roles</option>
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={businessUnitFilter}
-            onChange={(event) => setBusinessUnitFilter(event.target.value)}
-            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-            disabled={businessUnitsLoading}
-          >
-            <option value="">All business units</option>
-            {businessUnitOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <input
-            value={costCenterFilter}
-            onChange={(event) => setCostCenterFilter(event.target.value)}
-            placeholder="Cost center ID"
-            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-[#89d3bd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#89d3bd]/30"
-          />
-        </div>
-
-        <div className="mt-3 flex justify-end">
           <button
-            onClick={clearFilters}
-            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-[#89d3bd] hover:bg-[#e7f3ee]"
+            type="button"
+            onClick={onClose}
+            disabled={closeDisabled}
+            aria-label={closeLabel}
+            className={`${levvUi.ghostButton} -mr-2 -mt-1 w-9 shrink-0 px-0`}
           >
-            Clear filters
+            <X className="h-4 w-4" />
           </button>
         </div>
-
-        {businessUnitsLoading && (
-          <p className="mt-3 text-xs text-gray-500">
-            Loading business units...
-          </p>
-        )}
-
-        {businessUnitsError && (
-          <p className="mt-3 text-xs text-rose-600">
-            {businessUnitsError}
-          </p>
-        )}
-      </LevvPanel>
-
-      {forbidden && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
-          You do not have permission to view tenant users. Admin access is required.
+        {nav}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--line)] px-6 py-4">
+          {footer}
         </div>
-      )}
-
-      {!forbidden && error && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
-          {error}
-        </div>
-      )}
-
-      {!forbidden && invitationNotice ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800" role="status">
-          {invitationNotice}
-        </div>
-      ) : null}
-
-      {!forbidden && invitationActionError ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-800" role="alert">
-          {invitationActionError}
-        </div>
-      ) : null}
-
-      <LevvPanel className="overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Name</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Email</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Status</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Role</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Business Unit</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Cost Center</th>
-              <th className="px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">SSO</th>
-              <th className="px-5 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Action</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-slate-100">
-            {loading && (
-              <tr>
-                <td colSpan={8} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
-                  Loading users...
-                </td>
-              </tr>
-            )}
-
-            {!loading && !forbidden && usersForTable.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
-                  No users found.
-                </td>
-              </tr>
-            )}
-
-            {!loading &&
-              !forbidden &&
-              usersForTable.map((user) => (
-                <tr
-                  key={`${user.membershipId || user.userId || user.email}-${user.name}`}
-                  className="group transition-colors hover:bg-[#e7f3ee]/50"
-                >
-                  <td className="px-5 py-4 font-semibold text-slate-950">
-                    {isFeatureEnabled('user_detail_v2') && user.membershipId ? (
-                      <Link
-                        href={`/admin/users/${encodeURIComponent(user.membershipId)}?return_to=${encodeURIComponent(currentListHref)}`}
-                        className="rounded-sm hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
-                      >
-                        {user.name}
-                      </Link>
-                    ) : (
-                      user.name
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-slate-700">{user.email || '—'}</td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadgeClass(user.status)}`}
-                    >
-                      {toTitleCase(user.status)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-                      {getAccessRole(user.role).label}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-700">
-                    {user.businessUnit || user.businessUnitId || '—'}
-                  </td>
-                  <td className="px-5 py-4 text-slate-700">{toCostCenterDisplay(user)}</td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                        user.ssoEnabled
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {user.ssoEnabled ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      {user.status === 'invited' && user.invitationId ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleInvitationAction(user, 'resend')}
-                            disabled={invitationActionId === user.invitationId}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
-                            title={user.invitationDeliveryError || 'Invalidate the old link and send a new invitation'}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            {user.invitationDeliveryStatus === 'failed' ? 'Retry invite' : 'Resend'}
-                          </button>
-                          {user.invitationStatus !== 'revoked' ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleInvitationAction(user, 'revoke')}
-                              disabled={invitationActionId === user.invitationId}
-                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50"
-                            >
-                              <Ban className="h-3.5 w-3.5" />
-                              Revoke
-                            </button>
-                          ) : null}
-                        </>
-                      ) : null}
-                      {user.status !== 'invited' || !user.invitationId ? (
-                        <button
-                          type="button"
-                          onClick={() => openEditUserModal(user)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Edit access
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-        </div>
-      </LevvPanel>
       </div>
-    </LevvPage>
+    </div>
+  )
+}
+
+function TableState({
+  icon: Icon,
+  tone = 'slate',
+  spin = false,
+  alert = false,
+  children,
+}: {
+  icon: ElementType
+  tone?: 'slate' | 'rose'
+  spin?: boolean
+  alert?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div
+      role={alert ? 'alert' : undefined}
+      className="flex flex-col items-center gap-2.5 border-t border-[var(--line)] px-6 py-14 text-center"
+    >
+      <Icon
+        className={`h-5 w-5 ${tone === 'rose' ? 'text-rose-500' : 'text-slate-400'} ${
+          spin ? 'animate-spin motion-reduce:animate-none' : ''
+        }`}
+      />
+      <p className={`max-w-md text-[13px] font-medium ${tone === 'rose' ? 'text-rose-700' : 'text-slate-600'}`}>
+        {children}
+      </p>
+    </div>
+  )
+}
+
+function ReviewRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+      <p className="text-xs text-slate-500 sm:pt-0.5">{label}</p>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function FormNote({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={`flex items-start gap-2 rounded-lg bg-[var(--surface-sunken)] px-3.5 py-3 text-xs leading-5 text-slate-600 ${className}`}>
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+function FormError({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={`flex items-start gap-1.5 text-[13px] text-rose-700 ${className}`}>
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{children}</span>
+    </p>
   )
 }

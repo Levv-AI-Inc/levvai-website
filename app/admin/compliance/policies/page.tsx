@@ -245,7 +245,7 @@ export default function CompliancePoliciesPage() {
 
       {policyRows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#1f3d38] text-[#89d3bd]">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--rail)] text-[var(--nova)]">
             <FileText className="h-5 w-5" />
           </div>
           <h2 className="text-sm font-semibold text-slate-900">

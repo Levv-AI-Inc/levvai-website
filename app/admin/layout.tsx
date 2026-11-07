@@ -131,28 +131,25 @@ export default function AdminLayout({
     pathname === '/admin/workflows' || pathname.startsWith('/admin/workflows/')
 
   return (
-    <div className="flex flex-1 bg-[#f4f7fb]">
-      {/* =========================
-          Admin Tabs (Column 2)
-         ========================= */}
+    <div className={clsx('flex flex-1 flex-col lg:flex-row', isFlowStudio ? 'gap-4' : 'gap-4 lg:gap-8')}>
       <aside
         className={clsx(
-          'sticky top-20 w-60 shrink-0 overflow-y-auto border-r border-[#e1e8f2] bg-white px-4 py-6',
+          'shrink-0 rounded-xl border border-[var(--line)] bg-white p-2 lg:sticky lg:top-20 lg:w-52 lg:self-start lg:overflow-y-auto',
           isFlowStudio
-            ? 'h-[calc(100vh-7.5rem)] sm:h-[calc(100vh-8rem)] lg:h-[calc(100vh-9rem)]'
-            : 'h-[calc(100vh-5rem)]'
+            ? 'lg:h-[calc(100vh-8rem)]'
+            : 'lg:max-h-[calc(100vh-6rem)]'
         )}
       >
-        <div className="mb-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+        <div className="hidden px-2.5 pb-2 pt-1.5 lg:block">
+          <h2 className="text-[13px] font-semibold text-slate-950">
             Admin settings
           </h2>
-          <p className="mt-1 px-3 text-xs leading-5 text-[#6b746f]">
+          <p className="mt-0.5 text-xs text-slate-500">
             Tenant controls and access.
           </p>
         </div>
 
-        <nav className="space-y-1">
+        <nav aria-label="Admin settings" className="flex gap-px overflow-x-auto lg:block lg:space-y-px lg:overflow-visible">
           {ADMIN_NAV.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -165,11 +162,12 @@ export default function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={clsx(
-                  'block rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                  'flex h-8 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] transition-colors duration-150',
                   isActive
-                    ? 'bg-blue-50 text-blue-700 shadow-[inset_3px_0_0_#2563eb]'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-blue-50 font-medium text-blue-700'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                 )}
               >
                 {item.label}
@@ -185,16 +183,16 @@ export default function AdminLayout({
       <main
         className={clsx(
           'min-w-0 flex-1',
-          isFlowStudio ? 'relative' : 'p-6 lg:p-8'
+          isFlowStudio ? 'relative min-h-[calc(100vh-11rem)] lg:min-h-0' : ''
         )}
       >
         {shouldShowAccessCheck ? (
           <div className="flex min-h-[360px] items-center justify-center">
-            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <div className="w-full max-w-sm rounded-xl border border-[var(--line)] bg-white px-5 py-4">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">
+                  <p className="text-[13px] font-semibold text-slate-950">
                     Checking access...
                   </p>
                   <p className="text-xs text-slate-500">

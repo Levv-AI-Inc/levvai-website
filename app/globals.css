@@ -3,28 +3,77 @@
 @tailwind utilities;
 
 /* =========================
-   Enterprise UI Base (Inter)
+   Levv tokens
+   The palette families (slate, gray, blue, cyan) are CSS variables set in tailwind.config.js, so every existing
+   utility class follows the brand. These are the semantic roles built on them.
 ========================= */
-body {
-  font-family:
-    'Inter',
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+:root {
+  --ground: #f3f5f9;
+  --surface: #ffffff;
+  --surface-sunken: #f6f8fb;
+  --line: #e0e6ef;
+  --line-strong: #c9d2df;
+  --ink: #0a1128;
+  --ink-2: #232c42;
+  --muted: #616e84;
+  --faint: #95a1b5;
+  --accent: #2658e4;
+  --accent-hover: #1e46c4;
+  --accent-soft: #eef4ff;
+  --focus: rgb(38 88 228 / 0.28);
+  --rail: #0a1330;
+  --rail-raised: rgb(255 255 255 / 0.07);
+  --rail-line: rgb(255 255 255 / 0.08);
+  --nova: #3fb6f7;
 
-  background-color: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms;
+  --dur-fast: 160ms;
+  --dur-pop: 200ms;
 
-  line-height: 1.5;
-  font-weight: 400;
+  /* Kept for components that still read the earlier names. */
+  --cws-bg: var(--ground);
+  --cws-surface: var(--surface);
+  --cws-border: var(--line);
+  --cws-text-primary: var(--ink);
+  --cws-text-secondary: var(--muted);
+  --cws-accent: var(--accent);
+  --levv-app-bg: var(--ground);
+  --levv-surface: var(--surface);
+  --levv-surface-subtle: var(--surface-sunken);
+  --levv-border: var(--line);
+  --levv-border-strong: var(--line-strong);
+  --levv-ink: var(--ink);
+  --levv-ink-soft: var(--ink-2);
+  --levv-muted: var(--muted);
+  --levv-brand: var(--accent);
+  --levv-success: #059669;
+  --levv-radius-panel: 0.75rem;
+  --levv-radius-control: 0.5rem;
+  --levv-panel-shadow: 0 1px 2px rgb(10 17 40 / 0.04);
 }
 
 /* =========================
-   Typography hygiene
+   Base
 ========================= */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  background-color: var(--ground);
+  color: var(--ink);
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: var(--accent);
+}
+
 h1,
 h2,
 h3,
@@ -32,7 +81,8 @@ h4,
 h5,
 h6 {
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -0.011em;
+  text-wrap: balance;
 }
 
 small,
@@ -41,79 +91,84 @@ small,
   line-height: 1.45;
 }
 
-.tabular-nums {
+.tabular-nums,
+td,
+[data-numeric] {
   font-variant-numeric: tabular-nums;
 }
 
-/* =========================
-   Semantic color helpers
-   (optional, non-breaking)
-========================= */
-:root {
-  --cws-bg: #f8fafc;
-  --cws-surface: #ffffff;
-  --cws-border: #e2e8f0; /* slate-200 */
-
-  --cws-text-primary: #0f172a; /* slate-900 */
-  --cws-text-secondary: #475569; /* slate-600 */
-
-  /* Primary accent (used sparingly) */
-  --cws-accent: #22d3ee; /* cyan-400 */
-
-  /* Reusable LEVVAI application design tokens */
-  --levv-app-bg: #f4f7fb;
-  --levv-surface: #ffffff;
-  --levv-surface-subtle: #f8fafc;
-  --levv-border: #e1e8f2;
-  --levv-border-strong: #dbe3ee;
-  --levv-ink: #101b3c;
-  --levv-ink-soft: #334155;
-  --levv-muted: #64748b;
-  --levv-brand: #2563eb;
-  --levv-success: #059669;
-  --levv-radius-panel: 1.125rem;
-  --levv-radius-control: 0.75rem;
-  --levv-panel-shadow: 0 10px 35px -24px rgba(15, 23, 42, 0.35);
+::selection {
+  background: rgb(38 88 228 / 0.18);
+  color: inherit;
 }
 
-.levv-page {
-  color: var(--levv-ink);
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.levv-page-header {
-  padding-bottom: 0.125rem;
+a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
 }
 
-.levv-panel,
-.levv-stat-card,
-.levv-table-shell {
-  border-color: var(--levv-border);
-  background: var(--levv-surface);
-  box-shadow: var(--levv-panel-shadow);
-}
-
-.levv-panel-header h2,
-.levv-detail-tile,
-.levv-stat-card {
-  color: var(--levv-ink);
-}
-
-/* =========================
-   Font rendering
-========================= */
 * {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 /* =========================
-   Banner animation (UNCHANGED)
+   Motion
+   Press feedback on anything pressable; nothing animates from nothing.
 ========================= */
-@keyframes bannerFadeOut {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
+.levv-press {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
+}
+
+.levv-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.levv-pop {
+  transform-origin: var(--levv-origin, top right);
+  animation: levv-pop-in var(--dur-pop) var(--ease-out);
+}
+
+@keyframes levv-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
   }
+}
+
+@keyframes bannerFadeOut {
+  0%,
   80% {
     opacity: 1;
     transform: translateY(0);
@@ -127,273 +182,160 @@ small,
 .animate-banner {
   animation: bannerFadeOut 3s forwards;
 }
-/* =========================
-   Button normalization fix
-========================= */
-button {
-  appearance: none;
-  -webkit-appearance: none;
+
+@media (prefers-reduced-motion: reduce) {
+  .levv-press {
+    transition: none;
+  }
+
+  .levv-press:active:not(:disabled) {
+    transform: none;
+  }
+
+  .levv-pop {
+    animation: levv-fade-in var(--dur-fast) ease;
+  }
+}
+
+@keyframes levv-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* =========================
-   Authenticated App Theme
-   Scoped to the logged-in shell only.
+   Levv components (see app/components/ui/levv-app.tsx)
 ========================= */
-body.flex main.flex-1 {
-  background: #f4f7fb;
+.levv-page {
+  color: var(--ink);
 }
 
-body.flex main.flex-1 .bg-slate-50,
-body.flex main.flex-1 .bg-gray-50 {
-  background-color: #f4f7fb !important;
+.levv-panel,
+.levv-stat-card,
+.levv-table-shell {
+  border-color: var(--line);
+  background: var(--surface);
 }
 
-body.flex main.flex-1 .bg-white {
-  background-color: #ffffff !important;
+/* =========================
+   Authenticated app layer
+   Normalises the controls and tables of pages that predate the system. Scoped to the logged-in shell's main
+   (`flex-1`); screens a spec pins render without that class and keep their own look.
+========================= */
+body.levv-auth-shell main.flex-1 h1 {
+  color: var(--ink);
+  font-weight: 650;
+  letter-spacing: -0.022em;
 }
 
-body.flex main.flex-1 .bg-slate-100,
-body.flex main.flex-1 .bg-gray-100 {
-  background-color: #eef2f7 !important;
+body.levv-auth-shell main.flex-1 h2,
+body.levv-auth-shell main.flex-1 h3 {
+  color: var(--ink-2);
 }
 
-body.flex main.flex-1 .bg-slate-900,
-body.flex main.flex-1 .bg-slate-950 {
-  background-color: #101b3c !important;
-}
-
-body.flex main.flex-1 .bg-cyan-50 {
-  background-color: #eff6ff !important;
-}
-
-body.flex main.flex-1 .bg-cyan-100 {
-  background-color: #dbeafe !important;
-}
-
-body.flex main.flex-1 .bg-cyan-400,
-body.flex main.flex-1 .bg-cyan-500,
-body.flex main.flex-1 .bg-cyan-600,
-body.flex main.flex-1 .bg-cyan-700 {
-  background-color: #2563eb !important;
-}
-
-body.flex main.flex-1 .text-slate-950,
-body.flex main.flex-1 .text-slate-900 {
-  color: #101b3c !important;
-}
-
-body.flex main.flex-1 .text-slate-800 {
-  color: #17213c !important;
-}
-
-body.flex main.flex-1 .text-slate-700,
-body.flex main.flex-1 .text-gray-700 {
-  color: #334155 !important;
-}
-
-body.flex main.flex-1 .text-slate-600,
-body.flex main.flex-1 .text-gray-600 {
-  color: #52637a !important;
-}
-
-body.flex main.flex-1 .text-slate-500,
-body.flex main.flex-1 .text-gray-500 {
-  color: #64748b !important;
-}
-
-body.flex main.flex-1 .text-slate-400,
-body.flex main.flex-1 .text-gray-400 {
-  color: #94a3b8 !important;
-}
-
-body.flex main.flex-1 .text-cyan-400,
-body.flex main.flex-1 .text-cyan-500,
-body.flex main.flex-1 .text-cyan-600,
-body.flex main.flex-1 .text-cyan-700 {
-  color: #2563eb !important;
-}
-
-body.flex main.flex-1 .border-slate-100,
-body.flex main.flex-1 .border-gray-100 {
-  border-color: #edf2f7 !important;
-}
-
-body.flex main.flex-1 .border-slate-200,
-body.flex main.flex-1 .border-gray-200,
-body.flex main.flex-1 .border-cyan-100,
-body.flex main.flex-1 .border-cyan-200 {
-  border-color: #dbe3ee !important;
-}
-
-body.flex main.flex-1 .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #e8edf5 !important;
-}
-
-body.flex main.flex-1 .rounded-3xl {
-  border-radius: 1.125rem !important;
-}
-
-body.flex main.flex-1 .rounded-2xl {
-  border-radius: 0.875rem !important;
-}
-
-body.flex main.flex-1 .rounded-xl {
-  border-radius: 0.75rem !important;
-}
-
-body.flex main.flex-1 .rounded-full {
-  border-radius: 9999px !important;
-}
-
-body.flex main.flex-1 .shadow-2xl,
-body.flex main.flex-1 .shadow-xl,
-body.flex main.flex-1 .shadow-lg {
-  box-shadow: 0 20px 45px -30px rgba(15, 23, 42, 0.32) !important;
-}
-
-body.flex main.flex-1 h1 {
-  color: #101b3c !important;
-  font-weight: 700;
-}
-
-body.flex main.flex-1 h2,
-body.flex main.flex-1 h3 {
-  color: #17213c;
-}
-
-body.flex main.flex-1 label,
-body.flex main.flex-1 th {
-  color: #64748b !important;
+body.levv-auth-shell main.flex-1 label {
+  color: var(--muted);
   letter-spacing: 0 !important;
 }
 
-body.flex main.flex-1 table {
+body.levv-auth-shell main.flex-1 table {
   border-collapse: separate;
   border-spacing: 0;
 }
 
-body.flex main.flex-1 thead tr {
-  background: #f1f5f9 !important;
+body.levv-auth-shell main.flex-1 thead tr {
+  background: var(--surface-sunken) !important;
 }
 
-body.flex main.flex-1 th {
-  padding-top: 0.85rem !important;
-  padding-bottom: 0.85rem !important;
-  font-size: 0.68rem !important;
-  font-weight: 750 !important;
-  text-transform: uppercase;
+body.levv-auth-shell main.flex-1 th {
+  padding-top: 0.7rem !important;
+  padding-bottom: 0.7rem !important;
+  color: var(--muted) !important;
+  font-size: 0.75rem !important;
+  font-weight: 550 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  white-space: nowrap;
 }
 
-body.flex main.flex-1 tbody tr {
+body.levv-auth-shell main.flex-1 tbody tr {
+  transition: background-color var(--dur-fast) ease;
+}
+
+body.levv-auth-shell main.flex-1 tbody tr:hover {
+  background: var(--surface-sunken) !important;
+}
+
+body.levv-auth-shell main.flex-1 td {
+  border-color: var(--line) !important;
+}
+
+body.levv-auth-shell main.flex-1 input:not([type='checkbox']):not([type='radio']):not([type='range']):not(.levv-bare),
+body.levv-auth-shell main.flex-1 select,
+body.levv-auth-shell main.flex-1 textarea:not(.levv-bare) {
+  background-color: var(--surface) !important;
+  border-color: var(--line-strong) !important;
+  color: var(--ink) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 1px 1px rgb(10 17 40 / 0.03) !important;
   transition:
-    background-color 140ms ease,
-    box-shadow 140ms ease;
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
 }
 
-body.flex main.flex-1 tbody tr:hover {
-  background: #f8fafc !important;
-  box-shadow: inset 3px 0 0 #3b82f6;
+body.levv-auth-shell main.flex-1 input::placeholder,
+body.levv-auth-shell main.flex-1 textarea::placeholder {
+  color: var(--faint);
 }
 
-body.flex main.flex-1 td {
-  border-color: #e8edf5 !important;
-}
-
-body.flex main.flex-1 input,
-body.flex main.flex-1 select,
-body.flex main.flex-1 textarea {
-  background-color: #ffffff !important;
-  border-color: #dbe3ee !important;
-  color: #17213c !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
-}
-
-body.flex main.flex-1 input:focus,
-body.flex main.flex-1 select:focus,
-body.flex main.flex-1 textarea:focus,
-body.flex main.flex-1 [class*='focus-within']:focus-within {
-  border-color: #93b4f8 !important;
-  box-shadow: 0 0 0 4px rgba(219, 234, 254, 0.75) !important;
+body.levv-auth-shell main.flex-1 input:not(.levv-bare):focus,
+body.levv-auth-shell main.flex-1 select:focus,
+body.levv-auth-shell main.flex-1 textarea:not(.levv-bare):focus,
+body.levv-auth-shell main.flex-1 [class*='focus-within']:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--focus) !important;
   outline: none !important;
 }
 
-body.flex main.flex-1 input.levv-readonly-input {
-  background-color: #edf2f7 !important;
-  color: #52637a !important;
+body.levv-auth-shell main.flex-1 input.levv-readonly-input {
+  background-color: var(--surface-sunken) !important;
+  color: var(--muted) !important;
   box-shadow: none !important;
 }
 
-body.flex main.flex-1 button,
-body.flex main.flex-1 a {
+body.levv-auth-shell main.flex-1 button,
+body.levv-auth-shell main.flex-1 a {
   letter-spacing: 0 !important;
 }
 
-body.flex main.flex-1 button[class*='rounded'],
-body.flex main.flex-1 a[class*='rounded'] {
-  border-radius: 0.75rem !important;
+body.levv-auth-shell main.flex-1 button[class*='rounded-xl'],
+body.levv-auth-shell main.flex-1 button[class*='rounded-2xl'],
+body.levv-auth-shell main.flex-1 a[class*='rounded-xl'][class*='px-'],
+body.levv-auth-shell main.flex-1 a[class*='rounded-2xl'][class*='px-'] {
+  border-radius: 0.5rem !important;
 }
 
-body.flex main.flex-1 button[class*='bg-slate-900'],
-body.flex main.flex-1 button[class*='bg-black'],
-body.flex main.flex-1 a[class*='bg-slate-900'],
-body.flex main.flex-1 a[class*='bg-black'] {
-  background-color: #101b3c !important;
+body.levv-auth-shell main.flex-1 button:not(:disabled):active {
+  transform: scale(0.97);
+  transition: transform var(--dur-press) var(--ease-out);
 }
 
-body.flex main.flex-1 button[class*='hover:bg-black']:hover,
-body.flex main.flex-1 button[class*='hover:bg-slate-800']:hover,
-body.flex main.flex-1 a[class*='hover:bg-black']:hover,
-body.flex main.flex-1 a[class*='hover:bg-slate-800']:hover {
-  background-color: #192a56 !important;
+body.levv-auth-shell main.flex-1 [class*='from-violet'],
+body.levv-auth-shell main.flex-1 [class*='from-purple'],
+body.levv-auth-shell main.flex-1 [class*='text-violet'],
+body.levv-auth-shell main.flex-1 [class*='text-purple'],
+body.levv-auth-shell main.flex-1 [class*='border-violet'],
+body.levv-auth-shell main.flex-1 [class*='border-purple'] {
+  color: var(--accent) !important;
+  border-color: #c0d4ff !important;
 }
 
-body.flex main.flex-1 [class*='from-violet'],
-body.flex main.flex-1 [class*='from-purple'],
-body.flex main.flex-1 [class*='text-violet'],
-body.flex main.flex-1 [class*='text-purple'],
-body.flex main.flex-1 [class*='border-violet'],
-body.flex main.flex-1 [class*='border-purple'] {
-  color: #4f46e5 !important;
-  border-color: #c7d2fe !important;
-}
-
-body.flex main.flex-1 [class*='rounded'][class*='border'][class*='p-6'],
-body.flex main.flex-1 [class*='rounded'][class*='border'][class*='p-5'],
-body.flex main.flex-1 [class*='rounded'][class*='border'][class*='p-4'] {
-  border-color: #e1e8f2 !important;
-}
-
-body.flex main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-xl'],
-body.flex main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-2xl'],
-body.flex main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-lg'] {
-  background: #ffffff !important;
-  border-left: 1px solid #dbe3ee !important;
-  box-shadow: -28px 0 60px -42px rgba(15, 23, 42, 0.45) !important;
-}
-
-body.flex main.flex-1 .text-emerald-700,
-body.flex main.flex-1 .text-emerald-600,
-body.flex main.flex-1 .text-emerald-500 {
-  color: #059669 !important;
-}
-
-body.flex main.flex-1 .bg-emerald-50,
-body.flex main.flex-1 .bg-emerald-100 {
-  background-color: #ecfdf5 !important;
-}
-
-body.flex main.flex-1 .border-emerald-100,
-body.flex main.flex-1 .border-emerald-200 {
-  border-color: #a7f3d0 !important;
-}
-
-/* =========================
-   Modern authenticated shell
-   Keeps the request workspace crisp without affecting standalone portals.
-========================= */
-body.levv-auth-shell main.levv-auth-main {
-  background: #f4f7fb !important;
+body.levv-auth-shell main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-xl'],
+body.levv-auth-shell main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-2xl'],
+body.levv-auth-shell main.flex-1 [class*='fixed'][class*='right-0'][class*='max-w-lg'] {
+  background: var(--surface) !important;
+  border-left: 1px solid var(--line) !important;
+  box-shadow: -24px 0 48px -32px rgb(10 17 40 / 0.4) !important;
 }
 
 body.levv-auth-shell main.levv-auth-main .levv-request-page {
@@ -404,304 +346,103 @@ body.levv-auth-shell main.levv-auth-main .levv-request-page {
   background: transparent !important;
 }
 
-body.levv-auth-shell main.levv-auth-main .levv-job-detail h1,
-body.levv-auth-shell main.levv-auth-main .levv-job-detail h2,
-body.levv-auth-shell main.levv-auth-main .levv-job-detail h3 {
-  color: #101b3c !important;
-}
-
-body.levv-auth-shell main.levv-auth-main .levv-job-detail .levv-detail-panel {
-  border-color: #e1e8f2 !important;
-  border-radius: 1.125rem !important;
-}
-
-body.levv-auth-shell main.levv-auth-main .levv-job-detail .levv-soft-card {
-  border-color: #e2e8f0 !important;
-  border-radius: 0.875rem !important;
-}
-
-body.levv-auth-shell main.levv-auth-main .levv-job-detail .levv-blue-note {
-  border-color: #dbeafe !important;
-  border-radius: 0.875rem !important;
-}
-
-body.levv-auth-shell main.levv-auth-main .levv-job-detail .levv-status-chip {
-  border-radius: 0.75rem !important;
-}
-
-body.levv-auth-shell main.levv-auth-main .levv-job-detail .levv-pill {
-  border-radius: 9999px !important;
-}
-
-body.levv-auth-shell
-  main.levv-auth-main
-  .levv-job-detail
-  button[class*='rounded'],
-body.levv-auth-shell main.levv-auth-main .levv-job-detail a[class*='rounded'] {
-  border-radius: 0.75rem !important;
-}
-
 /* =========================
-   External Worker Portal Theme
-   Matches the authenticated app shell for standalone worker routes.
+   External worker portal and standalone screens
+   Same system as the app: cool ground, white surfaces, navy primary, blue accent.
 ========================= */
-.levv-worker-portal {
+.levv-worker-portal,
+.levv-standalone-app {
   min-height: 100vh;
-  background: #f4f1ea !important;
-  color: #1e2528;
+  background: var(--ground) !important;
+  color: var(--ink);
 }
 
 .levv-worker-portal .font-display,
 .levv-worker-portal .font-data {
-  font-family:
-    'Inter',
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif !important;
+  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif !important;
 }
 
-.levv-worker-portal .bg-white,
-.levv-worker-portal .bg-white\/80 {
-  background-color: #fcfbf7 !important;
-}
-
-.levv-worker-portal .bg-slate-50,
-.levv-worker-portal .bg-gray-50 {
-  background-color: #f4f1ea !important;
-}
-
-.levv-worker-portal .bg-slate-100,
-.levv-worker-portal .bg-gray-100,
-.levv-worker-portal .bg-slate-200 {
-  background-color: #ebe5d8 !important;
-}
-
-.levv-worker-portal .bg-cyan-50,
-.levv-worker-portal .bg-cyan-50\/30,
-.levv-worker-portal .bg-cyan-50\/50,
-.levv-worker-portal .bg-cyan-50\/60,
-.levv-worker-portal .bg-cyan-50\/70,
-.levv-worker-portal .bg-emerald-50,
-.levv-worker-portal .bg-emerald-100,
-.levv-worker-portal .bg-green-50 {
-  background-color: #e9f5ef !important;
-}
-
-.levv-worker-portal .bg-cyan-500,
-.levv-worker-portal .bg-cyan-600,
-.levv-worker-portal .bg-blue-600,
-.levv-worker-portal .bg-emerald-600,
-.levv-worker-portal .bg-green-600,
-.levv-worker-portal .bg-\[\#0B1220\],
-.levv-worker-portal .bg-\[\#0f172a\],
-.levv-worker-portal .bg-black,
-.levv-worker-portal .bg-slate-900,
-.levv-worker-portal .bg-slate-950 {
-  background-color: #1f3d38 !important;
-}
-
-.levv-worker-portal .hover\:bg-slate-800:hover,
-.levv-worker-portal .hover\:bg-black:hover,
-.levv-worker-portal .hover\:bg-emerald-700:hover,
-.levv-worker-portal .hover\:bg-green-700:hover {
-  background-color: #162d29 !important;
-}
-
-.levv-worker-portal [class*='bg-gradient-to'],
-.levv-worker-portal [class*='from-indigo'],
-.levv-worker-portal [class*='from-cyan'],
-.levv-worker-portal [class*='from-blue'],
-.levv-worker-portal [class*='to-blue'] {
+.levv-worker-portal [class*='bg-gradient-to'] {
   background-image: none !important;
 }
 
-.levv-worker-portal .text-\[\#0B1220\],
-.levv-worker-portal .text-slate-950,
-.levv-worker-portal .text-slate-900,
-.levv-worker-portal .text-gray-900 {
-  color: #1e2528 !important;
-}
-
-.levv-worker-portal .text-slate-700,
-.levv-worker-portal .text-gray-700 {
-  color: #3d4945 !important;
-}
-
-.levv-worker-portal .text-slate-600,
-.levv-worker-portal .text-gray-600 {
-  color: #52605c !important;
-}
-
-.levv-worker-portal .text-slate-500,
-.levv-worker-portal .text-gray-500 {
-  color: #6b746f !important;
-}
-
-.levv-worker-portal .text-slate-400,
-.levv-worker-portal .text-gray-400,
-.levv-worker-portal .text-slate-300 {
-  color: #8b918e !important;
-}
-
-.levv-worker-portal .text-cyan-900,
-.levv-worker-portal .text-cyan-800,
-.levv-worker-portal .text-cyan-700,
-.levv-worker-portal .text-cyan-600,
-.levv-worker-portal .text-indigo-700,
-.levv-worker-portal .text-emerald-800,
-.levv-worker-portal .text-emerald-700,
-.levv-worker-portal .text-emerald-600,
-.levv-worker-portal .text-green-800 {
-  color: #255345 !important;
-}
-
-.levv-worker-portal .border-slate-100,
-.levv-worker-portal .border-gray-100 {
-  border-color: #e5ded2 !important;
-}
-
-.levv-worker-portal .border-slate-200,
-.levv-worker-portal .border-gray-200,
-.levv-worker-portal .border-cyan-100,
-.levv-worker-portal .border-cyan-200,
-.levv-worker-portal .border-emerald-100,
-.levv-worker-portal .border-emerald-200,
-.levv-worker-portal .border-green-200 {
-  border-color: #cfc7b8 !important;
-}
-
-.levv-worker-portal .border-slate-700,
-.levv-worker-portal .border-slate-800 {
-  border-color: #33413d !important;
-}
-
-.levv-worker-portal .rounded-3xl,
-.levv-worker-portal .rounded-2xl,
-.levv-worker-portal .rounded-xl,
-.levv-worker-portal .rounded-full {
-  border-radius: 0.5rem !important;
-}
-
-.levv-worker-portal .shadow-2xl,
-.levv-worker-portal .shadow-xl,
-.levv-worker-portal .shadow-lg,
-.levv-worker-portal .shadow-sm,
-.levv-worker-portal [class*='shadow-['] {
-  box-shadow: 0 22px 50px -42px rgba(31, 61, 56, 0.55) !important;
-}
-
-.levv-worker-portal label,
 .levv-worker-portal th {
-  color: #6b746f !important;
+  color: var(--muted) !important;
+  font-size: 0.75rem !important;
+  font-weight: 550 !important;
   letter-spacing: 0 !important;
+  text-transform: none !important;
 }
 
-.levv-worker-portal table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.levv-worker-portal thead,
 .levv-worker-portal thead tr {
-  background: #ece5d8 !important;
-}
-
-.levv-worker-portal th {
-  padding-top: 0.85rem !important;
-  padding-bottom: 0.85rem !important;
-  font-size: 0.68rem !important;
-  font-weight: 750 !important;
-  text-transform: uppercase;
-}
-
-.levv-worker-portal tbody tr {
-  transition:
-    background-color 140ms ease,
-    box-shadow 140ms ease;
+  background: var(--surface-sunken) !important;
 }
 
 .levv-worker-portal tbody tr:hover {
-  background: #f7f2e8 !important;
-  box-shadow: inset 3px 0 0 #1f3d38;
+  background: var(--surface-sunken) !important;
 }
 
 .levv-worker-portal td {
-  border-color: #ebe5d8 !important;
+  border-color: var(--line) !important;
 }
 
 .levv-worker-portal input,
 .levv-worker-portal select,
-.levv-worker-portal textarea {
-  background-color: #fcfbf7 !important;
-  border-color: #cfc7b8 !important;
-  color: #1e2528 !important;
-  border-radius: 0.375rem !important;
+.levv-worker-portal textarea,
+.levv-standalone-app input {
+  background-color: var(--surface) !important;
+  border-color: var(--line-strong) !important;
+  color: var(--ink) !important;
+  border-radius: 0.5rem !important;
   box-shadow: none !important;
 }
 
 .levv-worker-portal input:focus,
 .levv-worker-portal select:focus,
-.levv-worker-portal textarea:focus {
-  border-color: #1f3d38 !important;
-  box-shadow: 0 0 0 3px rgba(137, 211, 189, 0.22) !important;
+.levv-worker-portal textarea:focus,
+.levv-standalone-app input:focus,
+.levv-standalone-app [class*='focus-within']:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--focus) !important;
   outline: none !important;
 }
 
-/* =========================
-   Standalone App Screens
-   For auth and utility pages outside the authenticated shell.
-========================= */
-.levv-standalone-app {
-  min-height: 100vh;
-  background: #f4f1ea !important;
-  color: #1e2528;
-}
-
 .levv-standalone-app .levv-standalone-card {
-  border-color: #cfc7b8 !important;
-  border-radius: 0.5rem !important;
-  background: #fcfbf7 !important;
-  box-shadow: 0 22px 50px -42px rgba(31, 61, 56, 0.55) !important;
+  border-color: var(--line) !important;
+  border-radius: 0.875rem !important;
+  background: var(--surface) !important;
+  box-shadow: 0 24px 56px -32px rgb(10 17 40 / 0.28) !important;
 }
 
 .levv-standalone-app .levv-standalone-glow {
   display: none;
 }
 
-.levv-standalone-app input {
-  background-color: #fcfbf7 !important;
-  border-color: #cfc7b8 !important;
-  color: #1e2528 !important;
-  border-radius: 0.375rem !important;
-  box-shadow: none !important;
+/* =========================
+   Landing
+   Pulses run along the integration lines three times, and again while the diagram is hovered.
+========================= */
+.levv-pulse {
+  stroke-dasharray: 8 100;
+  stroke-dashoffset: 108;
+  stroke-linecap: round;
+  animation: levv-pulse 3.2s linear 3;
 }
 
-.levv-standalone-app input:focus,
-.levv-standalone-app [class*='focus-within']:focus-within {
-  border-color: #1f3d38 !important;
-  box-shadow: 0 0 0 3px rgba(137, 211, 189, 0.22) !important;
-  outline: none !important;
+.group:hover .levv-pulse {
+  animation-iteration-count: infinite;
 }
 
-.levv-standalone-app .bg-slate-100,
-.levv-standalone-app .bg-slate-50 {
-  background-color: #ebe5d8 !important;
+@keyframes levv-pulse {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
-.levv-standalone-app .bg-white {
-  background-color: #fcfbf7 !important;
-}
-
-.levv-standalone-app .bg-slate-900,
-.levv-standalone-app .bg-black {
-  background-color: #1f3d38 !important;
-}
-
-.levv-standalone-app button[class*='rounded'],
-.levv-standalone-app a[class*='rounded'],
-.levv-standalone-app span[class*='rounded'] {
-  border-radius: 0.375rem !important;
+@media (prefers-reduced-motion: reduce) {
+  .levv-pulse {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 0;
+  }
 }

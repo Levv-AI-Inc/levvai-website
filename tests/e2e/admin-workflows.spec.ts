@@ -54,16 +54,19 @@ test('clicking the tab opens a workflow on the canvas, and the tab reads as acti
   await expect(pickerButton(shell, 'Job posting created')).toBeVisible();
   await expect(canvasOf(shell).getByRole('button', { name: 'Send to suppliers', exact: true })).toBeVisible();
 
-  // Polled: the highlight animates (`transition` on the link) when it moves from Users.
-  const BAR = /rgb\(37, 99, 235\) 3px 0px 0px 0px inset/;
-  await expect(tab).toHaveCSS('box-shadow', BAR);
-  await expect(tab).toHaveCSS('color', 'rgb(29, 78, 216)');
-  await expect(adminNav(page).getByRole('link', { name: 'Users', exact: true })).not.toHaveCSS('box-shadow', /inset/);
+  // Polled: the highlight fades (`transition` on the link) when it moves from Users. Levv blue-50 fill, blue-700 text.
+  const ACTIVE_FILL = 'rgb(238, 244, 255)';
+  await expect(tab).toHaveCSS('background-color', ACTIVE_FILL);
+  await expect(tab).toHaveCSS('color', 'rgb(30, 70, 196)');
+  await expect(tab).toHaveAttribute('aria-current', 'page');
+  const users = adminNav(page).getByRole('link', { name: 'Users', exact: true });
+  await expect(users).not.toHaveCSS('background-color', ACTIVE_FILL);
+  await expect(users).not.toHaveAttribute('aria-current', 'page');
 
   await page.goto('/admin/workflows');
   await expect(page).toHaveURL(/\/admin\/workflows\/wf-jp$/);
   await waitForCanvas(shellOf(page));
-  await expect(adminNav(page).getByRole('link', { name: 'Workflows', exact: true })).toHaveCSS('box-shadow', BAR);
+  await expect(adminNav(page).getByRole('link', { name: 'Workflows', exact: true })).toHaveCSS('background-color', ACTIVE_FILL);
 });
 
 test('the dark stage is really slate-950 and the accent really cyan: the globals.css overrides do not reach the shell', async ({ page }) => {
@@ -105,10 +108,10 @@ test('the same colours on the full page', async ({ page }) => {
   await expect(page.locator('text=Admin settings')).toHaveCount(0);
 });
 
-test('at 1440×900 it fills the 856×756 column and overlaps neither the admin sidebar nor the app navigation', async ({ page }) => {
+test('at 1440×900 it fills the 904×772 column and overlaps neither the admin sidebar nor the app navigation', async ({ page }) => {
   await openEmbedded(page);
   const host = await boxOf(page.locator('[data-flow-studio-host]'));
-  expect(host).toEqual({ x: 552, y: 112, width: 856, height: 756 });
+  expect(host).toEqual({ x: 504, y: 96, width: 904, height: 772 });
 
   const aside = await boxOf(adminNav(page));
   const header = await boxOf(page.locator('header').first());
@@ -303,9 +306,9 @@ test('viewport changes: the shell stays pinned to the column', async ({ page }) 
     await page.setViewportSize({ width, height });
     await expectPinned(page);
     const host = await boxOf(page.locator('[data-flow-studio-host]'));
-    expect(host.x).toBe(552);
+    expect(host.x).toBe(504);
     expect(host.x + host.width).toBe(width - 32);
-    expect(host.y).toBe(112);
+    expect(host.y).toBe(96);
     expect(host.y + host.height).toBe(height - 32);
     const aside = await boxOf(adminNav(page));
     expect(host.x).toBeGreaterThanOrEqual(aside.x + aside.width);
@@ -316,17 +319,18 @@ test('viewport changes: the shell stays pinned to the column', async ({ page }) 
 test('collapsing the app sidebar moves the shell with the column', async ({ page }) => {
   await openEmbedded(page);
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-  await expect.poll(async () => (await boxOf(page.locator('[data-flow-studio-host]'))).x).toBe(360);
+  await expect.poll(async () => (await boxOf(page.locator('[data-flow-studio-host]'))).x).toBe(324);
   await expectPinned(page);
   const host = await boxOf(page.locator('[data-flow-studio-host]'));
-  expect(host.width).toBe(1048);
+  expect(host.width).toBe(1084);
   await page.getByRole('button', { name: 'Expand sidebar' }).click();
-  await expect.poll(async () => (await boxOf(page.locator('[data-flow-studio-host]'))).x).toBe(552);
+  await expect.poll(async () => (await boxOf(page.locator('[data-flow-studio-host]'))).x).toBe(504);
   await expectPinned(page);
 });
 
 test('with no room for a drawer beside the canvas, the embedded shell uses the compact layout (04 §2.5); M8 keeps 500 to 720 narrow, not phone', async ({ page }) => {
-  await page.setViewportSize({ width: 1000, height: 800 });
+  // Below 1024 the app sidebar is a drawer and the column is wide again; 1030 is the narrowest desktop shell (494px).
+  await page.setViewportSize({ width: 1030, height: 800 });
   const shell = await openEmbedded(page);
   await expectPinned(page);
   expect((await boxOf(page.locator('[data-flow-studio-host]'))).width).toBeLessThan(500);

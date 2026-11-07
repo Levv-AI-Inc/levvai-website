@@ -95,7 +95,7 @@ function RailTooltip({ worker, top, right, ctx }: { worker: DigitalWorker; top: 
       ref={box}
       role="tooltip"
       style={{ position: 'fixed', top: clampedTop, right }}
-      className="pointer-events-none z-[60] max-w-[260px] rounded-[10px] border border-slate-700 bg-slate-900 px-3 py-2.5 text-[12.5px] leading-snug text-slate-200 shadow-xl"
+      className="levv-spec pointer-events-none z-[60] max-w-[260px] rounded-[10px] border border-slate-700 bg-slate-900 px-3 py-2.5 text-[12.5px] leading-snug text-slate-200 shadow-xl"
     >
       <div className="text-[13px] font-bold">{worker.n}</div>
       <div className="mt-1">{about?.d}</div>

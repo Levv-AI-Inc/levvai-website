@@ -3,15 +3,12 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Clock3,
+  ClipboardList,
   Loader2,
-  Search,
-  Sparkles,
-  Users,
+  RotateCw,
   X,
 } from 'lucide-react'
 import { getEngagementStatusLabel } from '@/lib/api/engagements'
@@ -21,11 +18,25 @@ import {
   type WorkOrderRecord,
 } from '@/lib/api/workOrders'
 import {
+  LevvEmptyState,
+  LevvLifecycle,
+  LevvNovaPrompt,
   LevvPage,
   LevvPageHeader,
-  LevvPanel,
-  LevvStatCard,
+  LevvSearchField,
+  LevvStat,
+  LevvStatStrip,
+  LevvStatusBadge,
+  LevvToolbar,
+  levvUi,
+  type LevvLifecycleStage,
+  type LevvTone,
 } from '@/components/ui/levv-app'
+
+const LOAD_ERROR_FALLBACK = 'Unable to load work orders.'
+// Eight columns share the row, so cells run a little tighter than the default; the outer edges keep 16px.
+const th = `${levvUi.th.replace('px-4', 'px-3')} first:pl-4 last:pr-4`
+const cell = `${levvUi.td.replace('px-4', 'px-3')} border-t border-[var(--line)] first:pl-4 last:pr-4`
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
@@ -59,52 +70,72 @@ function formatMoney(amount?: string | null, currency?: string) {
   return amount
 }
 
-function statusClasses(status: string | undefined) {
-  const normalized = status?.trim().toLowerCase()
-
-  if (normalized === 'approved' || normalized === 'active') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  }
-  if (normalized === 'submitted') {
-    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-  }
-  if (normalized === 'rejected' || normalized === 'closed') {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
-  }
-  return 'border-amber-200 bg-amber-50 text-amber-700'
+/** Status values arrive as snake_case or Title Case; badges read in sentence case. */
+function toSentenceCase(value: string) {
+  const text = value.replace(/_/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-function approvalStatusClasses(status: string | undefined) {
+function statusTone(status: string | undefined): LevvTone {
   const normalized = status?.trim().toLowerCase()
 
-  if (normalized === 'approved') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  }
-  if (normalized === 'processing') {
-    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-  }
-  if (normalized === 'rejected') {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
-  }
-  return 'border-slate-200 bg-slate-50 text-slate-700'
+  if (normalized === 'approved' || normalized === 'active') return 'emerald'
+  if (normalized === 'submitted') return 'blue'
+  if (normalized === 'rejected') return 'rose'
+  if (normalized === 'closed') return 'slate'
+  return 'amber'
 }
 
-function engagementStatusClasses(status: string | null | undefined) {
+function approvalStatusTone(status: string | undefined): LevvTone {
   const normalized = status?.trim().toLowerCase()
 
-  if (normalized === 'accepted') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (normalized === 'approved') return 'emerald'
+  if (normalized === 'processing') return 'blue'
+  if (normalized === 'rejected') return 'rose'
+  return 'slate'
+}
+
+function engagementStatusTone(status: string | null | undefined): LevvTone {
+  const normalized = status?.trim().toLowerCase()
+
+  if (normalized === 'accepted') return 'emerald'
+  if (normalized === 'pending_supplier_acceptance') return 'blue'
+  if (normalized === 'changes_requested') return 'amber'
+  if (normalized === 'cancelled') return 'rose'
+  return 'slate'
+}
+
+/** Where the work order stands on the operating record: requisition to offboarding. */
+function workOrderLifecycle(workOrder: WorkOrderRecord): {
+  stage: LevvLifecycleStage
+  closed: boolean
+  tone: 'blue' | 'amber' | 'rose'
+} {
+  const status = workOrder.status?.trim().toLowerCase()
+  const approval = workOrder.approvalStatus?.trim().toLowerCase()
+  const engagement = workOrder.engagementStatus?.trim().toLowerCase()
+
+  if (status === 'closed') return { stage: 'Offboarding', closed: true, tone: 'blue' }
+  if (status === 'active') return { stage: 'In engagement', closed: false, tone: 'blue' }
+  if (status === 'rejected' || approval === 'rejected') {
+    return { stage: 'Approval', closed: false, tone: 'rose' }
   }
-  if (normalized === 'pending_supplier_acceptance') {
-    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+  if (status === 'approved' || approval === 'approved') {
+    return {
+      stage: 'Onboarding',
+      closed: false,
+      tone:
+        engagement === 'cancelled'
+          ? 'rose'
+          : engagement === 'changes_requested'
+            ? 'amber'
+            : 'blue',
+    }
   }
-  if (normalized === 'changes_requested') {
-    return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (status === 'submitted' || approval === 'processing') {
+    return { stage: 'Approval', closed: false, tone: 'blue' }
   }
-  if (normalized === 'cancelled') {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
-  }
-  return 'border-slate-200 bg-slate-50 text-slate-700'
+  return { stage: 'Requisition', closed: false, tone: 'blue' }
 }
 
 const DEFAULT_PAGINATION: WorkOrderListPagination = {
@@ -125,6 +156,7 @@ export default function WorkOrdersPage() {
   const [aiInput, setAiInput] = useState('')
   const [pagination, setPagination] =
     useState<WorkOrderListPagination>(DEFAULT_PAGINATION)
+  const [reloadKey, setReloadKey] = useState(0)
 
   const filteredWorkOrders = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()
@@ -196,7 +228,7 @@ export default function WorkOrdersPage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : 'Unable to load work orders.',
+            : LOAD_ERROR_FALLBACK,
         )
       } finally {
         if (!cancelled) {
@@ -210,252 +242,255 @@ export default function WorkOrdersPage() {
     return () => {
       cancelled = true
     }
-  }, [page])
+  }, [page, reloadKey])
+
+  // While loading or after a failed load the figures are unknown, not zero.
+  const statsReady = !loading && !error
+  const figure = (value: number) => (statsReady ? value : '–')
+  const showRows = statsReady && filteredWorkOrders.length > 0
 
   return (
     <LevvPage width="wide">
       <div className="space-y-6">
-      <LevvPageHeader
-        title="Work Orders"
-        description="Review work orders created from approved job postings and selected candidates."
-        actions={
-        <div className="group relative w-full md:w-96">
-          <div className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm transition-all focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100/70">
-            <div className="ml-1 rounded-lg bg-slate-950 p-2.5 text-blue-400">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <input
-              type="text"
-              value={aiInput}
-              onChange={(event) => setAiInput(event.target.value)}
+        <LevvPageHeader
+          title="Work Orders"
+          description="Review work orders created from approved job postings and selected candidates."
+          actions={
+            <LevvNovaPrompt
+              className="w-full sm:w-96"
               placeholder="Ask Nova about work order risk..."
-              className="flex-1 border-none bg-transparent px-3 py-2 text-sm font-semibold placeholder:text-slate-400 focus:outline-none"
+              value={aiInput}
+              onChange={setAiInput}
             />
-            <button
-              type="button"
-              className="pr-3 text-xs font-bold uppercase text-blue-600 transition-colors hover:text-blue-700"
-            >
-              Ask
-            </button>
-          </div>
-        </div>
-        }
-      />
+          }
+        />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <LevvStatCard
-          icon={BarChart3}
-          label="Current view"
-          value={filteredWorkOrders.length}
-          detail={`${pagination.total_count} total`}
-        />
-        <LevvStatCard
-          icon={CheckCircle2}
-          label="Active"
-          value={workOrderStats.active}
-          tone="emerald"
-        />
-        <LevvStatCard
-          icon={Clock3}
-          label="Awaiting approval"
-          value={workOrderStats.awaitingApproval}
-          tone="amber"
-        />
-        <LevvStatCard
-          icon={Users}
-          label="Assigned workers"
-          value={workOrderStats.assignedWorkers}
-          tone="blue"
-        />
-      </div>
-
-      <LevvPanel className="flex flex-col gap-4 p-6 md:flex-row md:items-end">
-        <div className="group relative flex-1">
-          <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Search work orders
-          </label>
-          <Search className="absolute bottom-3 left-4 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
-          <input
-            className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            placeholder="Worker, supplier, role, work order..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+        <LevvStatStrip>
+          <LevvStat
+            label="Current view"
+            value={figure(filteredWorkOrders.length)}
+            detail={statsReady ? `${pagination.total_count} total` : undefined}
           />
-        </div>
-        <button
-          type="button"
-          onClick={() => setSearchTerm('')}
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-rose-500"
-        >
-          <X className="h-3.5 w-3.5" />
-          Reset
-        </button>
-      </LevvPanel>
+          <LevvStat label="Active" value={figure(workOrderStats.active)} />
+          <LevvStat
+            label="Awaiting approval"
+            value={figure(workOrderStats.awaitingApproval)}
+          />
+          <LevvStat
+            label="Assigned workers"
+            value={figure(workOrderStats.assignedWorkers)}
+          />
+        </LevvStatStrip>
 
-      <LevvPanel className="overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center gap-3 px-8 py-16 text-sm font-medium text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Loading work orders
-          </div>
-        ) : error ? (
-          <div className="m-6 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-center text-sm font-medium text-rose-700">
-            {error}
-          </div>
-        ) : filteredWorkOrders.length === 0 ? (
-          <div className="px-8 py-16 text-center">
-            <div className="text-base font-bold text-slate-900">
-              No work orders found
-            </div>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              No work orders matched the current search.
-            </p>
-          </div>
-        ) : (
-          <>
+        <section aria-label="Work orders" className="space-y-3">
+          <LevvToolbar>
+            <LevvSearchField
+              className="w-full sm:w-80"
+              placeholder="Worker, supplier, role, work order..."
+              aria-label="Search work orders"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            {searchTerm ? (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className={levvUi.ghostButton}
+              >
+                <X />
+                Reset
+              </button>
+            ) : null}
+          </LevvToolbar>
+
+          <div className={levvUi.tableShell}>
             <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-0 text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/80">
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Work Order</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Worker</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Role</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Supplier</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Commercials</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Approval</th>
-                    <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Updated</th>
-                    <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                      Action
-                    </th>
+              <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left">
+                <thead className={showRows ? undefined : 'max-sm:hidden'}>
+                  <tr>
+                    <th className={th}>Work order</th>
+                    <th className={th}>Worker / role</th>
+                    <th className={th}>Supplier</th>
+                    <th className={th}>Commercials</th>
+                    <th className={th}>Lifecycle</th>
+                    <th className={th}>Approval</th>
+                    <th className={th}>Updated</th>
+                    <th className={`${th} text-right`}>Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredWorkOrders.map((workOrder) => (
-                    <tr
-                      key={workOrder.id}
-                      className="group transition-all hover:bg-cyan-50/40"
-                    >
-                      <td className="px-8 py-6 align-top">
-                        <div className="mb-1.5 w-fit rounded-md bg-cyan-50 px-2 py-0.5 text-[10px] font-black uppercase leading-none text-cyan-600">
-                          {workOrder.workOrderNumber ||
-                            `WO-${String(workOrder.id)}`}
-                        </div>
-                        <div className="text-xs font-medium text-slate-400">
-                          {workOrder.intakeTitle ||
-                            (workOrder.intake
-                              ? `Intake #${String(workOrder.intake)}`
-                              : 'Work order')}
-                        </div>
-                        {workOrder.engagementId ? (
-                          <div className="mt-2 text-xs font-bold text-slate-600">
-                            {workOrder.engagementNumber ||
-                              `ENG-${String(workOrder.engagementId)}`}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-8 py-6 align-top font-semibold text-slate-700">
-                        {workOrder.workerFullName || '-'}
-                      </td>
-                      <td className="px-8 py-6 align-top text-slate-700">
-                        {workOrder.roleName || '-'}
-                      </td>
-                      <td className="px-8 py-6 align-top font-semibold text-slate-700">
-                        {workOrder.supplierName || '-'}
-                      </td>
-                      <td className="px-8 py-6 align-top text-slate-700">
-                        <div>{formatMoney(workOrder.billRate, workOrder.currency)}</div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          Estimated: {formatMoney(workOrder.estimatedCost, workOrder.currency)}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 align-top">
-                        <div className="flex flex-wrap gap-2">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
-                              workOrder.status,
-                            )}`}
-                          >
-                            {workOrder.status || 'draft'}
-                          </span>
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${approvalStatusClasses(
-                              workOrder.approvalStatus,
-                            )}`}
-                          >
-                            {workOrder.approvalStatus || 'not_started'}
-                          </span>
-                          {workOrder.engagementId ? (
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${engagementStatusClasses(
-                                workOrder.engagementStatus,
-                              )}`}
+                {showRows ? (
+                  <tbody>
+                    {filteredWorkOrders.map((workOrder) => {
+                      const lifecycle = workOrderLifecycle(workOrder)
+
+                      return (
+                        <tr key={workOrder.id} className="group">
+                          <td className={cell}>
+                            <div className="font-medium tabular-nums text-slate-950">
+                              {workOrder.workOrderNumber ||
+                                `WO-${String(workOrder.id)}`}
+                            </div>
+                            <div className="mt-0.5 max-w-[160px] truncate text-xs text-slate-500">
+                              {workOrder.intakeTitle ||
+                                (workOrder.intake
+                                  ? `Intake #${String(workOrder.intake)}`
+                                  : 'Work order')}
+                            </div>
+                            {workOrder.engagementId ? (
+                              <div className="mt-0.5 text-xs tabular-nums text-slate-500">
+                                {workOrder.engagementNumber ||
+                                  `ENG-${String(workOrder.engagementId)}`}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className={cell}>
+                            <div className="max-w-[160px] truncate font-medium text-slate-900">
+                              {workOrder.workerFullName || '-'}
+                            </div>
+                            <div className="mt-0.5 max-w-[160px] truncate text-xs text-slate-500">
+                              {workOrder.roleName || '-'}
+                            </div>
+                          </td>
+                          <td className={cell}>
+                            <div className="max-w-[130px] truncate">
+                              {workOrder.supplierName || '-'}
+                            </div>
+                          </td>
+                          <td className={`${cell} tabular-nums`}>
+                            <div className="whitespace-nowrap text-slate-900">
+                              {formatMoney(workOrder.billRate, workOrder.currency)}
+                            </div>
+                            <div className="mt-0.5 text-xs text-slate-500">
+                              Estimated: {formatMoney(workOrder.estimatedCost, workOrder.currency)}
+                            </div>
+                          </td>
+                          <td className={cell}>
+                            <div className="min-w-[208px]">
+                              <LevvLifecycle
+                                stage={lifecycle.stage}
+                                closed={lifecycle.closed}
+                                tone={lifecycle.tone}
+                              />
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                <LevvStatusBadge tone={statusTone(workOrder.status)}>
+                                  {toSentenceCase(workOrder.status || 'draft')}
+                                </LevvStatusBadge>
+                                {workOrder.engagementId ? (
+                                  <LevvStatusBadge
+                                    tone={engagementStatusTone(workOrder.engagementStatus)}
+                                  >
+                                    {toSentenceCase(
+                                      getEngagementStatusLabel(
+                                        (workOrder.engagementStatus ||
+                                          'pending_supplier_acceptance') as Parameters<
+                                          typeof getEngagementStatusLabel
+                                        >[0],
+                                      ),
+                                    )}
+                                  </LevvStatusBadge>
+                                ) : null}
+                              </div>
+                            </div>
+                          </td>
+                          <td className={cell}>
+                            <LevvStatusBadge
+                              tone={approvalStatusTone(workOrder.approvalStatus)}
                             >
-                              {getEngagementStatusLabel(
-                                (workOrder.engagementStatus ||
-                                  'pending_supplier_acceptance') as Parameters<
-                                  typeof getEngagementStatusLabel
-                                >[0],
-                              )}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-2 text-xs text-slate-500">
-                          {workOrder.currentApproverName
-                            ? `Current approver: ${workOrder.currentApproverName}`
-                            : `${workOrder.approvalsRemaining || 0} approvals remaining`}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 align-top text-slate-700">
-                        {formatDate(workOrder.updatedAt)}
-                      </td>
-                      <td className="px-8 py-6 text-right align-top">
-                        <div className="flex justify-end gap-2">
-                          <Link
-                            href={`/cw/work-orders/${encodeURIComponent(
-                              String(workOrder.id),
-                            )}`}
-                            className="inline-flex items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50/70 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-700 opacity-100 transition hover:border-cyan-200 hover:bg-cyan-100 lg:opacity-0 lg:group-hover:opacity-100"
-                          >
-                            Open
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                              {toSentenceCase(workOrder.approvalStatus || 'not_started')}
+                            </LevvStatusBadge>
+                            <div className="mt-1.5 text-xs text-slate-500">
+                              {workOrder.currentApproverName
+                                ? `Current approver: ${workOrder.currentApproverName}`
+                                : `${workOrder.approvalsRemaining || 0} approvals remaining`}
+                            </div>
+                          </td>
+                          <td className={`${cell} whitespace-nowrap tabular-nums`}>
+                            {formatDate(workOrder.updatedAt)}
+                          </td>
+                          <td className={`${cell} text-right`}>
+                            <Link
+                              href={`/cw/work-orders/${encodeURIComponent(
+                                String(workOrder.id),
+                              )}`}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-blue-700 outline-none transition-colors duration-150 hover:text-blue-800 focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                            >
+                              Open
+                              <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                ) : null}
               </table>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/60 px-8 py-5 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-slate-500">
-                Page {pagination.page} of{' '}
-                {Math.max(pagination.total_pages, 1)}
+            {loading ? (
+              <div
+                role="status"
+                className="flex items-center justify-center gap-2.5 border-[var(--line)] px-6 py-14 text-[13px] text-slate-500 sm:border-t"
+              >
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                Loading work orders
               </div>
-              <div className="flex items-center gap-2">
+            ) : error ? (
+              <div
+                role="alert"
+                className="flex flex-col items-center border-[var(--line)] px-6 py-14 text-center sm:border-t"
+              >
+                <AlertCircle className="h-5 w-5 text-rose-600" />
+                <p className="mt-3 text-sm font-semibold text-slate-900">
+                  {LOAD_ERROR_FALLBACK.replace(/\.$/, '')}
+                </p>
+                {error !== LOAD_ERROR_FALLBACK ? (
+                  <p className="mt-1 max-w-sm text-[13px] text-slate-500">{error}</p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={!pagination.has_previous}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setReloadKey((key) => key + 1)}
+                  className={`${levvUi.secondaryButton} mt-4`}
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((current) => current + 1)}
-                  disabled={!pagination.has_next}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Next
-                  <ArrowRight className="h-4 w-4" />
+                  <RotateCw />
+                  Try again
                 </button>
               </div>
-            </div>
-          </>
-        )}
-      </LevvPanel>
+            ) : filteredWorkOrders.length === 0 ? (
+              <div className="border-[var(--line)] sm:border-t">
+                <LevvEmptyState icon={ClipboardList} title="No work orders found">
+                  No work orders matched the current search.
+                </LevvEmptyState>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 border-t border-[var(--line)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[13px] tabular-nums text-slate-500">
+                  Page {pagination.page} of{' '}
+                  {Math.max(pagination.total_pages, 1)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={!pagination.has_previous}
+                    className={levvUi.secondaryButton}
+                  >
+                    <ArrowLeft />
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => current + 1)}
+                    disabled={!pagination.has_next}
+                    className={levvUi.secondaryButton}
+                  >
+                    Next
+                    <ArrowRight />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </LevvPage>
   )

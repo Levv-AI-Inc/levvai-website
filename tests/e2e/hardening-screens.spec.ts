@@ -43,9 +43,10 @@ test.describe('/runs and /inbox are cyan and slate-950 (AGENTS, 04 §1.2, 05 §6
     await page.goto('/runs');
     const running = page.getByRole('link', { name: /WO-2231/ }).getByText('Running', { exact: true });
     await expect(running).toHaveCSS('color', CYAN_700);
-    await page.locator('main').first().evaluate((main) => main.classList.add('flex-1'));
-    await expect(running).toHaveCSS('background-color', 'rgb(239, 246, 255)');
-    await expect(running).toHaveCSS('color', 'rgb(37, 99, 235)');
+    // `.levv-spec` restores Tailwind's own palette; without it the brand's Levv blue takes the cyan classes.
+    await running.evaluate((element) => element.closest('.levv-spec')?.classList.remove('levv-spec'));
+    await expect(running).toHaveCSS('background-color', 'rgb(238, 244, 255)');
+    await expect(running).toHaveCSS('color', 'rgb(30, 70, 196)');
   });
 
   test('every other page keeps the theme: a probe in the main of an existing page is still repainted', async ({ page }) => {
@@ -62,9 +63,9 @@ test.describe('/runs and /inbox are cyan and slate-950 (AGENTS, 04 §1.2, 05 §6
         div.remove();
         return color;
       }, classes);
-    expect(await probe('bg-slate-950')).toBe('rgb(16, 27, 60)');
-    expect(await probe('bg-cyan-600')).toBe('rgb(37, 99, 235)');
-    expect(await bg(main)).toBe('rgb(244, 247, 251)');
+    expect(await probe('bg-slate-950')).toBe('rgb(10, 17, 40)');
+    expect(await probe('bg-cyan-600')).toBe('rgb(38, 88, 228)');
+    expect(await bg(main)).toBe('rgb(243, 245, 249)');
   });
 
   test('the page fills the same space without the class: same box as an existing page', async ({ page }) => {
@@ -73,7 +74,7 @@ test.describe('/runs and /inbox are cyan and slate-950 (AGENTS, 04 §1.2, 05 §6
     await page.goto('/inbox');
     const inbox = await boxOf(page.locator('main').first());
     expect([inbox.x, inbox.y, inbox.width]).toEqual([existing.x, existing.y, existing.width]);
-    expect(await bg(page.locator('main').first())).toBe('rgb(244, 247, 251)');
+    expect(await bg(page.locator('main').first())).toBe('rgb(243, 245, 249)');
   });
 });
 
@@ -283,7 +284,8 @@ test.describe('The embedded shell responds to the width it has (M8 item 5)', () 
   });
 
   test('where a drawer really cannot sit beside anything, it is still 04 §2.5’s sheet', async ({ page }) => {
-    const shell = await openAt(page, 1000);
+    // The narrowest desktop shell: below 1024 the app sidebar becomes a drawer and the column widens.
+    const shell = await openAt(page, 1030);
     expect((await boxOf(page.locator('[data-flow-studio-host]'))).width).toBeLessThan(500);
     await openStep(shell, 'Business sign-off');
     const drawer = await boxOf(panelOf(shell));

@@ -21,11 +21,13 @@ import {
   PanelLeftOpen,
   Inbox,
   Workflow,
+  Menu,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isTenantHost, normalizeHost } from '@/lib/tenant'
 import { CWRequestProvider } from './requests/new/job/context/CWRequestContext'
 import { LevvBrand } from './components/ui/levv-app'
+import { fontDisplay, fontSans } from './fonts'
 import { SessionProvider, type SessionUser } from './session-context'
 
 const ROLE_ADMIN = 'admin'
@@ -185,6 +187,7 @@ export default function RootLayout({
   const [sessionChecking, setSessionChecking] = useState(true)
   const [signingOut, setSigningOut] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const hasCheckedSessionRef = useRef(false)
   const isAdmin = (sessionUser?.role || '').trim().toLowerCase() === ROLE_ADMIN
 
@@ -196,8 +199,12 @@ export default function RootLayout({
     pathname.startsWith('/demo') ||
     pathname.startsWith('/flow-studio') ||
     pathname.startsWith('/tenant-not-found')
-  // 05 §6: cyan and slate-950, which the theme below would repaint blue and navy. `flex-1` is the rules' hook, so these
-  // pages grow the same way without it; every other page keeps the class and its look.
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [pathname])
+
+  // 05 §6: cyan and slate-950. Their screens carry `.levv-spec`, which restores Tailwind's own palette, and leave off
+  // `flex-1`, the hook of globals.css's control normalisation, so they grow the same way without it.
   const isRunScreen =
     pathname === '/runs' ||
     pathname.startsWith('/runs/') ||
@@ -349,10 +356,23 @@ export default function RootLayout({
     }
   }
 
+  const fontClasses = `${fontSans.variable} ${fontDisplay.variable}`
+  const head = (
+    <head>
+      <title>{pathname === '/' ? 'Levv: external workforce management for enterprises' : 'Levv'}</title>
+      <meta
+        name="description"
+        content="Levv keeps every contractor and SOW engagement on one worker record, from requisition to offboarding. Nova applies your policy and routes each approval to its owner."
+      />
+      <meta name="theme-color" content="#0a1330" />
+    </head>
+  )
+
   if (isStandalone) {
     return (
-      <html lang="en">
-        <body className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <html lang="en" className={fontClasses}>
+        {head}
+        <body className="min-h-screen bg-[var(--ground)] font-sans text-slate-900">
           {children}
         </body>
       </html>
@@ -360,28 +380,33 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en">
-      <body className="levv-auth-shell flex min-h-screen bg-[#f4f7fb] text-slate-950 font-sans">
+    <html lang="en" className={fontClasses}>
+      {head}
+      <body className="levv-auth-shell flex min-h-screen bg-[var(--ground)] font-sans text-slate-950">
+        {mobileNavOpen ? (
+          <div
+            aria-hidden
+            onClick={() => setMobileNavOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-950/40 animate-in fade-in duration-200 lg:hidden"
+          />
+        ) : null}
         <aside
-          className={`relative sticky top-0 z-30 flex h-screen shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#081a31] text-slate-200 shadow-[10px_0_40px_rgba(15,23,42,0.08)] transition-[width,min-width] duration-300 ${
+          className={`z-50 flex h-screen shrink-0 flex-col border-r border-[var(--rail-line)] bg-[var(--rail)] text-slate-300 transition-[width,min-width,transform] duration-200 ease-out max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[15.5rem] max-lg:min-w-[15.5rem] lg:sticky lg:top-0 lg:z-30 ${
+            mobileNavOpen ? 'max-lg:translate-x-0 max-lg:shadow-xl' : 'max-lg:-translate-x-full'
+          } ${
             sidebarCollapsed
-              ? 'w-[5.5rem] min-w-[5.5rem]'
-              : 'w-[17.5rem] min-w-[17.5rem]'
+              ? 'lg:w-[4.25rem] lg:min-w-[4.25rem]'
+              : 'lg:w-[15.5rem] lg:min-w-[15.5rem]'
           }`}
         >
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 overflow-hidden opacity-70">
-            <div className="absolute -bottom-36 -left-24 h-72 w-72 rounded-full bg-[#123456]" />
-            <div className="absolute -bottom-44 left-8 h-72 w-72 rounded-full bg-[#102942]" />
-          </div>
-
           <div
-            className={`relative z-10 flex h-20 shrink-0 items-center border-b border-white/10 ${
-              sidebarCollapsed ? 'justify-center px-3' : 'px-7'
+            className={`flex h-16 shrink-0 items-center ${
+              sidebarCollapsed ? 'justify-center px-2' : 'px-5'
             }`}
           >
             <Link
               href="/home"
-              className="flex items-center gap-3"
+              className="flex items-center gap-3 rounded-lg"
               aria-label="LEVVAI home"
             >
               <LevvBrand compact={sidebarCollapsed} />
@@ -389,8 +414,8 @@ export default function RootLayout({
           </div>
 
           <nav
-            className={`relative z-10 flex-1 space-y-7 overflow-y-auto py-6 ${
-              sidebarCollapsed ? 'px-3' : 'px-4'
+            className={`flex-1 space-y-6 overflow-y-auto pb-6 pt-3 [scrollbar-color:rgb(255_255_255/0.14)_transparent] ${
+              sidebarCollapsed ? 'px-2.5' : 'px-3'
             }`}
           >
             <NavSection label="Main" collapsed={sidebarCollapsed}>
@@ -494,11 +519,11 @@ export default function RootLayout({
             </NavSection>
           </nav>
 
-          <div className="relative z-10 border-t border-white/10 p-3">
+          <div className="hidden border-t border-[var(--rail-line)] p-2.5 lg:block">
             <button
               type="button"
               onClick={() => setSidebarCollapsed((value) => !value)}
-              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-white/10 hover:text-white ${
+              className={`levv-press flex h-9 w-full items-center rounded-lg px-2.5 text-[13px] font-medium text-slate-400 hover:bg-[var(--rail-raised)] hover:text-white ${
                 sidebarCollapsed ? 'justify-center' : 'gap-3'
               }`}
               aria-label={
@@ -507,29 +532,38 @@ export default function RootLayout({
               title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {sidebarCollapsed ? (
-                <PanelLeftOpen className="h-5 w-5" />
+                <PanelLeftOpen className="h-[18px] w-[18px]" />
               ) : (
-                <PanelLeftClose className="h-5 w-5" />
+                <PanelLeftClose className="h-[18px] w-[18px]" />
               )}
               {!sidebarCollapsed ? <span>Collapse</span> : null}
             </button>
           </div>
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200/80 bg-white/90 px-6 shadow-[0_1px_2px_rgba(15,23,42,0.03)] backdrop-blur-xl lg:px-10">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-[var(--line)] bg-white px-4 sm:px-5 lg:px-8">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open navigation"
+              aria-expanded={mobileNavOpen}
+              className="levv-press -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-950 lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <PageSearch isAdmin={isAdmin} />
 
-            <div className="ml-auto flex items-center gap-3 sm:gap-5">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="levv-press relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
               >
-                <Bell className="h-5 w-5" />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                <Bell className="h-[18px] w-[18px]" />
+                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
               </button>
-              <div className="h-8 w-px bg-slate-200" />
+              <div className="h-6 w-px bg-[var(--line)]" />
               {sessionUser && (
                 <AccountMenu
                   user={sessionUser}
@@ -541,7 +575,7 @@ export default function RootLayout({
           </header>
 
           <main
-            className={`levv-auth-main min-w-0 ${isRunScreen ? 'grow basis-0' : 'flex-1'} bg-[#f4f7fb] p-5 sm:p-6 lg:p-8`}
+            className={`levv-auth-main min-w-0 ${isRunScreen ? 'grow basis-0' : 'flex-1'} bg-[var(--ground)] p-5 sm:p-6 lg:p-8`}
           >
             <SessionProvider
               value={{ user: sessionUser, checking: sessionChecking }}
@@ -611,14 +645,14 @@ function PageSearch({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <div ref={containerRef} className="relative hidden w-full max-w-[31rem] sm:block">
+    <div ref={containerRef} className="relative hidden w-full max-w-md sm:block">
       <form
         onSubmit={(event) => {
           event.preventDefault()
           goToFirstResult()
         }}
       >
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           ref={inputRef}
           type="search"
@@ -638,17 +672,17 @@ function PageSearch({ isAdmin }: { isAdmin: boolean }) {
           aria-expanded={open}
           aria-controls="levvai-page-search-results"
           placeholder="Search pages and subpages..."
-          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-12 pr-16 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100/70"
+          className="h-9 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-sunken)] pl-9 pr-14 text-[13px] text-slate-800 outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-slate-400 hover:border-[var(--line-strong)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_var(--focus)]"
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-400 shadow-sm">
-          ⌘ K
-        </span>
+        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[var(--line)] bg-white px-1.5 py-0.5 font-sans text-[11px] font-medium text-slate-500">
+          ⌘K
+        </kbd>
       </form>
 
       {open && query.trim() ? (
         <div
           id="levvai-page-search-results"
-          className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-24px_rgba(15,23,42,0.35)]"
+          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-[var(--line)] bg-white p-1.5 shadow-pop"
           role="listbox"
         >
           {results.length > 0 ? (
@@ -661,35 +695,30 @@ function PageSearch({ isAdmin }: { isAdmin: boolean }) {
                     setQuery('')
                     setOpen(false)
                   }}
-                  className="group flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-blue-50"
+                  className="group flex items-center justify-between gap-4 rounded-lg px-3 py-2 hover:bg-slate-100"
                   role="option"
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-slate-800 group-hover:text-blue-700">
-                      {item.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-slate-400">
-                      {item.section}
-                    </span>
+                  <span className="min-w-0 truncate text-[13px] font-medium text-slate-900">
+                    {item.label}
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-slate-400 group-hover:text-blue-600">
-                    Open
+                  <span className="shrink-0 text-xs text-slate-500">
+                    {item.section}
                   </span>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="px-4 py-6 text-center">
-              <p className="text-sm font-semibold text-slate-700">
+            <div className="px-3 py-5 text-center">
+              <p className="text-[13px] font-medium text-slate-800">
                 No matching page
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Try a page name such as approvals, workers, or settings.
               </p>
             </div>
           )}
           {results.length > 0 ? (
-            <div className="border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] text-slate-400">
+            <div className="mt-1 border-t border-[var(--line)] px-3 pb-0.5 pt-2 text-[11px] text-slate-500">
               Press Enter to open the first result
             </div>
           ) : null}
@@ -731,39 +760,42 @@ function AccountMenu({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-3 rounded-xl px-2 py-1.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+        aria-expanded={open}
+        className="levv-press inline-flex h-9 items-center gap-2.5 rounded-lg pl-1 pr-2 text-[13px] font-medium text-slate-800 hover:bg-slate-100"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-blue-200">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--rail)] text-[11px] font-semibold text-white">
           {display.initials}
         </span>
         <span className="hidden max-w-40 truncate sm:block">
           {display.name}
         </span>
         <ChevronDown
-          className={
-            open
-              ? 'h-4 w-4 rotate-180 text-slate-500'
-              : 'h-4 w-4 text-slate-500'
-          }
+          className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ease-out ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-40 mt-3 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-[0_22px_60px_-18px_rgba(15,23,42,0.28)]">
-          <div className="border-b border-slate-100 px-4 py-4">
-            <div className="text-sm font-semibold text-slate-950">
+        <div
+          className="levv-pop absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--line)] bg-white p-1.5 text-slate-800 shadow-pop"
+          role="menu"
+        >
+          <div className="px-2.5 pb-2.5 pt-1.5">
+            <div className="truncate text-[13px] font-semibold text-slate-950">
               {display.name}
             </div>
-            <div className="mt-1 text-xs text-slate-500">{display.label}</div>
+            <div className="mt-0.5 truncate text-xs capitalize text-slate-500">
+              {display.label}
+            </div>
           </div>
+          <div className="-mx-1.5 mb-1.5 h-px bg-[var(--line)]" />
 
           <Link
             href="/external/act-as-worker/timesheet"
             onClick={() => setOpen(false)}
-            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950"
             role="menuitem"
           >
-            <UserRound className="h-4 w-4" />
+            <UserRound className="h-4 w-4 text-slate-400" />
             <span>Switch to Worker Profile</span>
           </Link>
 
@@ -771,10 +803,10 @@ function AccountMenu({
             type="button"
             onClick={onSignOut}
             disabled={signingOut}
-            className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-60"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-60"
             role="menuitem"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 text-slate-400" />
             <span>{signingOut ? 'Signing out...' : 'Sign out'}</span>
           </button>
         </div>
@@ -795,16 +827,19 @@ function NavSection({
   return (
     <div>
       {!collapsed ? (
-        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <p className="mb-1.5 px-2.5 text-[11px] font-medium text-[#7d8aa3]">
           {label}
         </p>
       ) : (
-        <div className="mx-3 mb-3 h-px bg-white/10" />
+        <div className="mx-2 mb-2 h-px bg-[var(--rail-line)]" />
       )}
-      <div className="space-y-1">{children}</div>
+      <div className="space-y-0.5">{children}</div>
     </div>
   )
 }
+
+const NAV_ROW =
+  'flex h-9 w-full items-center rounded-lg px-2.5 text-[13.5px] font-medium transition-colors duration-150'
 
 /* =========================
    Nav Item
@@ -831,25 +866,18 @@ function NavItem({
   return (
     <Link
       href={href}
-      className={`
-        group relative flex items-center rounded-xl px-3 py-2.5 text-sm font-medium
-        transition-all duration-200
-        ${collapsed ? 'justify-center' : 'gap-3'}
-        ${
-          isActive
-            ? 'bg-gradient-to-r from-white/14 to-white/[0.07] text-white shadow-sm ring-1 ring-white/10'
-            : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-        }
-      `}
+      title={collapsed ? label : undefined}
+      aria-current={isActive ? 'page' : undefined}
+      className={`${NAV_ROW} ${collapsed ? 'justify-center' : 'gap-3'} ${
+        isActive
+          ? 'bg-white/[0.1] text-white'
+          : 'text-slate-300 hover:bg-[var(--rail-raised)] hover:text-white'
+      }`}
     >
       <Icon
-        className={`h-[19px] w-[19px] shrink-0 transition-colors ${isActive ? 'text-blue-300' : 'text-slate-400 group-hover:text-slate-200'}`}
+        className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-[var(--nova)]' : 'text-slate-400'}`}
       />
-      {!collapsed ? label : null}
-
-      {isActive && (
-        <span className="absolute -left-3 bottom-2 top-2 w-1 rounded-r-full bg-gradient-to-b from-blue-500 to-cyan-300 shadow-[0_0_14px_rgba(59,130,246,0.5)]" />
-      )}
+      {!collapsed ? <span className="truncate">{label}</span> : null}
     </Link>
   )
 }
@@ -877,59 +905,59 @@ function NavGroup({
   }, [isAnyActive])
 
   return (
-    <div className="space-y-1">
+    <div>
       <button
+        type="button"
         onClick={() => (collapsed ? undefined : setOpen(!open))}
         title={collapsed ? label : undefined}
-        className={`
-          w-full flex items-center rounded-xl px-3 py-2.5
-          text-sm font-medium transition-all duration-200
-          ${collapsed ? 'justify-center' : 'justify-between'}
-          ${
-            isAnyActive
-              ? 'bg-white/[0.06] text-white'
-              : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-          }
-        `}
+        aria-expanded={collapsed ? undefined : open}
+        className={`${NAV_ROW} ${collapsed ? 'justify-center' : 'justify-between'} ${
+          isAnyActive
+            ? 'text-white'
+            : 'text-slate-300 hover:bg-[var(--rail-raised)] hover:text-white'
+        }`}
       >
-        <span className={`flex items-center ${collapsed ? '' : 'gap-3'}`}>
+        <span className={`flex min-w-0 items-center ${collapsed ? '' : 'gap-3'}`}>
           <Icon
-            className={`h-[19px] w-[19px] shrink-0 ${isAnyActive ? 'text-blue-300' : 'text-slate-400'}`}
+            className={`h-[18px] w-[18px] shrink-0 ${isAnyActive ? 'text-[var(--nova)]' : 'text-slate-400'}`}
           />
-          {!collapsed ? label : null}
+          {!collapsed ? <span className="truncate">{label}</span> : null}
         </span>
         {!collapsed ? (
           <ChevronDown
-            className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180 text-white' : 'text-[#8e9a94]'}`}
+            className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200 ease-out ${open ? 'rotate-180' : ''}`}
           />
         ) : null}
       </button>
 
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          open && !collapsed ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          open && !collapsed
+            ? 'grid-rows-[1fr] opacity-100'
+            : 'grid-rows-[0fr] opacity-0'
         }`}
       >
-        <div className="my-1 ml-5 space-y-1 border-l border-white/15 pl-4">
-          {items.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  block rounded-lg px-3 py-2 text-[13px] transition-colors
-                  ${
+        <div className="overflow-hidden">
+          <div className="my-0.5 ml-[1.15rem] space-y-0.5 border-l border-[var(--rail-line)] pl-2.5">
+            {items.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  tabIndex={open && !collapsed ? undefined : -1}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 ${
                     isActive
-                      ? 'bg-blue-400/10 font-semibold text-blue-200'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  }
-                `}
-              >
-                {item.label}
-              </Link>
-            )
-          })}
+                      ? 'bg-white/[0.1] font-medium text-white'
+                      : 'text-slate-400 hover:bg-[var(--rail-raised)] hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>

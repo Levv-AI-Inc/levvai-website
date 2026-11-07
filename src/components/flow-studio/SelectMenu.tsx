@@ -277,7 +277,7 @@ export function SelectMenu(props: SingleSelectProps | MultiSelectProps) {
               ref={popoverRef}
               onKeyDown={(event) => event.stopPropagation()}
               style={{ position: 'fixed', zIndex: 9999, left: position.left, width: position.width, maxHeight: position.maxHeight, top: position.top, bottom: position.bottom }}
-              className="flex flex-col overflow-hidden rounded-[10px] border border-slate-200 bg-white text-slate-900 shadow-[0_12px_32px_rgba(15,23,42,.18)]"
+              className="levv-spec flex flex-col overflow-hidden rounded-[10px] border border-slate-200 bg-white text-slate-900 shadow-[0_12px_32px_rgba(15,23,42,.18)]"
             >
               <input
                 ref={inputRef}
