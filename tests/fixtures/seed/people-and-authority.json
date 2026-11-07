@@ -1,0 +1,581 @@
+{
+  "_about": "Who holds each role. Managed OUTSIDE Flow Studio (admin area / import) but read by the engine. ROLES: key -> {n:name, c:decision class 1-4 (1 business,2 specialist,3 commercial,4 executive), actor:true = can never approve}. ORG: business unit -> business-role holders. CENTRAL: central role -> person. MGR: person -> manager. LIMIT: person -> signing limit (null = unlimited). BACKUP: role -> backup person. OOO: person -> {until, to: delegate}. DELEG_OK: delegate -> roles they may cover. GROUPS: approval groups (mode any|all). BY_COUNTRY: role -> country -> holder (null = nobody eligible -> pause). CANDIDATES: eligible people to assign when paused. ALIAS/FLAT: words people use for roles (for the plain-words condition writer). CLASS_N: decision class names. ACTOR_ONLY/NOAPPR: roles that can never approve. PROVIDERS: who can provide items in Collect & verify.",
+  "ROLES": {
+    "worker": {
+      "n": "Worker",
+      "c": 1,
+      "actor": true
+    },
+    "sponsor": {
+      "n": "Sponsor",
+      "c": 1
+    },
+    "hm": {
+      "n": "Hiring manager",
+      "c": 1
+    },
+    "hm_mgr": {
+      "n": "Hiring manager's manager",
+      "c": 1
+    },
+    "cco": {
+      "n": "Cost center owner",
+      "c": 1
+    },
+    "dh": {
+      "n": "Department head",
+      "c": 1
+    },
+    "sow_owner": {
+      "n": "SOW owner",
+      "c": 1
+    },
+    "hrbp": {
+      "n": "HR business partner",
+      "c": 2
+    },
+    "sec": {
+      "n": "Information Security",
+      "c": 2
+    },
+    "priv": {
+      "n": "Privacy",
+      "c": 2
+    },
+    "legal": {
+      "n": "Legal",
+      "c": 2
+    },
+    "compliance": {
+      "n": "Compliance",
+      "c": 2
+    },
+    "tax": {
+      "n": "Tax",
+      "c": 2
+    },
+    "proc": {
+      "n": "Procurement",
+      "c": 3
+    },
+    "fbp": {
+      "n": "Finance business partner",
+      "c": 3
+    },
+    "supplier_am": {
+      "n": "Supplier account manager",
+      "c": 3
+    },
+    "vpf": {
+      "n": "VP Finance",
+      "c": 4
+    },
+    "cfo": {
+      "n": "CFO",
+      "c": 4
+    },
+    "people_ops": {
+      "n": "People Ops",
+      "c": 2
+    },
+    "it": {
+      "n": "IT service desk",
+      "c": 2
+    },
+    "ap": {
+      "n": "Accounts payable",
+      "c": 3
+    },
+    "g:fin_ctrl": {
+      "n": "Finance controllers",
+      "c": 3,
+      "grp": true
+    },
+    "g:sec_board": {
+      "n": "Security review board",
+      "c": 3,
+      "grp": true
+    },
+    "g:exco": {
+      "n": "Executive committee",
+      "c": 3,
+      "grp": true
+    }
+  },
+  "PEOPLE": [
+    "Alan Brooks",
+    "Alicia Ng",
+    "Ama Boateng",
+    "Ben Carter",
+    "Chloe Martin",
+    "Daniel Osei",
+    "David Okafor",
+    "Erin Walsh",
+    "Fatima Zahra",
+    "Grace Kim",
+    "Hannah Brooks",
+    "Ivan Petrov",
+    "Jonas Weber",
+    "Jordan Lee",
+    "Kenji Watanabe",
+    "Lena Fischer",
+    "Luis Romero",
+    "Mei Lin",
+    "Mia Chen",
+    "Nadia Rahman",
+    "Nina Shah",
+    "Omar Haddad",
+    "Owen Clarke",
+    "Priya Shah",
+    "Raj Patel",
+    "Ravi Kumar",
+    "Rebecca Stone",
+    "Sam Patel",
+    "Samira Khan",
+    "Sofia Reyes",
+    "Tom Reed"
+  ],
+  "TITLES": {
+    "Priya Shah": "Head of Platform",
+    "Alan Brooks": "Head of Technology UK",
+    "Samira Khan": "CTO",
+    "Raj Patel": "Operations Director",
+    "Lena Fischer": "Finance Director",
+    "David Okafor": "VP Finance",
+    "Rebecca Stone": "CFO",
+    "Ravi Kumar": "Security architect (backup)",
+    "Luis Romero": "Senior counsel",
+    "Mia Chen": "IT analyst",
+    "Jonas Weber": "Data protection officer, Germany",
+    "Fatima Zahra": "Privacy lead"
+  },
+  "ORG": {
+    "Technology": {
+      "hm": "Tom Reed",
+      "hm_mgr": "Priya Shah",
+      "cco": "Priya Shah",
+      "dh": "Alan Brooks"
+    },
+    "Operations": {
+      "hm": "Grace Kim",
+      "hm_mgr": "Raj Patel",
+      "cco": "Raj Patel",
+      "dh": "Nadia Rahman"
+    },
+    "Finance": {
+      "hm": "Omar Haddad",
+      "hm_mgr": "Lena Fischer",
+      "cco": "Lena Fischer",
+      "dh": "Ivan Petrov"
+    },
+    "Marketing": {
+      "hm": "Sofia Reyes",
+      "hm_mgr": "Ben Carter",
+      "cco": "Alicia Ng",
+      "dh": "Alicia Ng"
+    }
+  },
+  "ORGX": {
+    "LE": {
+      "UK": "Levv Bank UK Ltd",
+      "US": "Levv Bank US Inc",
+      "Canada": "Levv Bank Canada Ltd",
+      "Germany": "Levv Bank GmbH"
+    },
+    "LE_SHORT": {
+      "Levv Bank UK Ltd": "UK entity",
+      "Levv Bank US Inc": "US entity",
+      "Levv Bank Canada Ltd": "Canada entity",
+      "Levv Bank GmbH": "Germany entity"
+    },
+    "CC": {
+      "CC-100": "Platform engineering",
+      "CC-110": "Data platform",
+      "CC-200": "Operations delivery",
+      "CC-300": "Finance shared services",
+      "CC-400": "Brand marketing"
+    },
+    "CC_OF": {
+      "Technology": [
+        "CC-100",
+        "CC-110"
+      ],
+      "Operations": [
+        "CC-200"
+      ],
+      "Finance": [
+        "CC-300"
+      ],
+      "Marketing": [
+        "CC-400"
+      ]
+    },
+    "SITE": {
+      "UK": "London",
+      "US": "New York",
+      "Canada": "Toronto",
+      "Germany": "Frankfurt"
+    },
+    "WT": {
+      "Off-payroll": "Independent contractor",
+      "Payrolled": "Agency contractor",
+      "Fixed fee": "SOW consultant",
+      "Time and materials": "SOW consultant"
+    }
+  },
+  "MGR": {
+    "Tom Reed": "Priya Shah",
+    "Priya Shah": "Alan Brooks",
+    "Alan Brooks": "Samira Khan",
+    "Grace Kim": "Raj Patel",
+    "Raj Patel": "Nadia Rahman",
+    "Nadia Rahman": "Samira Khan",
+    "Omar Haddad": "Lena Fischer",
+    "Lena Fischer": "Ivan Petrov",
+    "Ivan Petrov": "Rebecca Stone",
+    "Sofia Reyes": "Ben Carter",
+    "Ben Carter": "Alicia Ng",
+    "Alicia Ng": "Samira Khan",
+    "Samira Khan": "Rebecca Stone",
+    "Chloe Martin": "David Okafor",
+    "Owen Clarke": "David Okafor",
+    "David Okafor": "Rebecca Stone",
+    "Erin Walsh": "Ivan Petrov",
+    "Kenji Watanabe": "Samira Khan",
+    "Fatima Zahra": "Samira Khan",
+    "Hannah Brooks": "Rebecca Stone",
+    "Daniel Osei": "Rebecca Stone",
+    "Mei Lin": "David Okafor"
+  },
+  "LIMIT": {
+    "Tom Reed": 50000,
+    "Priya Shah": 250000,
+    "Alan Brooks": 500000,
+    "Samira Khan": 2000000,
+    "Grace Kim": 50000,
+    "Raj Patel": 250000,
+    "Nadia Rahman": 500000,
+    "Omar Haddad": 50000,
+    "Lena Fischer": 250000,
+    "Ivan Petrov": 500000,
+    "Sofia Reyes": 50000,
+    "Ben Carter": 250000,
+    "Alicia Ng": 500000,
+    "David Okafor": 2000000,
+    "Rebecca Stone": null
+  },
+  "CENTRAL": {
+    "hrbp": "Erin Walsh",
+    "sec": "Kenji Watanabe",
+    "priv": "Fatima Zahra",
+    "legal": "Hannah Brooks",
+    "compliance": "Daniel Osei",
+    "tax": "Mei Lin",
+    "proc": "Owen Clarke",
+    "fbp": "Chloe Martin",
+    "vpf": "David Okafor",
+    "cfo": "Rebecca Stone",
+    "supplier_am": "Supplier account manager",
+    "people_ops": "Jordan Lee",
+    "it": "Sam Patel",
+    "ap": "Nina Shah"
+  },
+  "BACKUP": {
+    "sec": "Ravi Kumar",
+    "legal": "Luis Romero",
+    "compliance": "Ama Boateng",
+    "tax": "Mei Lin"
+  },
+  "OOO": {
+    "Hannah Brooks": {
+      "until": "Oct 24",
+      "to": "Luis Romero"
+    },
+    "Kenji Watanabe": {
+      "until": "Oct 30",
+      "to": "Mia Chen"
+    }
+  },
+  "DELEG_OK": {
+    "Luis Romero": [
+      "legal"
+    ],
+    "Mia Chen": []
+  },
+  "GROUPS": {
+    "fin_ctrl": {
+      "n": "Finance controllers",
+      "members": [
+        "Chloe Martin",
+        "Lena Fischer",
+        "David Okafor"
+      ],
+      "mode": "any"
+    },
+    "sec_board": {
+      "n": "Security review board",
+      "members": [
+        "Kenji Watanabe",
+        "Ravi Kumar",
+        "Fatima Zahra"
+      ],
+      "mode": "any"
+    },
+    "exco": {
+      "n": "Executive committee",
+      "members": [
+        "Samira Khan",
+        "Rebecca Stone",
+        "David Okafor"
+      ],
+      "mode": "all"
+    }
+  },
+  "BY_COUNTRY": {
+    "priv": {
+      "Germany": null
+    }
+  },
+  "CANDIDATES": {
+    "priv": [
+      "Fatima Zahra",
+      "Jonas Weber"
+    ]
+  },
+  "ALIAS": [
+    [
+      "hm_mgr",
+      [
+        "hiring manager's manager",
+        "manager's manager"
+      ]
+    ],
+    [
+      "hm",
+      [
+        "hiring manager"
+      ]
+    ],
+    [
+      "cco",
+      [
+        "cost center owner",
+        "cost centre owner",
+        "budget owner"
+      ]
+    ],
+    [
+      "dh",
+      [
+        "department head"
+      ]
+    ],
+    [
+      "hrbp",
+      [
+        "hr business partner",
+        "hrbp"
+      ]
+    ],
+    [
+      "sec",
+      [
+        "information security",
+        "security"
+      ]
+    ],
+    [
+      "priv",
+      [
+        "privacy"
+      ]
+    ],
+    [
+      "legal",
+      [
+        "legal",
+        "counsel"
+      ]
+    ],
+    [
+      "compliance",
+      [
+        "compliance"
+      ]
+    ],
+    [
+      "tax",
+      [
+        "tax"
+      ]
+    ],
+    [
+      "proc",
+      [
+        "procurement"
+      ]
+    ],
+    [
+      "fbp",
+      [
+        "finance business partner",
+        "finance partner"
+      ]
+    ],
+    [
+      "vpf",
+      [
+        "vp finance",
+        "vp of finance"
+      ]
+    ],
+    [
+      "cfo",
+      [
+        "cfo",
+        "chief financial officer"
+      ]
+    ],
+    [
+      "people_ops",
+      [
+        "people ops"
+      ]
+    ],
+    [
+      "it",
+      [
+        "it service desk",
+        "service desk"
+      ]
+    ]
+  ],
+  "FLAT": [
+    [
+      "hiring manager's manager",
+      "hm_mgr"
+    ],
+    [
+      "finance business partner",
+      "fbp"
+    ],
+    [
+      "chief financial officer",
+      "cfo"
+    ],
+    [
+      "information security",
+      "sec"
+    ],
+    [
+      "hr business partner",
+      "hrbp"
+    ],
+    [
+      "manager's manager",
+      "hm_mgr"
+    ],
+    [
+      "cost center owner",
+      "cco"
+    ],
+    [
+      "cost centre owner",
+      "cco"
+    ],
+    [
+      "department head",
+      "dh"
+    ],
+    [
+      "finance partner",
+      "fbp"
+    ],
+    [
+      "it service desk",
+      "it"
+    ],
+    [
+      "hiring manager",
+      "hm"
+    ],
+    [
+      "vp of finance",
+      "vpf"
+    ],
+    [
+      "budget owner",
+      "cco"
+    ],
+    [
+      "service desk",
+      "it"
+    ],
+    [
+      "procurement",
+      "proc"
+    ],
+    [
+      "compliance",
+      "compliance"
+    ],
+    [
+      "vp finance",
+      "vpf"
+    ],
+    [
+      "people ops",
+      "people_ops"
+    ],
+    [
+      "security",
+      "sec"
+    ],
+    [
+      "privacy",
+      "priv"
+    ],
+    [
+      "counsel",
+      "legal"
+    ],
+    [
+      "legal",
+      "legal"
+    ],
+    [
+      "hrbp",
+      "hrbp"
+    ],
+    [
+      "tax",
+      "tax"
+    ],
+    [
+      "cfo",
+      "cfo"
+    ]
+  ],
+  "CLASS_N": {
+    "1": "business sign-off",
+    "2": "specialist review",
+    "3": "commercial review",
+    "4": "executive sign-off"
+  },
+  "ACTOR_ONLY": [
+    "worker"
+  ],
+  "NOAPPR": [
+    "it",
+    "ap",
+    "people_ops",
+    "worker"
+  ],
+  "PROVIDERS": [
+    "worker",
+    "sponsor",
+    "supplier_am",
+    "hm",
+    "it"
+  ]
+}

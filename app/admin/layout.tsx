@@ -38,6 +38,7 @@ const ADMIN_NAV = [
   { label: 'Approval Groups', href: '/admin/approval-groups' },
   { label: 'Supplier Network', href: '/admin/supplier-network' },
   { label: 'Approval Chains', href: '/admin/approval-chains' },
+  { label: 'Workflows', href: '/admin/workflows' },
   { label: 'Financial', href: '/admin/financial' },
   { label: 'Rates', href: '/admin/rates' },
   { label: 'Suppliers', href: '/admin/suppliers' },
@@ -125,13 +126,23 @@ export default function AdminLayout({
   }, [pathname, router, session.checking, session.user])
 
   const shouldShowAccessCheck = checkingAccess && !isAuthorized
+  // Flow Studio fills the column (notes, decision 1): no padding, and the page must not scroll under the canvas.
+  const isFlowStudio =
+    pathname === '/admin/workflows' || pathname.startsWith('/admin/workflows/')
 
   return (
     <div className="flex flex-1 bg-[#f4f7fb]">
       {/* =========================
           Admin Tabs (Column 2)
          ========================= */}
-      <aside className="sticky top-20 h-[calc(100vh-5rem)] w-60 shrink-0 overflow-y-auto border-r border-[#e1e8f2] bg-white px-4 py-6">
+      <aside
+        className={clsx(
+          'sticky top-20 w-60 shrink-0 overflow-y-auto border-r border-[#e1e8f2] bg-white px-4 py-6',
+          isFlowStudio
+            ? 'h-[calc(100vh-7.5rem)] sm:h-[calc(100vh-8rem)] lg:h-[calc(100vh-9rem)]'
+            : 'h-[calc(100vh-5rem)]'
+        )}
+      >
         <div className="mb-6">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
             Admin settings
@@ -171,7 +182,12 @@ export default function AdminLayout({
       {/* =========================
           Admin Content (Column 3)
          ========================= */}
-      <main className="min-w-0 flex-1 p-6 lg:p-8">
+      <main
+        className={clsx(
+          'min-w-0 flex-1',
+          isFlowStudio ? 'relative' : 'p-6 lg:p-8'
+        )}
+      >
         {shouldShowAccessCheck ? (
           <div className="flex min-h-[360px] items-center justify-center">
             <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">

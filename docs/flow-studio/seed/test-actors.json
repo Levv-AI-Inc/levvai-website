@@ -1,0 +1,100 @@
+{
+ "_about": "Test actors: who can sign in during tests and development, with which permissions (01 §6.1) and owner-team memberships (01 §6.2). POST /api/test/reset loads one actor set (body {actors?: 'default' | 'author-only-approver'}, default 'default'); POST /api/test/sign-in {user} signs in as one of them; the dev user switcher (01 §6.3) uses the 'default' set. Any other name in people-and-authority.json PEOPLE can also sign in, with no permissions (enough to act on their own inbox items). Engine tests use the same data: canApprove() reads permissions, pause/resume/stop read permissions and ownerTeams, and approverAvailability.othersCanApprove is derived from it. 'author-only-approver' is used by UI-PERM-01 and LP-13: nobody except the author (Flow Admin) has flow.approve_changes or admin.",
+ "permissions": [
+  "flow.edit",
+  "flow.approve_changes",
+  "runs.view",
+  "runs.control",
+  "reference.import",
+  "admin"
+ ],
+ "actorSets": {
+  "default": {
+   "users": [
+    {
+     "name": "Flow Admin",
+     "permissions": [
+      "flow.edit",
+      "flow.approve_changes",
+      "runs.view"
+     ],
+     "note": "the author in every Flow Studio UI test"
+    },
+    {
+     "name": "Samira Khan",
+     "permissions": [
+      "admin"
+     ],
+     "note": "publish approver (Part C) and admin (Part D)"
+    },
+    {
+     "name": "Owen Clarke",
+     "permissions": [
+      "flow.edit",
+      "runs.view"
+     ],
+     "note": "member of the owner team of wf-wo-sub (Part D)"
+    },
+    {
+     "name": "Grace Kim",
+     "permissions": [
+      "runs.view"
+     ],
+     "note": "requester; no flow permission; can open the run page but not control it (RT-11, LP-13)"
+    },
+    {
+     "name": "Raj Patel",
+     "permissions": [],
+     "note": "approver of the Part D run; acts only through his inbox"
+    }
+   ],
+   "ownerTeams": {
+    "Procurement operations": [
+     "Owen Clarke"
+    ]
+   }
+  },
+  "author-only-approver": {
+   "users": [
+    {
+     "name": "Flow Admin",
+     "permissions": [
+      "flow.edit",
+      "flow.approve_changes",
+      "runs.view"
+     ]
+    },
+    {
+     "name": "Samira Khan",
+     "permissions": [
+      "flow.edit",
+      "runs.view",
+      "runs.control"
+     ]
+    },
+    {
+     "name": "Owen Clarke",
+     "permissions": [
+      "flow.edit",
+      "runs.view"
+     ]
+    },
+    {
+     "name": "Grace Kim",
+     "permissions": [
+      "runs.view"
+     ]
+    },
+    {
+     "name": "Raj Patel",
+     "permissions": []
+    }
+   ],
+   "ownerTeams": {
+    "Procurement operations": [
+     "Owen Clarke"
+    ]
+   }
+  }
+ }
+}

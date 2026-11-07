@@ -21,21 +21,30 @@ export type GPTMessage = {
   content: string
 }
 
-export async function callGPT(messages: GPTMessage[]) {
+export type GPTOptions = {
+  temperature?: number
+  signal?: AbortSignal
+}
+
+export async function callGPT(messages: GPTMessage[], options: GPTOptions = {}) {
   const openai = getOpenAIClient()
 
-  const response = await openai.responses.create({
-    model: 'gpt-4.1-mini',
-    input: messages.map(m => ({
-      role: m.role,
-      content: [
-        {
-          type: 'input_text',
-          text: m.content,
-        },
-      ],
-    })),
-  })
+  const response = await openai.responses.create(
+    {
+      model: 'gpt-4.1-mini',
+      ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
+      input: messages.map(m => ({
+        role: m.role,
+        content: [
+          {
+            type: 'input_text',
+            text: m.content,
+          },
+        ],
+      })),
+    },
+    options.signal ? { signal: options.signal } : undefined,
+  )
 
   const text = (response.output_text || '').trim()
   console.log('GPT RAW OUTPUT:', text)

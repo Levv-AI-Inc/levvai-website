@@ -1,0 +1,231 @@
+{
+  "_about": "Company-wide approval rules. Managed outside Flow Studio but applied by the engine to every matching workflow (approvers are added to the first approval round on the path; tasks and flags are applied too).",
+  "approvalRules": [
+    {
+      "id": "ao-data",
+      "tab": "approvals",
+      "kind": "rule",
+      "name": "Client data access",
+      "records": [
+        "work_order",
+        "sow"
+      ],
+      "event": "submitted",
+      "when": {
+        "join": "any",
+        "rows": [
+          {
+            "f": "data_access",
+            "op": "yes"
+          },
+          {
+            "f": "digital_worker_access",
+            "op": "yes"
+          }
+        ]
+      },
+      "status": "live",
+      "version": 2,
+      "effective": "2026-06-01",
+      "owner": "Information Security",
+      "scope": {},
+      "act": {
+        "approve": true,
+        "roles": [
+          "sec",
+          "priv"
+        ],
+        "mode": "all",
+        "position": "with",
+        "task": false,
+        "taskRole": "tax",
+        "taskTitle": "",
+        "flag": false,
+        "flagField": "registration_required"
+      },
+      "published": {
+        "name": "Client data access",
+        "records": [
+          "work_order",
+          "sow"
+        ],
+        "event": "submitted",
+        "when": {
+          "join": "any",
+          "rows": [
+            {
+              "f": "data_access",
+              "op": "yes"
+            },
+            {
+              "f": "digital_worker_access",
+              "op": "yes"
+            }
+          ]
+        },
+        "act": {
+          "approve": true,
+          "roles": [
+            "sec",
+            "priv"
+          ],
+          "mode": "all",
+          "position": "with",
+          "task": false,
+          "taskRole": "tax",
+          "taskTitle": "",
+          "flag": false,
+          "flagField": "registration_required"
+        }
+      }
+    },
+    {
+      "id": "ao-ir35",
+      "tab": "approvals",
+      "kind": "rule",
+      "name": "UK off-payroll (IR35)",
+      "records": [
+        "work_order"
+      ],
+      "event": "submitted",
+      "when": {
+        "join": "all",
+        "rows": [
+          {
+            "f": "country",
+            "op": "in",
+            "v": [
+              "UK"
+            ]
+          },
+          {
+            "f": "engagement",
+            "op": "in",
+            "v": [
+              "Off-payroll"
+            ]
+          }
+        ]
+      },
+      "status": "live",
+      "version": 1,
+      "effective": "2026-04-06",
+      "owner": "Tax",
+      "scope": {},
+      "act": {
+        "approve": false,
+        "roles": [],
+        "mode": "all",
+        "position": "with",
+        "task": true,
+        "taskRole": "tax",
+        "taskTitle": "Record IR35 status",
+        "flag": false,
+        "flagField": "registration_required"
+      },
+      "published": {
+        "name": "UK off-payroll (IR35)",
+        "records": [
+          "work_order"
+        ],
+        "event": "submitted",
+        "when": {
+          "join": "all",
+          "rows": [
+            {
+              "f": "country",
+              "op": "in",
+              "v": [
+                "UK"
+              ]
+            },
+            {
+              "f": "engagement",
+              "op": "in",
+              "v": [
+                "Off-payroll"
+              ]
+            }
+          ]
+        },
+        "act": {
+          "approve": false,
+          "roles": [],
+          "mode": "all",
+          "position": "with",
+          "task": true,
+          "taskRole": "tax",
+          "taskTitle": "Record IR35 status",
+          "flag": false,
+          "flagField": "registration_required"
+        }
+      }
+    },
+    {
+      "id": "ao-reg",
+      "tab": "approvals",
+      "kind": "rule",
+      "name": "Regulated roles",
+      "records": [
+        "work_order"
+      ],
+      "event": "submitted",
+      "when": {
+        "join": "all",
+        "rows": [
+          {
+            "f": "role_regulated",
+            "op": "yes"
+          }
+        ]
+      },
+      "status": "live",
+      "version": 1,
+      "effective": "2026-05-12",
+      "owner": "Compliance",
+      "scope": {},
+      "act": {
+        "approve": true,
+        "roles": [
+          "compliance"
+        ],
+        "mode": "all",
+        "position": "with",
+        "task": false,
+        "taskRole": "tax",
+        "taskTitle": "",
+        "flag": true,
+        "flagField": "registration_required"
+      },
+      "published": {
+        "name": "Regulated roles",
+        "records": [
+          "work_order"
+        ],
+        "event": "submitted",
+        "when": {
+          "join": "all",
+          "rows": [
+            {
+              "f": "role_regulated",
+              "op": "yes"
+            }
+          ]
+        },
+        "act": {
+          "approve": true,
+          "roles": [
+            "compliance"
+          ],
+          "mode": "all",
+          "position": "with",
+          "task": false,
+          "taskRole": "tax",
+          "taskTitle": "",
+          "flag": true,
+          "flagField": "registration_required"
+        }
+      }
+    }
+  ]
+}

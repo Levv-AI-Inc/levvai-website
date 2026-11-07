@@ -7,10 +7,13 @@ const INTERNAL_PATH_PREFIXES = [
   '/approvals',
   '/compliance',
   '/cw',
+  '/flow-studio',
   '/home',
+  '/inbox',
   '/my-items',
   '/payments',
   '/requests',
+  '/runs',
   '/services',
   '/suppliers',
   '/workers',
@@ -44,6 +47,14 @@ export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const nextPath = pathname + search
 
+  if (pathname === '/api/session') {
+    // Flow Studio's Playwright run answers the session without Django. Only exists with LEVV_E2E=1.
+    if (process.env.LEVV_E2E === '1') {
+      return NextResponse.rewrite(new URL('/api/test/session', request.url))
+    }
+    return NextResponse.next()
+  }
+
   if (pathname === '/' && isTenantHost(getRequestHost(request))) {
     if (!hasSessionCookie(request)) {
       return loginRedirect(request, '/home')
@@ -66,13 +77,17 @@ export const config = {
   matcher: [
     '/',
     '/admin/:path*',
+    '/api/session',
     '/approvals/:path*',
     '/compliance/:path*',
     '/cw/:path*',
+    '/flow-studio/:path*',
     '/home/:path*',
+    '/inbox/:path*',
     '/my-items/:path*',
     '/payments/:path*',
     '/requests/:path*',
+    '/runs/:path*',
     '/services/:path*',
     '/suppliers/:path*',
     '/workers/:path*',
