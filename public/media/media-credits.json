@@ -1,0 +1,13 @@
+{
+  "levv-ribbon.mp4": {
+    "what": "A single blue ribbon of light on black, 8 s loop, behind the landing page's hero and close.",
+    "source": "MotionSites Web Builder skill (github.com/Motionsites-AI/claude-skill), media shelf item 16",
+    "original": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_064122_c4750c0e-7476-4b44-94a2-a85a65c63bf2.mp4",
+    "licence": "© MotionSites. The skill's licence permits use of its example media in sites built with the skill.",
+    "changes": "Re-encoded to 1280x720 H.264 (CRF 26, faststart), audio removed: 16.5 MB to 1.35 MB."
+  },
+  "levv-ribbon-poster.jpg": {
+    "what": "The first frame of levv-ribbon.mp4, shown before the video plays and as the still under reduced motion.",
+    "source": "Extracted from levv-ribbon.mp4"
+  }
+}

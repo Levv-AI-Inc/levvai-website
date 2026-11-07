@@ -3,15 +3,19 @@
 /*
   Landing page. Kind: software (site-kind software). Built with the taste skill's rules in the project's own stack.
   Deal: hero split (product window on a lit sky ground, one result card) · nav centre (mega re-dealt: four anchors,
-  no sub-pages) · footer columns · close word (the name set across the column) · rhythm dark band (Nova) ·
-  buttons tonal · moment line-carries-colour on the dark band · palette and type: the Levv brand (navy, Levv blue,
-  sky; Archivo wide display after the wordmark, Inter text).
+  no sub-pages) · footer columns · close type (the line and the button) · rhythm dark band (Nova) · buttons tonal ·
+  palette and type: the Levv brand (navy, Levv blue, sky; Archivo wide display after the wordmark, Inter text).
+  Only the hero fills the first screen; every other section takes its content's height.
+  Stage (the MotionSites web-builder pass): the hero and the close sit on the navy rail colour with one ribbon of light
+  (public/media/levv-ribbon.mp4) screen-blended behind them; the hero window plays its routing once, Nova's trace
+  decodes when it comes into view, and blocks below the first screen rise in once.
 */
 
 import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowRight,
+  ArrowUpRight,
   Check,
   ChevronDown,
   CircleDashed,
@@ -127,27 +131,60 @@ const BUTTON =
   'levv-press inline-flex h-11 items-center justify-center gap-2 rounded-lg px-5 text-[15px] font-medium outline-none hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2'
 const MAIN_BUTTON = `${BUTTON} bg-blue-600 text-white hover:bg-blue-700`
 const TONAL_BUTTON = `${BUTTON} bg-blue-50 text-blue-700 hover:bg-blue-100`
+const PILL =
+  'levv-press group inline-flex items-center justify-center gap-3 rounded-full font-medium outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail)]'
+const STAGE_BUTTON = `${PILL} h-12 bg-white pl-6 pr-2 text-[15px] text-[var(--rail)] hover:bg-blue-50`
+const STAGE_BUTTON_COMPACT = `${PILL} h-9 bg-white px-4 text-sm text-[var(--rail)] hover:bg-blue-50`
+const GLASS_BUTTON = `${PILL} lv-glass h-12 px-6 text-[15px] text-white/90 hover:text-white`
 const UNDERLINE =
   'bg-gradient-to-r from-current to-current bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size,color] duration-200 ease-out hover:bg-[length:100%_1px]'
 
-function MainAction({ developerMode, onRequest, className = '' }: { developerMode: boolean; onRequest: () => void; className?: string }) {
+type ActionTone = 'blue' | 'stage' | 'stage-compact'
+
+function MainAction({
+  developerMode,
+  onRequest,
+  tone = 'blue',
+  className = '',
+}: {
+  developerMode: boolean
+  onRequest: () => void
+  tone?: ActionTone
+  className?: string
+}) {
+  const label = developerMode ? 'Request early access' : 'Contact Levv'
+  const classes = `${tone === 'stage' ? STAGE_BUTTON : tone === 'stage-compact' ? STAGE_BUTTON_COMPACT : MAIN_BUTTON} ${className}`
+  const content =
+    tone === 'stage' ? (
+      <>
+        {label}
+        <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
+          <ArrowUpRight className="h-4 w-4" />
+        </span>
+      </>
+    ) : (
+      label
+    )
   if (developerMode) {
     return (
-      <button type="button" onClick={onRequest} className={`${MAIN_BUTTON} ${className}`}>
-        Request early access
+      <button type="button" onClick={onRequest} className={classes}>
+        {content}
       </button>
     )
   }
   return (
-    <a href={CONTACT} className={`${MAIN_BUTTON} ${className}`}>
-      Contact Levv
+    <a href={CONTACT} className={classes}>
+      {content}
     </a>
   )
 }
 
-function Mark({ size = 32 }: { size?: number }) {
+function Mark({ size = 32, tone = 'light' }: { size?: number; tone?: 'light' | 'stage' }) {
   return (
-    <span className="flex shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-[var(--line)]" style={{ width: size, height: size }}>
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-lg bg-white ring-1 transition-shadow duration-300 ${tone === 'stage' ? 'ring-white/20' : 'ring-[var(--line)]'}`}
+      style={{ width: size, height: size }}
+    >
       <Image src="/logos/levvai-mark.png" alt="" width={700} height={780} className="h-[68%] w-auto object-contain" priority />
     </span>
   )
@@ -175,7 +212,7 @@ function Track({ at, size = 'sm' }: { at: number; size?: 'sm' | 'md' }) {
 /** The product's own window, drawn in live HTML. */
 function AppWindow({ path, children, className = '' }: { path: string; children: ReactNode; className?: string }) {
   return (
-    <div className={`overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-[0_24px_60px_-28px_rgb(10_17_40/0.35),0_2px_6px_rgb(10_17_40/0.05)] ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-[var(--line)] bg-white text-slate-950 shadow-[0_24px_60px_-28px_rgb(10_17_40/0.35),0_2px_6px_rgb(10_17_40/0.05)] ${className}`}>
       <div className="flex h-10 items-center gap-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] px-4">
         <span className="flex gap-1.5" aria-hidden>
           <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
@@ -189,15 +226,66 @@ function AppWindow({ path, children, className = '' }: { path: string; children:
   )
 }
 
+/** An entrance or reveal delay, read by the lv- classes in globals.css. */
+function at(ms: number) {
+  return { '--d': `${ms}ms` } as CSSProperties
+}
+
+/** Marks a block to rise into view once, `delay` ms after it enters, from `y` px below. Armed only below the first screen. */
+function reveal(delay = 0, y = 28) {
+  return { 'data-reveal': '', style: { '--d': `${delay}ms`, '--y': `${y}px` } as CSSProperties }
+}
+
+/** The ribbon of light behind the stage. Plays only while on screen; with reduced motion it stays a still. */
+function RibbonVideo({ className = '' }: { className?: string }) {
+  const ref = useRef<HTMLVideoElement | null>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const video = ref.current
+    if (!video) return
+    video.muted = true
+    const markReady = () => setReady(true)
+    if (video.readyState >= 2) markReady()
+    else video.addEventListener('loadeddata', markReady, { once: true })
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+      return () => video.removeEventListener('loadeddata', markReady)
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) video.play().catch(() => undefined)
+      else video.pause()
+    })
+    observer.observe(video)
+    return () => {
+      observer.disconnect()
+      video.removeEventListener('loadeddata', markReady)
+    }
+  }, [])
+
+  return (
+    <video
+      ref={ref}
+      aria-hidden
+      tabIndex={-1}
+      muted
+      loop
+      playsInline
+      preload="auto"
+      poster="/media/levv-ribbon-poster.jpg"
+      src="/media/levv-ribbon.mp4"
+      className={`lv-ribbon pointer-events-none max-w-none object-cover ${ready ? 'is-ready' : ''} ${className}`}
+    />
+  )
+}
+
 /* =========================
-   Hero visual: a request on its way to approval
+   Hero visual: a request on its way to approval, playing its routing once
 ========================= */
 function HeroVisual() {
   return (
-    <div className="relative h-full min-h-[300px] overflow-hidden rounded-2xl bg-[#e9f1fd] lg:min-h-0">
-      <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_80%_at_85%_0%,#ffffff_0%,rgb(255_255_255/0)_60%)]" />
-      <div className="absolute -bottom-12 left-6 top-6 w-[calc(100%-1.5rem+28px)] sm:left-12 sm:top-12 sm:w-[calc(100%-3rem+28px)] lg:left-16 lg:top-16 lg:w-[calc(100%-4rem+28px)]">
-        <AppWindow path="acme.levvai.com / requests / REQ-0091" className="h-full">
+    <div className="lv-in-window relative" style={at(300)}>
+      <div className="lv-glass lv-glass--strong rounded-[20px] p-2">
+        <AppWindow path="acme.levvai.com / requests / REQ-0091">
           <div className="grid sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
             <ul className="hidden border-r border-[var(--line)] py-2 sm:block" aria-label="Requests">
               {requisitions.map((req, index) => (
@@ -210,7 +298,7 @@ function HeroVisual() {
                 </li>
               ))}
             </ul>
-            <div className="space-y-4 p-5 pr-10 sm:pr-12">
+            <div className="space-y-4 p-5">
               <div>
                 <div className="text-[11px] tabular-nums text-slate-500">REQ-0091</div>
                 <div className="mt-0.5 text-[15px] font-semibold text-slate-950">Senior DevOps Engineer</div>
@@ -231,7 +319,7 @@ function HeroVisual() {
                   </div>
                 ))}
               </dl>
-              <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20">
+              <div className="lv-in-fade flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20" style={at(1950)}>
                 <Clock3 className="h-3.5 w-3.5" /> Awaiting decision
               </div>
               <div className="hidden border-t border-[var(--line)] pt-3 sm:block">
@@ -241,10 +329,14 @@ function HeroVisual() {
                     ['Cost centre owner', 'Approved', 'done'],
                     ['VP Engineering', 'Deciding', 'now'],
                     ['Procurement', 'Next', 'next'],
-                  ].map(([who, state, at]) => (
+                  ].map(([who, state, step]) => (
                     <li key={who} className="flex items-center gap-2">
-                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${at === 'done' ? 'bg-slate-900 text-white' : at === 'now' ? 'bg-blue-600 ring-4 ring-blue-100' : 'border border-[var(--line-strong)]'}`}>
-                        {at === 'done' ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                      <span
+                        className={`relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${step === 'done' ? 'lv-in-pop bg-slate-900 text-white' : step === 'now' ? 'bg-blue-600 ring-4 ring-blue-100' : 'border border-[var(--line-strong)]'}`}
+                        style={step === 'done' ? at(1450) : undefined}
+                      >
+                        {step === 'done' ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                        {step === 'now' ? <span aria-hidden className="lv-ring absolute inset-0 rounded-full bg-blue-500" style={at(1700)} /> : null}
                       </span>
                       <span className="font-medium text-slate-900">{who}</span>
                       <span className="ml-auto text-slate-500">{state}</span>
@@ -255,8 +347,8 @@ function HeroVisual() {
               <div className="hidden border-t border-[var(--line)] pt-3 sm:block">
                 <div className="text-xs font-medium text-slate-500">Onboarding, after approval</div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {['Right to work', 'Laptop and VPN', 'Workday account'].map((task) => (
-                    <span key={task} className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+                  {['Right to work', 'Laptop and VPN', 'Workday account'].map((task, index) => (
+                    <span key={task} className="lv-in-fade flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600" style={at(2100 + index * 80)}>
                       <Lock className="h-3 w-3" /> {task}
                     </span>
                   ))}
@@ -266,7 +358,10 @@ function HeroVisual() {
           </div>
         </AppWindow>
       </div>
-      <div className="absolute bottom-4 left-4 right-4 rounded-xl sm:bottom-8 sm:left-8 sm:right-auto sm:w-[min(300px,calc(100%-4rem))] border border-[var(--line)] bg-white p-4 sm:bottom-8 sm:left-8 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 motion-safe:delay-500 motion-safe:fill-mode-both">
+      <div
+        className="lv-in-blur relative z-10 mx-4 -mt-4 rounded-xl border border-[var(--line)] bg-white p-4 text-slate-950 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.55)] sm:mx-8 xl:absolute xl:-bottom-10 xl:-left-8 xl:mx-0 xl:mt-0 xl:w-[300px]"
+        style={at(2300)}
+      >
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-950">
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)]">
             <Sparkles className="h-3.5 w-3.5" />
@@ -467,6 +562,85 @@ const controls = [
 ]
 
 /* =========================
+   Nova's trace: decodes line by line, like a terminal, the first time it comes into view
+========================= */
+const GLYPHS = 'abcdefghijklmnopqrstuvwxyz0123456789:/_-'
+const TRACE_GAP = 14 // ticks between lines; one tick is 25ms and resolves half a character
+
+function decode(text: string, chars: number) {
+  let out = ''
+  for (let index = 0; index < text.length && index < chars + 3; index += 1) {
+    out += text[index] === ' ' ? ' ' : index < chars ? text[index] : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]
+  }
+  return out
+}
+
+function NovaTrace() {
+  const ref = useRef<HTMLOListElement | null>(null)
+  // null: the trace as written. A number: decode ticks run so far.
+  const [tick, setTick] = useState<number | null>(null)
+
+  useEffect(() => {
+    const list = ref.current
+    if (!list || !('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (list.getBoundingClientRect().top < window.innerHeight) return
+    setTick(0)
+    const total = (novaTrace.length - 1) * TRACE_GAP + Math.max(...novaTrace.map(([event]) => event.length)) * 2 + 4
+    let timer = 0
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        observer.disconnect()
+        let count = 0
+        timer = window.setInterval(() => {
+          count += 1
+          if (count > total) {
+            window.clearInterval(timer)
+            setTick(null)
+            return
+          }
+          setTick(count)
+        }, 25)
+      },
+      { threshold: 0.4 },
+    )
+    observer.observe(list)
+    return () => {
+      observer.disconnect()
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  return (
+    <ol ref={ref} className="space-y-px p-2 font-mono text-[13px]">
+      {novaTrace.map(([event, outcome], index) => {
+        const started = tick === null || tick >= index * TRACE_GAP
+        const chars = tick === null ? event.length : Math.max(0, (tick - index * TRACE_GAP) / 2)
+        const done = chars >= event.length
+        return (
+          <li key={event} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04]">
+            <span aria-hidden className={`pt-0.5 text-[var(--nova)] ${done ? (tick === null ? '' : 'lv-in-pop') : 'opacity-0'}`}>
+              {index < novaTrace.length - 1 ? <Check className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
+            </span>
+            <span>
+              <span className="sr-only">
+                {event}, {outcome}
+              </span>
+              <span aria-hidden className={`block whitespace-pre text-white ${started ? '' : 'opacity-0'}`}>
+                {!started || done ? event : decode(event, Math.floor(chars)) || '\u00a0'}
+              </span>
+              <span aria-hidden className={`block text-slate-400 transition-opacity duration-500 ${done ? 'opacity-100' : 'opacity-0'}`}>
+                {outcome}
+              </span>
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/* =========================
    Integrations: one record in the middle, the systems around it
 ========================= */
 function IntegrationsDiagram() {
@@ -531,31 +705,55 @@ export default function LandingPage() {
   const [accessOpen, setAccessOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [developerMode, setDeveloperMode] = useState(false)
-  const novaRef = useRef<HTMLElement | null>(null)
+
+  const heroRef = useRef<HTMLElement | null>(null)
+  const [overStage, setOverStage] = useState(true)
+  const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
     setDeveloperMode(window.localStorage.getItem('developer') === 'true')
   }, [])
 
-  // The dealt moment, mounted by the taste kit's own loader (public/assets/moments).
+  // The nav sits clear on the stage, and turns white once the hero has scrolled under it.
   useEffect(() => {
-    const host = novaRef.current
-    if (!host) return
-    let cancelled = false
-    let unmount: ((root?: Document) => void) | undefined
-    ;(window as unknown as { __momentsManual?: boolean }).__momentsManual = true
-    import(/* webpackIgnore: true */ '/assets/moments/moments.js' as string)
-      .then((moments: { mount: (el: Element) => Promise<unknown>; unmountAll: (root?: Document) => void }) => {
-        if (cancelled) return
-        unmount = moments.unmountAll
-        return moments.mount(host)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-      unmount?.(document)
-    }
+    const hero = heroRef.current
+    if (!hero || !('IntersectionObserver' in window)) return
+    const observer = new IntersectionObserver(([entry]) => setOverStage(entry.isIntersecting), { rootMargin: '-112px 0px 0px 0px' })
+    observer.observe(hero)
+    return () => observer.disconnect()
   }, [])
+
+  // Once the page moves, the clear nav gets a navy glass backing so it stays legible over the hero window.
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 8)
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
+  }, [])
+
+  // Blocks that start below the first screen rise in once; anything already on screen is left alone.
+  useEffect(() => {
+    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          entry.target.setAttribute('data-revealed', '')
+          observer.unobserve(entry.target)
+        }
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+    )
+    document.querySelectorAll('[data-reveal]').forEach((element) => {
+      if (element.getBoundingClientRect().top < window.innerHeight) return
+      element.setAttribute('data-reveal-armed', '')
+      observer.observe(element)
+    })
+    return () => observer.disconnect()
+  }, [])
+
+  const onStage = overStage && !mobileOpen
+
 
   return (
     <>
@@ -563,16 +761,29 @@ export default function LandingPage() {
         Skip to content
       </a>
 
-      <header className="nav sticky top-0 z-40 border-b border-[var(--line)] bg-white text-slate-950">
+      <header
+        className={`nav sticky top-0 z-40 border-b transition-[background-color,border-color,color] duration-300 ease-out ${
+          onStage
+            ? `text-white ${scrolled ? 'border-white/10 bg-[rgb(10_19_48/0.72)] backdrop-blur-md' : 'border-transparent bg-transparent'}`
+            : 'border-[var(--line)] bg-white text-slate-950'
+        }`}
+      >
         <div className={`${WRAP} flex h-16 items-center justify-between md:grid md:grid-cols-[1fr_auto_1fr]`}>
           <Link href="/" className="flex items-center gap-3 justify-self-start rounded-lg" aria-label="Levv home">
-            <Mark />
-            <Image src="/logos/levvai-wordmark.png" alt="LEVVAI" width={1250} height={250} className="h-[0.8rem] w-auto" priority />
+            <Mark tone={onStage ? 'stage' : 'light'} />
+            <Image
+              src="/logos/levvai-wordmark.png"
+              alt="LEVVAI"
+              width={1250}
+              height={250}
+              className={`h-[0.8rem] w-auto transition-[filter] duration-300 ${onStage ? 'brightness-0 invert' : ''}`}
+              priority
+            />
           </Link>
 
-          <nav aria-label="Primary" className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+          <nav aria-label="Primary" className={`hidden items-center gap-8 text-sm font-medium md:flex ${onStage ? 'text-white/75' : 'text-slate-600'}`}>
             {NAV.map(([label, href]) => (
-              <a key={href} href={href} className={`${UNDERLINE} inline-flex min-h-[44px] items-center hover:text-slate-950 sm:min-h-0`}>
+              <a key={href} href={href} className={`${UNDERLINE} inline-flex min-h-[44px] items-center sm:min-h-0 ${onStage ? 'hover:text-white' : 'hover:text-slate-950'}`}>
                 {label}
               </a>
             ))}
@@ -580,18 +791,23 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-3 justify-self-end">
             {developerMode ? (
-              <Link href="/auth/login" className={`hidden text-sm font-medium text-slate-700 hover:text-slate-950 md:inline ${UNDERLINE}`}>
+              <Link href="/auth/login" className={`hidden text-sm font-medium md:inline ${UNDERLINE} ${onStage ? 'text-white/80 hover:text-white' : 'text-slate-700 hover:text-slate-950'}`}>
                 Sign in
               </Link>
             ) : null}
-            <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} className="hidden h-9 px-4 text-sm md:inline-flex" />
+            <MainAction
+              developerMode={developerMode}
+              onRequest={() => setAccessOpen(true)}
+              tone={onStage ? 'stage-compact' : 'blue'}
+              className="hidden h-9 px-4 text-sm md:inline-flex"
+            />
             <button
               type="button"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"
               onClick={() => setMobileOpen((current) => !current)}
-              className="levv-press flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--line)] text-slate-700 md:hidden"
+              className={`levv-press flex h-11 w-11 items-center justify-center rounded-lg border md:hidden ${onStage ? 'border-white/20 text-white' : 'border-[var(--line)] text-slate-700'}`}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -620,59 +836,72 @@ export default function LandingPage() {
       </header>
 
       <main id="top" className="bg-white text-slate-950">
-        {/* Hero: split */}
-        <section className="lg:min-h-[100svh]" data-enter>
-          <div className={`${WRAP} grid gap-10 py-12 sm:py-16 lg:h-[calc(100svh-4rem)] lg:min-h-[640px] lg:grid-cols-12 lg:items-start lg:gap-6 lg:py-14`}>
-            <div className="flex flex-col lg:col-span-6 lg:pr-8 lg:pt-10">
-              <h1 className={`${DISPLAY} text-[2.5rem] leading-[1.02] sm:text-5xl lg:text-[3.75rem] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:fill-mode-both`}>
-                External workforce management for enterprises
+        {/* Hero: the stage. The ribbon passes behind the window, never behind the words. */}
+        <section ref={heroRef} className="lv-stage relative -mt-16 overflow-hidden pt-16" data-enter>
+          <RibbonVideo className="absolute left-[-30%] top-[46%] h-[60%] w-[160%] [--ribbon-opacity:0.6] lg:left-auto lg:right-[-12%] lg:top-0 lg:h-full lg:w-[80%] lg:[--ribbon-opacity:0.95]" />
+          <div aria-hidden className="lv-scrim pointer-events-none absolute inset-0" />
+          <div aria-hidden className="lv-grain pointer-events-none absolute inset-0" />
+          <div className={`${WRAP} relative z-10 grid items-center gap-12 pb-24 pt-10 sm:pb-28 sm:pt-14 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-12 lg:gap-6 lg:pb-32 lg:pt-8`}>
+            <div className="lg:col-span-6">
+              <h1 className={`${DISPLAY} text-[2.5rem] leading-[0.98] sm:text-[3.25rem] lg:text-[3.75rem]`}>
+                <span className="lv-in-blur block" style={at(150)}>
+                  External workforce
+                </span>
+                <span className="lv-in-blur block" style={at(270)}>
+                  management
+                </span>
+                <span className="lv-in-blur block text-[#96b6fd]" style={at(390)}>
+                  for enterprises
+                </span>
               </h1>
-              <p className="mt-6 max-w-[42ch] text-[17px] leading-[1.55] text-slate-600 sm:text-xl sm:leading-[1.5] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:delay-100 motion-safe:fill-mode-both">
+              <p className="lv-in-fade mt-7 max-w-[40ch] text-[17px] leading-[1.55] text-white/70 sm:text-[19px]" style={at(600)}>
                 Levv keeps every contractor and SOW engagement on one worker record, from requisition to offboarding. Nova applies your policy and routes each approval to its owner.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:delay-200 motion-safe:fill-mode-both">
-                <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} />
-                <a href="#record" className={TONAL_BUTTON}>
+              <div className="lv-in-fade mt-9 flex flex-col gap-3 sm:flex-row" style={at(750)}>
+                <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} tone="stage" />
+                <a href="#record" className={GLASS_BUTTON}>
                   See how it works
                 </a>
               </div>
-              <p className="mt-6 text-[13px] text-slate-500 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700 motion-safe:delay-300 motion-safe:fill-mode-both">
+              <p className="lv-in-fade mt-7 text-[13px] text-white/55" style={at(950)}>
                 Built by practitioners from complex extended-workforce programs.
               </p>
             </div>
-            <div className="h-[500px] sm:h-[520px] lg:col-span-6 lg:col-start-7 lg:h-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-1000 motion-safe:delay-150 motion-safe:fill-mode-both">
+            <div className="lg:col-span-6 lg:col-start-7">
               <HeroVisual />
             </div>
           </div>
         </section>
 
         {/* The product big: the worker record */}
-        <section id="record" className="border-t border-[var(--line)] bg-[var(--surface-sunken)] py-20 sm:py-28 lg:min-h-[100svh]">
+        <section id="record" className="relative z-10 -mt-12 rounded-t-[32px] bg-[var(--surface-sunken)] py-20 sm:rounded-t-[40px] sm:py-28">
           <div className={WRAP}>
             <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
-              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Five stages. One record.</h2>
-              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+              <h2 {...reveal(0, 32)} className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Five stages. One record.</h2>
+              <p {...reveal(80, 24)} className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
                 Policy checks, approvals, onboarding tasks, time and exit steps stay on the same record, so nobody rebuilds the story from inboxes.
               </p>
             </div>
-            <div className="mt-10 sm:mt-14">
+            <div {...reveal(160, 48)} className="mt-10 sm:mt-14">
               <RecordFrame />
             </div>
           </div>
         </section>
 
         {/* Controls: 2x2 */}
-        <section id="controls" className="py-20 sm:py-28 lg:min-h-[100svh]">
+        <section id="controls" className="py-20 sm:py-28">
           <div className={WRAP}>
             <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
-              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Classification, <span className="whitespace-nowrap">co-employment</span>, and access.</h2>
-              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+              <h2 {...reveal(0, 32)} className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>
+                Classification, <span className="whitespace-nowrap">co-employment</span>, and access.
+              </h2>
+              <p {...reveal(80, 24)} className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
                 Levv checks the four risks of external work on the record itself, as each request moves.
               </p>
             </div>
             <div className="mt-10 grid gap-x-10 gap-y-12 sm:mt-14 md:grid-cols-2">
-              {controls.map((control) => (
-                <article key={control.title} className="flex flex-col gap-5">
+              {controls.map((control, index) => (
+                <article key={control.title} {...reveal((index % 2) * 100, 32)} className="flex flex-col gap-5">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-950">{control.title}</h3>
                     <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{control.copy}</p>
@@ -684,16 +913,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Nova: the dark band, with the dealt moment */}
-        <section
-          id="nova"
-          ref={novaRef}
-          data-moment="line-carries-colour"
-          data-moment-opts='{"from":"base"}'
-          className="relative bg-[var(--rail)] py-20 text-white [--accent:var(--nova)] [--bg:#ffffff] [--r-lg:16px] sm:py-28"
-        >
-          <div className={`${WRAP} grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-6`}>
-            <div className="lg:col-span-5">
+        {/* Nova: the dark band */}
+        <section id="nova" className="relative overflow-hidden bg-[var(--rail)] py-20 text-white [--accent:var(--nova)] sm:py-28">
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgb(63_182_247/0.10),transparent_60%)]" />
+          <div className={`${WRAP} relative grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-6`}>
+            <div {...reveal(0, 32)} className="lg:col-span-5">
               <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl`}>Nova routes every request to the person who decides</h2>
               <p className="mt-6 max-w-[44ch] text-[17px] leading-relaxed text-slate-300">
                 Nova is the decision engine in Levv’s workflow layer. It reads policy, applies rules and closes operational loops while people keep the decision.
@@ -710,7 +934,7 @@ export default function LandingPage() {
                 ))}
               </dl>
             </div>
-            <div className="lg:col-span-6 lg:col-start-7">
+            <div {...reveal(120, 48)} className="lg:col-span-6 lg:col-start-7">
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                 <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3.5 text-[13px] text-slate-300">
                   <Sparkles className="h-4 w-4 text-[var(--nova)]" />
@@ -719,17 +943,7 @@ export default function LandingPage() {
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Running
                   </span>
                 </div>
-                <ol className="space-y-px p-2 font-mono text-[13px]">
-                  {novaTrace.map(([event, outcome], index) => (
-                    <li key={event} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 rounded-lg px-3 py-3 hover:bg-white/[0.04]">
-                      <span className="pt-0.5 text-[var(--nova)]">{index < novaTrace.length - 1 ? <Check className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}</span>
-                      <span>
-                        <span className="block text-white">{event}</span>
-                        <span className="block text-slate-400">{outcome}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+                <NovaTrace />
                 <div className="flex items-center gap-3 border-t border-white/10 px-5 py-4 text-[13px] text-slate-300">
                   <ShieldCheck className="h-4 w-4 text-[var(--nova)]" />
                   Decision waiting with Sarah Chen, VP Engineering
@@ -740,15 +954,15 @@ export default function LandingPage() {
         </section>
 
         {/* Integrations: hub diagram */}
-        <section id="integrations" className="py-20 sm:py-28 lg:min-h-[100svh]">
+        <section id="integrations" className="py-20 sm:py-28">
           <div className={WRAP}>
             <div className="grid gap-4 lg:grid-cols-12 lg:items-start">
-              <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Works with Workday, DocuSign, Teams and Slack</h2>
-              <p className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
+              <h2 {...reveal(0, 32)} className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-6`}>Works with Workday, DocuSign, Teams and Slack</h2>
+              <p {...reveal(80, 24)} className="max-w-[46ch] text-[17px] leading-relaxed text-slate-600 lg:col-span-5 lg:col-start-7 lg:pt-2">
                 An operational record for procurement, HR, finance, suppliers, and workers, connected to the systems they already use.
               </p>
             </div>
-            <div className="mt-10 sm:mt-14">
+            <div {...reveal(160, 48)} className="mt-10 sm:mt-14">
               <IntegrationsDiagram />
             </div>
           </div>
@@ -757,8 +971,8 @@ export default function LandingPage() {
         {/* Questions */}
         <section id="questions" className="bg-[var(--surface-sunken)] py-20 sm:py-28">
           <div className={`${WRAP} grid gap-10 lg:grid-cols-12 lg:gap-6`}>
-            <h2 className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-5`}>Questions about Levv</h2>
-            <div className="divide-y divide-[var(--line)] border-y border-[var(--line)] lg:col-span-6 lg:col-start-7">
+            <h2 {...reveal(0, 32)} className={`${DISPLAY} text-4xl leading-[1.05] sm:text-5xl lg:col-span-5`}>Questions about Levv</h2>
+            <div {...reveal(100, 32)} className="divide-y divide-[var(--line)] border-y border-[var(--line)] lg:col-span-6 lg:col-start-7">
               {questions.map(([question, answer]) => (
                 <details key={question} className="group">
                   <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between gap-6 py-4 text-[17px] font-medium text-slate-950 [&::-webkit-details-marker]:hidden">
@@ -773,20 +987,24 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer id="contact" className="closing bg-white text-slate-950">
-        {/* Close: the line, the button, then the name set across the column */}
-        <div className={`${WRAP} pt-20 sm:pt-28`}>
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className={`${DISPLAY} max-w-[16ch] text-4xl leading-[1.05] sm:text-5xl`}>The operating system for external work.</h2>
-              <p className="mt-5 max-w-[48ch] text-[17px] leading-relaxed text-slate-600">
-                Replace spreadsheets and manual approval threads with one governed system, one audit trail, and one current worker record.
-              </p>
-            </div>
-            <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} className="h-12 px-6 text-base sm:self-start lg:self-end" />
+      <footer id="contact" className="closing text-slate-950">
+        {/* Close: back on the stage, with the ribbon running the other way */}
+        <div className="lv-stage relative z-10 -mt-10 overflow-hidden rounded-t-[32px] sm:rounded-t-[40px]">
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-[-20%] w-[90%] -scale-x-100 mix-blend-screen lg:right-[-8%] lg:w-[64%]">
+            <RibbonVideo className="h-full w-full [--ribbon-opacity:0.55]" />
           </div>
-          <div aria-hidden className={`${DISPLAY} mt-16 select-none whitespace-nowrap text-center text-[19.5vw] leading-[0.8] tracking-[0.06em] text-[var(--rail)] [font-stretch:125%] xl:text-[15.4rem]`}>
-            LEVVAI
+          <div aria-hidden className="lv-scrim pointer-events-none absolute inset-0" />
+          <div aria-hidden className="lv-grain pointer-events-none absolute inset-0" />
+          <div className={`${WRAP} relative z-10 py-24 sm:py-32`}>
+            <div {...reveal(0, 32)} className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className={`${DISPLAY} max-w-[16ch] text-4xl leading-[1.05] text-white sm:text-5xl`}>The operating system for external work.</h2>
+                <p className="mt-5 max-w-[48ch] text-[17px] leading-relaxed text-white/70">
+                  Replace spreadsheets and manual approval threads with one governed system, one audit trail, and one current worker record.
+                </p>
+              </div>
+              <MainAction developerMode={developerMode} onRequest={() => setAccessOpen(true)} tone="stage" className="self-start lg:self-end" />
+            </div>
           </div>
         </div>
 

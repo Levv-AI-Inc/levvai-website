@@ -449,10 +449,6 @@
         "displayName": "Display Section",
         "purpose": "Landing section headings and the close line; 2.25rem, 3rem from 640px."
       },
-      "display-name": {
-        "displayName": "Display Name",
-        "purpose": "The name LEVVAI set across the column in the landing close; 19.5vw, capped at 15.4rem."
-      },
       "lead": {
         "displayName": "Lead",
         "purpose": "Landing paragraphs, held to 42-48ch."
@@ -585,11 +581,6 @@
         "name": "lg",
         "value": "1024px",
         "note": "Rail docks; stat strip becomes one row; page header actions move right; settings column becomes vertical."
-      },
-      {
-        "name": "xl",
-        "value": "1280px",
-        "note": "The close word caps at 15.4rem."
       }
     ]
   },
@@ -677,7 +668,7 @@
   ],
   "narrative": {
     "northStar": "The Operating Record",
-    "overview": "Levv draws everything as one record that moves. A worker, a request or a work order is a row, a panel, a stat strip and a five-stage track, and every screen is a view onto that same record rather than a dashboard about it. The navy of the wordmark is the structure the record sits in: the rail down the left of the app, the single dark band on the landing page, the chip that marks Nova. Levv Blue points at where the record stands and what has focus. Everything else is cool white, hairlines and ink.\n\nThe app is dense and calm: 13px Inter for working text, 36px controls, flat white panels on a cool grey ground, borders instead of shadows. The brand surface (the landing page) runs the same materials at a larger scale and adds one voice the app never uses, Archivo set wide after the wordmark's stance. Product proof on brand pages is the product itself, drawn as live HTML windows, never a screenshot or an illustration.\n\nColour is spent on meaning. Navy commands, blue locates, sky belongs to Nova, and emerald, amber and rose report status. A screen that is all working well is mostly ink on white.\n\nCoverage today: the shell (rail, top bar, settings column), the landing page and about twenty of the 127 routes are built on the components in app/components/ui/levv-app.tsx; the Workers index (app/workers/workers/page.tsx) is the reference implementation. The remaining routes still use raw Tailwind classes. They inherit the palette, because the slate, gray, blue and cyan families are the Levv ramps, and the app layer in globals.css normalises their headings, labels, tables, inputs and buttons, but their layouts are not yet rebuilt. Flow Studio, the run screens and the inbox are a deliberate exception, described under Colors.",
+    "overview": "Levv draws everything as one record that moves. A worker, a request or a work order is a row, a panel, a stat strip and a five-stage track, and every screen is a view onto that same record rather than a dashboard about it. The navy of the wordmark is the structure the record sits in: the rail down the left of the app, the stage behind the landing page's hero and close, the chip that marks Nova. Levv Blue points at where the record stands and what has focus. Everything else is cool white, hairlines and ink.\n\nThe app is dense and calm: 13px Inter for working text, 36px controls, flat white panels on a cool grey ground, borders instead of shadows. The brand surface (the landing page) runs the same materials at a larger scale and adds one voice the app never uses, Archivo set wide after the wordmark's stance. Product proof on brand pages is the product itself, drawn as live HTML windows, never a screenshot or an illustration.\n\nColour is spent on meaning. Navy commands, blue locates, sky belongs to Nova, and emerald, amber and rose report status. A screen that is all working well is mostly ink on white.\n\nCoverage today: the shell (rail, top bar, settings column), the landing page and about twenty of the 127 routes are built on the components in app/components/ui/levv-app.tsx; the Workers index (app/workers/workers/page.tsx) is the reference implementation. The remaining routes still use raw Tailwind classes. They inherit the palette, because the slate, gray, blue and cyan families are the Levv ramps, and the app layer in globals.css normalises their headings, labels, tables, inputs and buttons, but their layouts are not yet rebuilt. Flow Studio, the run screens and the inbox are a deliberate exception, described under Colors.",
     "keyCharacteristics": [
       "One record, one track: the five-stage lifecycle (Requisition, Approval, Onboarding, In engagement, Offboarding) appears wherever a record's position matters.",
       "Navy structure, blue position, sky for Nova, status colours for status only.",

@@ -45,13 +45,6 @@ typography:
     lineHeight: 1.05
     letterSpacing: "-0.032em"
     fontVariation: "'wdth' 112"
-  display-name:
-    fontFamily: "Archivo, Inter, ui-sans-serif, sans-serif"
-    fontSize: "15.4rem"
-    fontWeight: 500
-    lineHeight: 0.8
-    letterSpacing: "0.06em"
-    fontVariation: "'wdth' 125"
   lead:
     fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.0625rem"
@@ -265,7 +258,7 @@ components:
 
 **Creative North Star: "The Operating Record"**
 
-Levv draws everything as one record that moves. A worker, a request or a work order is a row, a panel, a stat strip and a five-stage track, and every screen is a view onto that same record rather than a dashboard about it. The navy of the wordmark is the structure the record sits in: the rail down the left of the app, the single dark band on the landing page, the chip that marks Nova. Levv Blue points at where the record stands and what has focus. Everything else is cool white, hairlines and ink.
+Levv draws everything as one record that moves. A worker, a request or a work order is a row, a panel, a stat strip and a five-stage track, and every screen is a view onto that same record rather than a dashboard about it. The navy of the wordmark is the structure the record sits in: the rail down the left of the app, the stage behind the landing page's hero and close, the chip that marks Nova. Levv Blue points at where the record stands and what has focus. Everything else is cool white, hairlines and ink.
 
 The app is dense and calm: 13px Inter for working text, 36px controls, flat white panels on a cool grey ground, borders instead of shadows. The brand surface (the landing page) runs the same materials at a larger scale and adds one voice the app never uses, Archivo set wide after the wordmark's stance. Product proof on brand pages is the product itself, drawn as live HTML windows, never a screenshot or an illustration.
 
@@ -292,7 +285,7 @@ A cool, navy-anchored palette: one blue for position and focus, one sky reserved
 - **Focus Glow** (rgb(38 88 228 / 0.28)): the 3px ring around a focused input, select or Nova prompt.
 
 ### Secondary
-- **Rail Navy** (#0a1330): the structure. The app's sidebar rail, the one dark band on the landing page, the Nova chip, avatar initials in the preview drawer and account menu, the close word "LEVVAI", and the browser theme colour.
+- **Rail Navy** (#0a1330): the structure. The app's sidebar rail, the landing page's stage (hero and close) and its Nova band, the Nova chip, avatar initials in the preview drawer and account menu, and the browser theme colour.
 - **Command Navy** (#131b35): the fill of the one command a view asks for (the primary button), the chosen option in a segmented filter, and steps already done in step markers.
 
 ### Tertiary
@@ -338,9 +331,8 @@ Dots inside badges use each family's 500 step.
 **Character:** Inter carries the product: neutral, compact, with the alternate glyphs `cv02`, `cv03`, `cv04` and `cv11` switched on everywhere for a more open, legible working face. Archivo, stretched wide, borrows the stance of the wide-set wordmark and appears only where Levv speaks as a brand.
 
 ### Hierarchy
-- **Display** (Archivo 500, 2.5rem → 3rem at 640px → 3.75rem at 1024px, line-height 1.02, -0.032em, width 112): the landing h1 only, three lines in the hero's left half.
+- **Display** (Archivo 500, 2.5rem → 3.25rem at 640px → 3.75rem at 1024px, line-height 0.98, -0.032em, width 112): the landing h1 only, broken by hand into three lines on the stage, white with the last line ("for enterprises") in Levv Blue 300 (#96b6fd).
 - **Display Section** (Archivo 500, 2.25rem → 3rem at 640px, line-height 1.05, -0.032em, width 112): landing section headings and the close line. The dialog title and mobile menu links use the same face at 1.5rem.
-- **Display Name** (Archivo 500, 19.5vw capped at 15.4rem from 1280px, line-height 0.8, +0.06em, width 125, Rail Navy): the name "LEVVAI" set across the column in the close. Decorative and `aria-hidden`.
 - **Lead** (Inter 400, 17px, line-height 1.625; the hero sub-line steps to 20px at 640px): landing paragraphs, held to 42–48ch.
 - **Headline** (Inter 650, 1.625rem, line-height 1.25, -0.022em, Wordmark Ink): the page title in the app, one per page. The component asks 600; the app layer sets every page `h1` to 650.
 - **Figure** (Inter 600, 1.375rem, line-height 1.25, -0.015em, tabular): stat values in the stat strip.
@@ -368,7 +360,9 @@ Dots inside badges use each family's 500 step.
 
 **Drawers.** Record previews open from the right at up to 440px, full height, with a lighter Wordmark Ink scrim at 30%, a header, a scrolling body and a footer of actions.
 
-**The brand surface.** The landing page uses a 1264px container with 20px gutters (32px from 640px) on a 12-column grid. Sections have 80px of vertical padding (112px from 640px) and are at least one viewport tall from 1024px; they alternate Surface White and Sunken Grey, with one Rail Navy band. Section intros split heading (6 columns) and lead (4–5 columns, offset right). The hero is a 6/6 split: text left, a lit product window right, cut by its panel's edges.
+**The brand surface.** The landing page uses a 1264px container with 20px gutters (32px from 640px) on a 12-column grid. Sections have 80px of vertical padding (112px from 640px) and take their content's height; only the hero fills the first screen. They alternate Surface White and Sunken Grey, with the Nova band in Rail Navy. Section intros split heading (6 columns) and lead (4–5 columns, offset right). The hero is a 6/6 split on the navy stage: text left, the product window right in a glass bezel. The light section after the hero rises over the stage as a sheet with 40px top corners (32px below 640px), and the close rises the same way, dark, over the questions.
+
+**The stage.** The hero and the close stand on Rail Navy with one ribbon of light behind them: `public/media/levv-ribbon.mp4` (provenance in `public/media/media-credits.json`), screen-blended so the clip's black disappears into the navy and the frame has no edge. The ribbon runs behind the window and never behind the words; a navy scrim (left to right from 1024px, top down below it) and a faint grain sit over it. It plays only while on screen and is a still with reduced motion. On the stage the nav is clear, gaining a navy glass backing once the page moves and turning white once the hero has scrolled under it.
 
 ## Elevation & Depth
 
@@ -387,7 +381,7 @@ Levv is flat by default and draws depth with tone and hairlines: white panels on
 
 ## Shapes
 
-Small, firm corners on a fixed ladder: 6px for things inside controls (badges, segmented options, sub-nav items, the Nova chip, chips in product windows), 8px for every control (buttons, inputs, selects, notices, menu rows, detail tiles, rail rows), 10px for containers (panels, table shells, the stat strip, menus, the settings column, product windows), 12px for the landing page's larger bands (the hero's sky panel, control cards, the integrations hub, the Nova trace, the access dialog). Full rounding is for dots, avatars, step numbers and lifecycle segments. The direction contract asked 12–16px for windows; the build settled on 10px windows inside 12px bands. Older pages that still reach for 16px corners keep them on containers, but the app layer clamps their buttons to 8px.
+Small, firm corners on a fixed ladder: 6px for things inside controls (badges, segmented options, sub-nav items, the Nova chip, chips in product windows), 8px for every control (buttons, inputs, selects, notices, menu rows, detail tiles, rail rows), 10px for containers (panels, table shells, the stat strip, menus, the settings column, product windows), 12px for the landing page's larger bands (control cards, the integrations hub, the Nova trace, the access dialog), 20px for the glass bezel around the hero window, 32–40px for the top corners of the landing sheets. Full rounding is for dots, avatars, step numbers and lifecycle segments. The direction contract asked 12–16px for windows; the build settled on 10px windows inside 12px bands. Older pages that still reach for 16px corners keep them on containers, but the app layer clamps their buttons to 8px.
 
 Borders are always 1px, in Hairline for containers and Control Line for controls; tinted notices and badges use a 1px inset ring of their tone at 15–20% instead of a border.
 
@@ -405,7 +399,8 @@ Firm, compact and quiet until pressed.
 - **Secondary:** Surface White, 1px Control Line border, Ink Soft text, button lift; hover to Sunken Grey with a slightly darker border.
 - **Ghost:** no fill, Copy Slate text; hover fills Wash and darkens the text. Used for Reset, Open record, Close, and icon-only buttons (36×36).
 - **Brand main action:** Levv Blue with white text, hover Deep Levv Blue, lifting 1px. Landing page only; `levvUi.accentButton` exists for the same role in the app but no app view uses it yet. A rose danger recipe also exists, unused so far.
-- **Tonal:** Selection Wash with Deep Levv Blue text, the landing page's second action ("See how it works").
+- **Tonal:** Selection Wash with Deep Levv Blue text, for a second action on light landing sections.
+- **Stage pills:** on the navy stage the actions are pills, 48px tall: the main action white with navy text and a 32px Levv Blue disc holding an up-right arrow that nudges 2px on hover; the second action ("See how it works") liquid glass (4% white fill, 4px blur, a 1.4px rim of light at top and bottom). The nav's action is a compact 36px white pill while the nav is clear.
 - **Press / Focus:** everything pressable scales to 0.97 while pressed (120ms, ease-out) and shows a 2px Levv Blue focus outline 2px out. Disabled is 50% opacity with a not-allowed cursor.
 
 ### Segmented filter
@@ -447,7 +442,7 @@ One recognisable place to ask the agent, on every screen that offers it. The pro
 The product's own window drawn in live HTML: a white 10px frame with a Hairline border and the product-window shadow, a 40px Sunken Grey title bar with three Control Line dots and a 12px tenant path ("acme.levvai.com / requests / REQ-0091"), and real product UI inside, built from the same tokens as the app. The hero sets one on a lit sky panel (#e9f1fd with a white light at the top right), cut off by the panel's right and bottom edges, with a single result card over its lower left.
 
 ### Nova band (brand surfaces)
-The one Rail Navy section on a brand page. Inside it the accent becomes Nova Sky; text is white, Control Line and Ink Faint; frames are white at 10% borders over white at 4% fills; Nova's trace is set in the monospace stack at 13px. The taste kit's "line-carries-colour" moment runs on this band only.
+The one Rail Navy section on a brand page. Inside it the accent becomes Nova Sky; text is white, Control Line and Ink Faint; frames are white at 10% borders over white at 4% fills; Nova's trace is set in the monospace stack at 13px. It has no scroll effect: the band is on screen the moment it scrolls in.
 
 ## Do's and Don'ts
 
