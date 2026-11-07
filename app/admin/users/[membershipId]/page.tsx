@@ -110,7 +110,7 @@ export default function UserRecordPage() {
           eyebrow={
             <Link
               href={returnHref}
-              className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+              className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to users
@@ -169,7 +169,7 @@ export default function UserRecordPage() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
             <LevvPanel className="p-6">
               <div className="mb-6 flex items-center gap-3">
-                <span className="rounded-xl bg-[#e7f3ee] p-3 text-[#1f3d38]">
+                <span className="rounded-xl bg-blue-50 p-3 text-blue-700">
                   <UserRound className="h-5 w-5" />
                 </span>
                 <div>
@@ -247,7 +247,7 @@ function StatePanel({
         <button
           type="button"
           onClick={onRetry}
-          className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+          className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
         >
           <RefreshCw className="h-4 w-4" /> Retry
         </button>

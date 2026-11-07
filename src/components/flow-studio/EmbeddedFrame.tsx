@@ -14,9 +14,10 @@ const same = (a: Box | null, b: Box): boolean =>
   a !== null && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
 
 /**
- * Binding decision 1: globals.css restyles anything inside `body.flex main.flex-1`, which contradicts 04 §1.2 (slate-950
- * becomes #101b3c, cyan becomes blue). So the admin column holds only this placeholder, and the shell is portaled to
- * <body> and pinned over it. Below the app header (z-20) and sidebar (z-30), so their menus still open over it.
+ * Binding decision 1: globals.css normalises the controls and tables inside the app's `main.flex-1`, which 04 does not
+ * expect, and the brand palette repaints slate and cyan everywhere (the shell's `.levv-spec` restores them, 04 §1.2). So
+ * the admin column holds only this placeholder, and the shell is portaled to <body> and pinned over it. Below the app
+ * header (z-20) and sidebar (z-30), so their menus still open over it.
  */
 export function EmbeddedFrame({ children }: { children: ReactNode }) {
   const placeholder = useRef<HTMLDivElement>(null);

@@ -618,8 +618,8 @@ export function FlowStudioShell({ basePath, variant }: FlowStudioShellProps) {
       aria-label={embedded ? uiCopy.shellLabel : undefined}
       className={
         embedded
-          ? 'relative flex h-full flex-col bg-slate-100 px-3 pb-3 pt-2.5 text-[14px] leading-[1.5] text-slate-900'
-          : 'relative flex min-h-screen flex-col bg-slate-100 px-4 pb-4 pt-2.5 text-[14px] leading-[1.5] text-slate-900'
+          ? 'levv-spec relative flex h-full flex-col bg-slate-100 px-3 pb-3 pt-2.5 text-[14px] leading-[1.5] text-slate-900'
+          : 'levv-spec relative flex min-h-screen flex-col bg-slate-100 px-4 pb-4 pt-2.5 text-[14px] leading-[1.5] text-slate-900'
       }
     >
       <TopBar

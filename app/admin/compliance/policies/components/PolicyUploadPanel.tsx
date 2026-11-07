@@ -452,7 +452,7 @@ export default function PolicyUploadPanel({
   return (
     <div className="overflow-hidden rounded-3xl border border-cyan-100 bg-white shadow-sm">
       <div className="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/80 px-5 py-4">
-        <span className="rounded-xl bg-[#1f3d38] p-2 text-[#89d3bd]">
+        <span className="rounded-xl bg-[var(--rail)] p-2 text-[var(--nova)]">
           <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0">
@@ -521,7 +521,7 @@ export default function PolicyUploadPanel({
               onClick={() => policyInputRef.current?.click()}
               className="cursor-pointer rounded-2xl border border-dashed border-slate-300 p-6 text-center transition hover:border-cyan-300 hover:bg-cyan-50/40"
             >
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#1f3d38] text-[#89d3bd]">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--rail)] text-[var(--nova)]">
                 <FileText className="h-4 w-4" />
               </div>
               <p className="text-xs font-bold text-slate-900">

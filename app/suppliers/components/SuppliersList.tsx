@@ -77,7 +77,7 @@ export default function SuppliersList({
                     {detailEnabled ? (
                       <Link
                         href={`/suppliers/${encodeURIComponent(String(toSupplierKey(supplier)))}/overview`}
-                        className="rounded-sm hover:text-cyan-800 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+                        className="rounded-sm hover:text-cyan-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-600/30"
                       >
                         {supplier.supplier_id}
                       </Link>
@@ -88,7 +88,7 @@ export default function SuppliersList({
                       {detailEnabled ? (
                         <Link
                           href={`/suppliers/${encodeURIComponent(String(toSupplierKey(supplier)))}/overview`}
-                          className="rounded-sm hover:text-cyan-700 hover:underline focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+                          className="rounded-sm hover:text-cyan-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-600/30"
                         >
                           {supplier.name}
                         </Link>

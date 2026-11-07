@@ -133,7 +133,7 @@ export default function SupplierContactAccessAdminClient() {
     <LevvPage width="wide" className="p-0 sm:p-0 lg:p-0">
       <div className="space-y-6">
         <LevvPageHeader
-          eyebrow={<Link href={`/suppliers/${supplierId}/overview`} className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"><ArrowLeft className="h-4 w-4" /> Supplier overview</Link>}
+          eyebrow={<Link href={`/suppliers/${supplierId}/overview`} className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-600/30"><ArrowLeft className="h-4 w-4" /> Supplier overview</Link>}
           title={supplier ? `${supplier.name} contact access` : 'Supplier contact access'}
           description="Invite and revoke supplier portal access. Email alone never grants authorization."
         />

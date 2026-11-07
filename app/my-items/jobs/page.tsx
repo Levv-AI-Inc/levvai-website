@@ -4,16 +4,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  ChevronDown,
-  Clock3,
-  FileEdit,
+  FileText,
   Loader2,
-  Search,
-  Sparkles,
+  RotateCw,
   X,
 } from 'lucide-react'
 import {
@@ -29,11 +25,23 @@ import {
   getResumePathForDraft,
 } from '@/lib/cwRequestDraft'
 import {
+  LevvEmptyState,
+  LevvNotice,
+  LevvNovaPrompt,
   LevvPage,
   LevvPageHeader,
-  LevvPanel,
-  LevvStatCard,
+  LevvSearchField,
+  LevvSelect,
+  LevvStat,
+  LevvStatStrip,
+  LevvStatusBadge,
+  LevvToolbar,
+  levvUi,
+  type LevvTone,
 } from '@/components/ui/levv-app'
+
+const LOAD_ERROR_FALLBACK = 'Unable to load your job postings.'
+const cell = `${levvUi.td} border-t border-[var(--line)]`
 
 function toTitleCase(value: string | undefined) {
   if (!value) return '-'
@@ -42,6 +50,11 @@ function toTitleCase(value: string | undefined) {
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function toSentenceCase(value: string) {
+  const text = value.replace(/_/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function formatDate(value: string | undefined) {
@@ -77,33 +90,22 @@ function formatMoney(amount?: string, currency?: string, unit?: string) {
   return unit ? `${amount}/${unit}` : amount
 }
 
-function statusClasses(status: string | undefined) {
+function statusTone(status: string | undefined): LevvTone {
   const normalized = status?.trim().toLowerCase()
 
-  if (normalized === 'approved') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  }
-  if (normalized === 'submitted' || normalized === 'processing') {
-    return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-  }
-  if (normalized === 'rejected') {
-    return 'border-rose-200 bg-rose-50 text-rose-700'
-  }
-  if (normalized === 'draft') {
-    return 'border-amber-200 bg-amber-50 text-amber-700'
-  }
-  return 'border-slate-200 bg-slate-50 text-slate-700'
+  if (normalized === 'approved') return 'emerald'
+  if (normalized === 'submitted' || normalized === 'processing') return 'blue'
+  if (normalized === 'rejected') return 'rose'
+  if (normalized === 'draft') return 'amber'
+  return 'slate'
 }
 
 function StatusBadge({ value }: { value?: string }) {
+  if (!value?.trim()) return <span className="text-slate-400">-</span>
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
-        value,
-      )}`}
-    >
-      {toTitleCase(value)}
-    </span>
+    <LevvStatusBadge tone={statusTone(value)}>
+      {toSentenceCase(value)}
+    </LevvStatusBadge>
   )
 }
 
@@ -130,6 +132,7 @@ export default function MyJobPostingsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [aiInput, setAiInput] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -162,7 +165,7 @@ export default function MyJobPostingsPage() {
         setError(
           error instanceof Error
             ? error.message
-            : 'Unable to load your job postings.',
+            : LOAD_ERROR_FALLBACK,
         )
         setRequests([])
         setPagination({
@@ -185,7 +188,7 @@ export default function MyJobPostingsPage() {
     return () => {
       cancelled = true
     }
-  }, [page, pageSize, router, statusFilter])
+  }, [page, pageSize, router, statusFilter, reloadKey])
 
   const handleResumeDraft = async (request: IntakeRecord) => {
     setResumeError('')
@@ -263,6 +266,13 @@ export default function MyJobPostingsPage() {
     )
   }, [filteredRequests])
 
+  // While loading or after a failed load the figures are unknown, not zero.
+  const statsReady = !loading && !error
+  const figure = (value: number) => (statsReady ? value : '–')
+  const canReset =
+    searchTerm !== '' || statusFilter !== '' || pageSize !== 25 || page !== 1
+  const showRows = statsReady && filteredRequests.length > 0
+
   return (
     <LevvPage width="wide">
       <div className="space-y-6">
@@ -270,315 +280,289 @@ export default function MyJobPostingsPage() {
           title="My Job Postings"
           description="Review your request details, approval routing, and current approval progress."
           actions={
-          <div className="group relative w-full md:w-96">
-            <div className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-sm transition-all focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-100/70">
-              <div className="ml-1 rounded-lg bg-slate-950 p-2.5 text-blue-400">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <input
-                type="text"
-                value={aiInput}
-                onChange={(event) => setAiInput(event.target.value)}
-                placeholder="Ask Nova about your postings..."
-                className="flex-1 border-none bg-transparent px-3 py-2 text-sm font-semibold placeholder:text-slate-400 focus:outline-none"
-              />
-              <button
-                type="button"
-                className="pr-3 text-xs font-bold uppercase text-blue-600 transition-colors hover:text-blue-700"
-              >
-                Ask
-              </button>
-            </div>
-          </div>
+            <LevvNovaPrompt
+              className="w-full sm:w-96"
+              placeholder="Ask Nova about your postings..."
+              value={aiInput}
+              onChange={setAiInput}
+            />
           }
         />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <LevvStatCard
-            icon={BarChart3}
+        <LevvStatStrip>
+          <LevvStat
             label="Total requests"
-            value={pagination.total_count}
+            value={figure(pagination.total_count)}
             detail={
-              pagination.total_count > 0
-                ? `Showing ${startRow}-${endRow} of ${pagination.total_count}`
-                : 'No requests found'
+              statsReady
+                ? pagination.total_count > 0
+                  ? `Showing ${startRow}-${endRow} of ${pagination.total_count}`
+                  : 'No requests found'
+                : undefined
             }
           />
-          <LevvStatCard
-            icon={FileEdit}
-            label="Drafts"
-            value={pageStats.drafts}
-            tone="amber"
-          />
-          <LevvStatCard
-            icon={Clock3}
-            label="In flight"
-            value={pageStats.inFlight}
-            tone="blue"
-          />
-          <LevvStatCard
-            icon={CheckCircle2}
-            label="Approved"
-            value={pageStats.approved}
-            tone="emerald"
-          />
-        </div>
+          <LevvStat label="Drafts" value={figure(pageStats.drafts)} />
+          <LevvStat label="In flight" value={figure(pageStats.inFlight)} />
+          <LevvStat label="Approved" value={figure(pageStats.approved)} />
+        </LevvStatStrip>
 
-        <LevvPanel className="p-6">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
-            <div className="group relative">
-              <label className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Search requests
-              </label>
-              <Search className="absolute bottom-3 left-4 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
-              <input
-                className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                placeholder="Title, role, ID, supplier..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </div>
-
-            <label className="block text-sm text-slate-600">
-              <span className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Status
-              </span>
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(event) => {
-                    setStatusFilter(event.target.value)
-                    setPage(1)
-                  }}
-                  className="w-full appearance-none rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-2 focus:ring-cyan-400 md:w-44"
-                >
-                  <option value="">All statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              </div>
-            </label>
-
-            <label className="block text-sm text-slate-600">
-              <span className="mb-2 block px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Rows
-              </span>
-              <div className="relative">
-                <select
-                  value={String(pageSize)}
-                  onChange={(event) => {
-                    setPageSize(Number(event.target.value))
-                    setPage(1)
-                  }}
-                  className="w-full appearance-none rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all focus:ring-2 focus:ring-cyan-400 md:w-32"
-                >
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              </div>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm('')
-                setStatusFilter('')
-                setPageSize(25)
+        <section aria-label="Job postings" className="space-y-3">
+          <LevvToolbar>
+            <LevvSearchField
+              className="w-full sm:w-72"
+              placeholder="Title, role, ID, supplier..."
+              aria-label="Search requests"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <LevvSelect
+              className="w-full sm:w-44"
+              aria-label="Status"
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value)
                 setPage(1)
               }}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-rose-500"
             >
-              <X className="h-3.5 w-3.5" />
-              Reset
-            </button>
-          </div>
-        </LevvPanel>
+              <option value="">All statuses</option>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </LevvSelect>
+            {canReset ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('')
+                  setStatusFilter('')
+                  setPageSize(25)
+                  setPage(1)
+                }}
+                className={levvUi.ghostButton}
+              >
+                <X />
+                Reset
+              </button>
+            ) : null}
+            <label className="ml-auto flex items-center gap-2 text-[13px] text-slate-500">
+              Rows
+              <LevvSelect
+                className="w-20"
+                value={String(pageSize)}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value))
+                  setPage(1)
+                }}
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </LevvSelect>
+            </label>
+          </LevvToolbar>
 
-        <LevvPanel className="overflow-hidden">
-        {resumeError ? (
-          <div className="mx-6 mt-6 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
-            {resumeError}
-          </div>
-        ) : null}
-        {loading ? (
-          <div className="flex items-center justify-center gap-3 px-8 py-16 text-sm font-medium text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading requests...
-          </div>
-        ) : error ? (
-          <div className="m-6 rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
-            {error}
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="px-8 py-16 text-center">
-            <div className="text-base font-bold text-slate-900">
-              No job posting requests yet
-            </div>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Submitted and draft staffing requests will appear here or match
-              your current filters.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-separate border-spacing-0 text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Request</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Role</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Approval</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Rate / Budget</th>
-                  <th className="px-8 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Updated</th>
-                  <th className="px-8 py-5 text-right text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRequests.map((request) => {
-                  const requestLabel =
-                    request.requestId || `INT-${request.id}`
-                  const roleLabel =
-                    request.roleDefinitionName ||
-                    request.title ||
-                    request.description ||
-                    '-'
-                  const isDraft =
-                    request.status?.trim().toLowerCase() === 'draft'
-                  const isResuming =
-                    resumingRequestId === request.id
+          {resumeError ? (
+            <LevvNotice tone="rose" icon={AlertCircle}>
+              {resumeError}
+            </LevvNotice>
+          ) : null}
 
-                  return (
-                    <tr
-                      key={request.id}
-                      className="group transition-all hover:bg-cyan-50/40"
-                    >
-                      <td className="px-8 py-6 align-top">
-                        <div className="mb-1.5 w-fit rounded-md bg-cyan-50 px-2 py-0.5 text-[10px] font-black uppercase leading-none text-cyan-600">
-                          {requestLabel}
-                        </div>
-                        <div className="font-bold leading-tight text-slate-900">
-                          {request.title || roleLabel}
-                        </div>
-                        <div className="mt-1 text-xs font-medium text-slate-400">
-                          {toTitleCase(request.engagementType)}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 align-top font-semibold text-slate-700">
-                        {roleLabel}
-                      </td>
-                      <td className="px-8 py-6 align-top">
-                        <StatusBadge value={request.status} />
-                      </td>
-                      <td className="px-8 py-6 align-top">
-                        <StatusBadge value={request.approvalStatus} />
-                      </td>
-                      <td className="px-8 py-6 align-top text-slate-700">
-                        <div>
-                          {formatMoney(
-                            request.billRate || request.targetRate,
-                            request.currency,
-                            request.rateCardPricing?.unit || request.rateUnit,
-                          )}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          Budget:{' '}
-                          {formatMoney(
-                            request.budgetAmount,
-                            request.currency,
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 align-top text-slate-700">
-                        {formatDate(
-                          request.updatedAt ||
-                            request.submittedAt ||
-                            request.createdAt,
-                        )}
-                      </td>
-                      <td className="px-8 py-6 align-top text-right">
-                        {isDraft ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleResumeDraft(request)}
-                            disabled={isResuming}
-                            className="inline-flex items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50/70 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isResuming ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Resuming
-                              </>
-                            ) : (
-                              <>
-                                Resume
-                                <ArrowRight className="h-4 w-4" />
-                              </>
+          <div className={levvUi.tableShell}>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
+                <thead className={showRows ? undefined : 'max-sm:hidden'}>
+                  <tr>
+                    <th className={levvUi.th}>Request</th>
+                    <th className={levvUi.th}>Role</th>
+                    <th className={levvUi.th}>Status</th>
+                    <th className={levvUi.th}>Approval</th>
+                    <th className={levvUi.th}>Rate / budget</th>
+                    <th className={levvUi.th}>Updated</th>
+                    <th className={`${levvUi.th} text-right`}>Actions</th>
+                  </tr>
+                </thead>
+                {showRows ? (
+                  <tbody>
+                    {filteredRequests.map((request) => {
+                      const requestLabel =
+                        request.requestId || `INT-${request.id}`
+                      const roleLabel =
+                        request.roleDefinitionName ||
+                        request.title ||
+                        request.description ||
+                        '-'
+                      const isDraft =
+                        request.status?.trim().toLowerCase() === 'draft'
+                      const isResuming =
+                        resumingRequestId === request.id
+
+                      return (
+                        <tr key={request.id} className="group">
+                          <td className={cell}>
+                            <div className="max-w-[320px] truncate font-medium text-slate-950">
+                              {request.title || roleLabel}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
+                              <span className="tabular-nums">{requestLabel}</span>
+                              {request.engagementType ? (
+                                <>
+                                  <span aria-hidden className="text-slate-300">·</span>
+                                  <span className="truncate">
+                                    {toTitleCase(request.engagementType)}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className={cell}>
+                            <div className="max-w-[220px] truncate">{roleLabel}</div>
+                          </td>
+                          <td className={cell}>
+                            <StatusBadge value={request.status} />
+                          </td>
+                          <td className={cell}>
+                            <StatusBadge value={request.approvalStatus} />
+                          </td>
+                          <td className={`${cell} tabular-nums`}>
+                            <div className="text-slate-900">
+                              {formatMoney(
+                                request.billRate || request.targetRate,
+                                request.currency,
+                                request.rateCardPricing?.unit || request.rateUnit,
+                              )}
+                            </div>
+                            <div className="mt-0.5 text-xs text-slate-500">
+                              Budget:{' '}
+                              {formatMoney(
+                                request.budgetAmount,
+                                request.currency,
+                              )}
+                            </div>
+                          </td>
+                          <td className={`${cell} whitespace-nowrap tabular-nums`}>
+                            {formatDate(
+                              request.updatedAt ||
+                                request.submittedAt ||
+                                request.createdAt,
                             )}
-                          </button>
-                        ) : (
-                          <Link
-                            href={`/my-items/jobs/${encodeURIComponent(
-                              String(request.id),
-                            )}`}
-                            className="inline-flex items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50/70 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-700 opacity-100 transition hover:border-cyan-200 hover:bg-cyan-100 lg:opacity-0 lg:group-hover:opacity-100"
-                          >
-                            Open
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {!loading && !error && pagination.total_count > 0 ? (
-          <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/60 px-8 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-500">
-              Page{' '}
-              <span className="font-medium text-slate-900">
-                {pagination.page}
-              </span>{' '}
-              of{' '}
-              <span className="font-medium text-slate-900">
-                {pagination.total_pages}
-              </span>
+                          </td>
+                          <td className={`${cell} text-right`}>
+                            {isDraft ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleResumeDraft(request)}
+                                disabled={isResuming}
+                                className={levvUi.secondaryButton}
+                              >
+                                {isResuming ? (
+                                  <>
+                                    <Loader2 className="animate-spin" />
+                                    Resuming
+                                  </>
+                                ) : (
+                                  <>
+                                    Resume
+                                    <ArrowRight />
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <Link
+                                href={`/my-items/jobs/${encodeURIComponent(
+                                  String(request.id),
+                                )}`}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-blue-700 outline-none transition-colors duration-150 hover:text-blue-800 focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                              >
+                                Open
+                                <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                ) : null}
+              </table>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={!pagination.has_previous}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
+            {loading ? (
+              <div
+                role="status"
+                className="flex items-center justify-center gap-2.5 border-[var(--line)] px-6 py-14 text-[13px] text-slate-500 sm:border-t"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((current) => current + 1)}
-                disabled={!pagination.has_next}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                Loading requests...
+              </div>
+            ) : error ? (
+              <div
+                role="alert"
+                className="flex flex-col items-center border-[var(--line)] px-6 py-14 text-center sm:border-t"
               >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+                <AlertCircle className="h-5 w-5 text-rose-600" />
+                <p className="mt-3 text-sm font-semibold text-slate-900">
+                  {LOAD_ERROR_FALLBACK.replace(/\.$/, '')}
+                </p>
+                {error !== LOAD_ERROR_FALLBACK ? (
+                  <p className="mt-1 max-w-sm text-[13px] text-slate-500">{error}</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setReloadKey((key) => key + 1)}
+                  className={`${levvUi.secondaryButton} mt-4`}
+                >
+                  <RotateCw />
+                  Try again
+                </button>
+              </div>
+            ) : filteredRequests.length === 0 ? (
+              <div className="border-[var(--line)] sm:border-t">
+                <LevvEmptyState icon={FileText} title="No job posting requests yet">
+                  Submitted and draft staffing requests will appear here or match
+                  your current filters.
+                </LevvEmptyState>
+              </div>
+            ) : null}
+
+            {statsReady && pagination.total_count > 0 ? (
+              <div className="flex flex-col gap-3 border-t border-[var(--line)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[13px] text-slate-500">
+                  Page{' '}
+                  <span className="font-medium tabular-nums text-slate-900">
+                    {pagination.page}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-medium tabular-nums text-slate-900">
+                    {pagination.total_pages}
+                  </span>
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={!pagination.has_previous}
+                    className={levvUi.secondaryButton}
+                  >
+                    <ArrowLeft />
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((current) => current + 1)}
+                    disabled={!pagination.has_next}
+                    className={levvUi.secondaryButton}
+                  >
+                    Next
+                    <ArrowRight />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        </LevvPanel>
+        </section>
       </div>
     </LevvPage>
   )

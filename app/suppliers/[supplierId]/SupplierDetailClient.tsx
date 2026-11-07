@@ -140,7 +140,7 @@ export default function SupplierDetailClient({ activeTab }: { activeTab: Supplie
           eyebrow={
             <Link
               href="/suppliers"
-              className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+              className="inline-flex items-center gap-2 rounded-md text-sm font-semibold text-slate-600 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
             >
               <ArrowLeft className="h-4 w-4" />
               Suppliers
@@ -307,7 +307,7 @@ function TabLink({ href, active, children }: { href: string; active: boolean; ch
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#89d3bd]',
+        'whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/30',
         active ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
       )}
     >
@@ -388,7 +388,7 @@ function SupplierOverview({ supplier }: { supplier: SupplierDetail }) {
           <LevvPanel className="p-6">
             <SectionHeading icon={<Users className="h-5 w-5" />} title="Supplier portal access" />
             <p className="mt-3 text-sm text-slate-500">Review invitations and revoke access without changing unrelated tenant memberships.</p>
-            <Link href={`/admin/suppliers/${encodeURIComponent(String(supplier.id || supplier.supplier_id))}/contact-access`} className="mt-5 inline-flex rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]">Manage contact access</Link>
+            <Link href={`/admin/suppliers/${encodeURIComponent(String(supplier.id || supplier.supplier_id))}/contact-access`} className="mt-5 inline-flex rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/30">Manage contact access</Link>
           </LevvPanel>
         ) : null}
       </div>
@@ -502,7 +502,7 @@ function AssignmentLink({ worker }: { worker: SupplierWorker }) {
   return (
     <Link
       href={`/cw/work-orders/${encodeURIComponent(String(worker.assignment_id))}`}
-      className="inline-flex items-center gap-1.5 rounded-md text-sm font-semibold text-cyan-700 hover:text-cyan-900 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]"
+      className="inline-flex items-center gap-1.5 rounded-md text-sm font-semibold text-cyan-700 hover:text-cyan-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
     >
       Work order <ExternalLink className="h-3.5 w-3.5" />
     </Link>
@@ -512,7 +512,7 @@ function AssignmentLink({ worker }: { worker: SupplierWorker }) {
 function SectionHeading({ icon, title, description }: { icon: React.ReactNode; title: string; description?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="rounded-xl bg-[#e7f3ee] p-3 text-[#1f3d38]">{icon}</span>
+      <span className="rounded-xl bg-blue-50 p-3 text-blue-700">{icon}</span>
       <div>
         <h2 className="text-lg font-bold text-slate-950">{title}</h2>
         {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
@@ -570,7 +570,7 @@ function StatePanel({ title, message, onRetry }: { title: string; message: strin
       <h2 className="mt-4 text-lg font-bold text-slate-950">{title}</h2>
       <p className="mt-2 max-w-lg text-sm text-slate-600">{message}</p>
       {onRetry ? (
-        <button type="button" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#89d3bd]">
+        <button type="button" onClick={onRetry} className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-600/30">
           <RefreshCw className="h-4 w-4" /> Retry
         </button>
       ) : null}

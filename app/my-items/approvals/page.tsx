@@ -7,7 +7,8 @@ import {
   LevvPage,
   LevvPageHeader,
   LevvPanel,
-  LevvStatCard,
+  LevvStat,
+  LevvStatStrip,
 } from '@/components/ui/levv-app'
 
 type ApprovalItem = {
@@ -630,26 +631,20 @@ export default function MyApprovalsPage() {
           }
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <LevvStatCard
+        <LevvStatStrip>
+          <LevvStat
             icon={Clock3}
             label="Pending queue"
             value={pending.length}
-            tone="amber"
+            tone={pending.length > 0 ? 'attention' : 'default'}
           />
-          <LevvStatCard
-            icon={CheckCircle2}
-            label="Completed"
-            value={history.length}
-            tone="emerald"
-          />
-          <LevvStatCard
+          <LevvStat icon={CheckCircle2} label="Completed" value={history.length} />
+          <LevvStat
             icon={BarChart3}
             label="Tenant submitted"
             value={tenantPendingSubmittedCount ?? '-'}
-            tone="blue"
           />
-        </div>
+        </LevvStatStrip>
 
       <Card title="My Queue" description={queueDescription}>
         {!isApprover && !loadingQueue && !queueError && (

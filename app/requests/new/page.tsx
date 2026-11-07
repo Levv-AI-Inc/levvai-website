@@ -1,25 +1,33 @@
 'use client'
 
 import { useMemo, useState, useRef } from 'react'
+import type { ElementType } from 'react'
 import { useRouter } from 'next/navigation'
-import MotionWrapper from '@/components/motion/MotionWrapper'
 import {
   ArrowRight,
   BriefcaseBusiness,
   FileText,
-  MessageSquare,
   Search,
   Send,
   Sparkles,
   UserRound,
   X,
-  ChevronDown,
   Paperclip,
   CheckCircle2,
   File,
   Image,
   FileSpreadsheet,
 } from 'lucide-react'
+import {
+  LevvEmptyState,
+  LevvNotice,
+  LevvPage,
+  LevvPageHeader,
+  LevvSearchField,
+  LevvSelect,
+  LevvStatusBadge,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,45 +64,33 @@ type ChangeType =
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const newEngagementCards = [
+const newEngagementCards: {
+  id: string
+  title: string
+  subtitle: string
+  route: string
+  icon: ElementType
+}[] = [
   {
     id: 'job',
     title: 'Job posting',
     subtitle: 'Hire a contractor',
     route: '/requests/new/job/create/define',
-    icon: <BriefcaseBusiness className="h-5 w-5" />,
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-100',
-    cardBg: 'bg-gradient-to-br from-emerald-50 to-teal-50/60',
-    cardBorder: 'border-emerald-200',
-    cardHover: 'hover:border-emerald-300 hover:shadow-emerald-100/80',
-    accent: 'bg-emerald-500',
+    icon: BriefcaseBusiness,
   },
   {
     id: 'sow',
     title: 'Statement of work',
     subtitle: 'Services / outcomes',
     route: '/requests/new/sow',
-    icon: <FileText className="h-5 w-5" />,
-    color: 'text-violet-700',
-    bg: 'bg-violet-100',
-    cardBg: 'bg-gradient-to-br from-violet-50 to-purple-50/60',
-    cardBorder: 'border-violet-200',
-    cardHover: 'hover:border-violet-300 hover:shadow-violet-100/80',
-    accent: 'bg-violet-500',
+    icon: FileText,
   },
   {
     id: 'profile-worker',
     title: 'Track a worker',
     subtitle: 'Visibility only',
     route: '/requests/new/profile',
-    icon: <UserRound className="h-5 w-5" />,
-    color: 'text-amber-700',
-    bg: 'bg-amber-100',
-    cardBg: 'bg-gradient-to-br from-amber-50 to-orange-50/60',
-    cardBorder: 'border-amber-200',
-    cardHover: 'hover:border-amber-300 hover:shadow-amber-100/80',
-    accent: 'bg-amber-500',
+    icon: UserRound,
   },
 ]
 
@@ -185,22 +181,6 @@ type TabId = (typeof tabs)[number]['id']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function typePillStyles(type: WorkRecordType) {
-  switch (type) {
-    case 'contingent': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-    case 'sow': return 'bg-violet-50 text-violet-700 border-violet-100'
-    case 'profile': return 'bg-amber-50 text-amber-700 border-amber-100'
-  }
-}
-
-function typeAccentBar(type: WorkRecordType) {
-  switch (type) {
-    case 'contingent': return 'bg-emerald-400'
-    case 'sow': return 'bg-violet-400'
-    case 'profile': return 'bg-amber-400'
-  }
-}
-
 function typeCode(type: WorkRecordType) {
   return type === 'contingent' ? 'WO' : type === 'sow' ? 'SOW' : 'PW'
 }
@@ -214,12 +194,39 @@ function formatFileSize(bytes: number): string {
 function fileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext ?? ''))
-    return <Image className="h-4 w-4 text-blue-400" />
+    return <Image className="h-4 w-4 text-slate-400" />
   if (['xls', 'xlsx', 'csv'].includes(ext ?? ''))
-    return <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+    return <FileSpreadsheet className="h-4 w-4 text-slate-400" />
   if (['pdf'].includes(ext ?? ''))
-    return <FileText className="h-4 w-4 text-red-400" />
+    return <FileText className="h-4 w-4 text-slate-400" />
   return <File className="h-4 w-4 text-slate-400" />
+}
+
+/** The plain choice surface: white, bordered, 12px, lifts a pixel on hover. */
+const choiceClass =
+  'levv-press group rounded-[12px] border border-[var(--line)] bg-white text-left outline-none hover:-translate-y-px hover:border-[var(--line-strong)] focus-visible:border-[var(--accent)] focus-visible:shadow-[0_0_0_3px_var(--focus)]'
+
+const textareaClass =
+  'w-full resize-none rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-[13px] text-slate-900 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-slate-400 hover:border-slate-400/60 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus)]'
+
+const underlineTab = (active: boolean) =>
+  `levv-press -mb-px inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-[13px] font-medium outline-none focus-visible:text-slate-950 ${
+    active
+      ? 'border-blue-600 text-slate-950'
+      : 'border-transparent text-slate-500 hover:text-slate-900'
+  }`
+
+function NovaMark({ size = 'md' }: { size?: 'sm' | 'md' }) {
+  return (
+    <span
+      aria-hidden
+      className={`flex shrink-0 items-center justify-center bg-[var(--rail)] text-[var(--nova)] ${
+        size === 'sm' ? 'h-5 w-5 rounded' : 'h-8 w-8 rounded-lg'
+      }`}
+    >
+      <Sparkles className={size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} />
+    </span>
+  )
 }
 
 // ─── Attachment Upload ────────────────────────────────────────────────────────
@@ -253,10 +260,10 @@ function AttachmentUpload() {
           addFiles(e.dataTransfer.files)
         }}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer items-center gap-2.5 rounded-lg border-2 border-dashed px-4 py-3 text-sm transition-all select-none ${
+        className={`flex cursor-pointer select-none items-center gap-2.5 rounded-lg border border-dashed px-3.5 py-3 text-[13px] transition-[background-color,border-color,color] duration-150 ease-out ${
           dragging
-            ? 'border-blue-400 bg-blue-50 text-blue-600'
-            : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300 hover:bg-white'
+            ? 'border-blue-600 bg-blue-50 text-blue-700'
+            : 'border-[var(--line-strong)] bg-[var(--surface-sunken)] text-slate-500 hover:border-slate-400/60 hover:bg-white'
         }`}
       >
         <Paperclip className="h-4 w-4 flex-shrink-0" />
@@ -271,29 +278,30 @@ function AttachmentUpload() {
       </div>
 
       {files.length > 0 && (
-        <div className="space-y-1.5">
+        <ul className="divide-y divide-[var(--line)] rounded-lg border border-[var(--line)]">
           {files.map((file, i) => (
-            <div
+            <li
               key={`${file.name}-${i}`}
-              className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="flex items-center gap-2.5 px-3 py-2"
             >
               <span className="flex-shrink-0">{fileIcon(file.name)}</span>
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-700">
                 {file.name}
               </span>
-              <span className="flex-shrink-0 text-[11px] text-slate-400">
+              <span className="flex-shrink-0 text-xs tabular-nums text-slate-500">
                 {formatFileSize(file.size)}
               </span>
               <button
                 type="button"
+                aria-label={`Remove ${file.name}`}
                 onClick={e => { e.stopPropagation(); removeFile(i) }}
-                className="ml-1 flex-shrink-0 rounded p-0.5 text-slate-300 transition hover:bg-slate-100 hover:text-red-400"
+                className="levv-press ml-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-rose-600"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )
@@ -303,15 +311,15 @@ function AttachmentUpload() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="mb-3 text-[13px] font-semibold text-slate-800">{children}</h3>
+    <h3 className="text-sm font-semibold text-slate-950">{children}</h3>
   )
 }
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
-    <div className="mb-1">
+    <div className="mb-1.5">
       <label className="text-[13px] font-medium text-slate-700">{children}</label>
-      {hint && <p className="text-[11px] text-slate-400 mt-0.5">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
     </div>
   )
 }
@@ -325,24 +333,17 @@ function TextInput({ placeholder, defaultValue, type = 'text', readOnly }: {
       placeholder={placeholder}
       defaultValue={defaultValue}
       readOnly={readOnly}
-      className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition
-        ${readOnly
-          ? 'border-slate-100 bg-slate-50 text-slate-500 cursor-default'
-          : 'border-slate-200 bg-white text-slate-900 focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
-        }`}
+      className={`${levvUi.input} ${readOnly ? 'levv-readonly-input cursor-default' : ''}`}
     />
   )
 }
 
 function SelectInput({ options, placeholder }: { options: string[]; placeholder?: string }) {
   return (
-    <div className="relative">
-      <select className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map(o => <option key={o}>{o}</option>)}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-    </div>
+    <LevvSelect>
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map(o => <option key={o}>{o}</option>)}
+    </LevvSelect>
   )
 }
 
@@ -351,28 +352,62 @@ function TextAreaInput({ placeholder, rows = 3 }: { placeholder?: string; rows?:
     <textarea
       placeholder={placeholder}
       rows={rows}
-      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 resize-none"
+      className={textareaClass}
     />
   )
 }
 
 function NovaHint({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
-      <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
-      <p className="text-[12px] text-blue-800 leading-relaxed">
-        <span className="font-semibold">Nova AI: </span>{children}
+    <div className="flex items-start gap-2.5 rounded-lg bg-[var(--surface-sunken)] px-3 py-2.5">
+      <NovaMark size="sm" />
+      <p className="text-[13px] leading-relaxed text-slate-700">
+        <span className="font-semibold text-slate-900">Nova AI: </span>{children}
       </p>
     </div>
   )
 }
 
 function FieldRow({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3">{children}</div>
+  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>
 }
 
 function FormDivider() {
-  return <hr className="border-slate-100" />
+  return <hr className="border-[var(--line)]" />
+}
+
+function RecordSummary({
+  code,
+  title,
+  reference,
+  facts,
+}: {
+  code?: string
+  title: string
+  reference: string
+  facts: [string, React.ReactNode][]
+}) {
+  return (
+    <div className="rounded-lg bg-[var(--surface-sunken)] px-4 py-3.5 text-[13px]">
+      <div className="flex items-center gap-2">
+        {code ? (
+          <span className="rounded border border-[var(--line)] bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+            {code}
+          </span>
+        ) : null}
+        <p className="font-semibold text-slate-950">{title}</p>
+      </div>
+      <p className="mt-0.5 text-xs text-slate-500">{reference}</p>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {facts.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-slate-500">{label}</dt>
+            <dd className="text-right font-medium tabular-nums text-slate-900">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  )
 }
 
 // ─── Change type checkbox selector ───────────────────────────────────────────
@@ -387,23 +422,25 @@ function ChangeTypeSelector({
   onToggle: (id: ChangeType) => void
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       {options.map(opt => {
         const active = selected.has(opt.id)
         return (
           <button
             key={opt.id}
             type="button"
+            role="checkbox"
+            aria-checked={active}
             onClick={() => onToggle(opt.id)}
-            className={`rounded-xl border p-3 text-left transition-all ${
+            className={`levv-press rounded-lg border p-3 text-left outline-none focus-visible:shadow-[0_0_0_3px_var(--focus)] ${
               active
-                ? 'border-blue-300 bg-blue-50'
-                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                ? 'border-blue-600 bg-blue-50/60'
+                : 'border-[var(--line)] bg-white hover:border-[var(--line-strong)] hover:bg-slate-50'
             }`}
           >
-            <div className="flex items-start gap-2">
-              <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${
-                active ? 'border-blue-500 bg-blue-500' : 'border-slate-300 bg-white'
+            <div className="flex items-start gap-2.5">
+              <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors duration-150 ${
+                active ? 'border-blue-600 bg-blue-600' : 'border-[var(--line-strong)] bg-white'
               }`}>
                 {active && (
                   <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
@@ -412,10 +449,10 @@ function ChangeTypeSelector({
                 )}
               </div>
               <div>
-                <p className={`text-[13px] font-medium leading-tight ${active ? 'text-blue-900' : 'text-slate-800'}`}>
+                <p className="text-[13px] font-medium leading-tight text-slate-900">
                   {opt.label}
                 </p>
-                <p className={`mt-0.5 text-[11px] ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+                <p className="mt-0.5 text-xs text-slate-500">
                   {opt.sub}
                 </p>
               </div>
@@ -466,43 +503,41 @@ function SuccessScreen({
   const refNumber = `CR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
 
   return (
-    <div className="flex flex-col items-center px-8 py-10 text-center">
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-        <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-      </div>
-      <h3 className="text-[20px] font-semibold text-slate-900">Change request submitted</h3>
-      <p className="mt-1.5 max-w-sm text-sm text-slate-500 leading-relaxed">
-        Your request for <span className="font-medium text-slate-700">{recordTitle}</span> has been
+    <div className="flex flex-col items-center px-2 pb-2 pt-4 text-center sm:px-6">
+      <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={1.75} />
+      <h3 className="mt-4 text-lg font-semibold text-slate-950">Change request submitted</h3>
+      <p className="mt-1 max-w-sm text-sm leading-relaxed text-slate-500">
+        Your request for <span className="font-medium text-slate-800">{recordTitle}</span> has been
         received and is pending review.
       </p>
 
-      <div className="mt-6 w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left space-y-2.5">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">Reference</span>
-          <span className="font-mono font-semibold text-slate-800">{refNumber}</span>
+      <dl className="mt-6 w-full divide-y divide-[var(--line)] rounded-lg border border-[var(--line)] text-left text-[13px]">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <dt className="text-slate-500">Reference</dt>
+          <dd className="font-mono font-semibold text-slate-900">{refNumber}</dd>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">Type</span>
-          <span className="font-medium text-slate-800">{changeType}</span>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <dt className="text-slate-500">Type</dt>
+          <dd className="font-medium text-slate-900">{changeType}</dd>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">Status</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-700 border border-amber-100">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-            Pending approval
-          </span>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <dt className="text-slate-500">Status</dt>
+          <dd>
+            <LevvStatusBadge tone="amber">Pending approval</LevvStatusBadge>
+          </dd>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">Submitted</span>
-          <span className="font-medium text-slate-800">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <dt className="text-slate-500">Submitted</dt>
+          <dd className="font-medium tabular-nums text-slate-900">
             {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
+          </dd>
         </div>
-      </div>
+      </dl>
 
-      <div className="mt-5 w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left">
-        <p className="text-[12px] text-blue-800 leading-relaxed">
-          <span className="font-semibold">What happens next: </span>
+      <div className="mt-4 flex w-full items-start gap-2.5 rounded-lg bg-[var(--surface-sunken)] px-3 py-2.5 text-left">
+        <NovaMark size="sm" />
+        <p className="text-[13px] leading-relaxed text-slate-700">
+          <span className="font-semibold text-slate-900">What happens next: </span>
           Nova will route this to the appropriate approvers based on change type and magnitude. You'll receive an email notification when action is taken.
         </p>
       </div>
@@ -510,7 +545,7 @@ function SuccessScreen({
       <button
         type="button"
         onClick={onClose}
-        className="mt-6 w-full rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-black"
+        className={`${levvUi.primaryButton} mt-6 w-full`}
       >
         Done
       </button>
@@ -541,16 +576,16 @@ function ContingentForm({ record }: { record: WorkRecord }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] space-y-1.5">
-        <p className="font-semibold text-slate-900">{record.title}</p>
-        <p className="text-slate-400 text-[11px]">WO-2024-3291 (Rev. 2) · {record.supplier}</p>
-        <div className="pt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-slate-500">Bill rate (ST)</span><span className="text-right font-medium text-slate-800">{record.rate}</span>
-          <span className="text-slate-500">Rate card max (ST)</span><span className="text-right font-medium text-slate-800">{record.rateMax}</span>
-          <span className="text-slate-500">Engagement</span><span className="text-right font-medium text-slate-800">{record.engagement}</span>
-          <span className="text-slate-500">Committed spend</span><span className="text-right font-medium text-slate-800">{record.committedSpend}</span>
-        </div>
-      </div>
+      <RecordSummary
+        title={record.title}
+        reference={`WO-2024-3291 (Rev. 2) · ${record.supplier}`}
+        facts={[
+          ['Bill rate (ST)', record.rate],
+          ['Rate card max (ST)', record.rateMax],
+          ['Engagement', record.engagement],
+          ['Committed spend', record.committedSpend],
+        ]}
+      />
 
       <div>
         <FieldLabel>What needs to change?</FieldLabel>
@@ -703,19 +738,17 @@ function SowForm({ record }: { record: WorkRecord }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] space-y-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-violet-50 text-violet-700 border border-violet-100 px-1.5 py-0.5 rounded">SOW</span>
-          <p className="font-semibold text-slate-900">{record.title}</p>
-        </div>
-        <p className="text-slate-400 text-[11px]">SOW-2024-0847 (v2) · {record.supplier}</p>
-        <div className="pt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-slate-500">Max budget</span><span className="text-right font-medium text-slate-800">{record.maxBudget}</span>
-          <span className="text-slate-500">Spent to date</span><span className="text-right font-medium text-slate-800">{record.spentToDate}</span>
-          <span className="text-slate-500">Engagement</span><span className="text-right font-medium text-slate-800">{record.engagement}</span>
-          <span className="text-slate-500">Workers</span><span className="text-right font-medium text-slate-800">{record.workers} active</span>
-        </div>
-      </div>
+      <RecordSummary
+        code="SOW"
+        title={record.title}
+        reference={`SOW-2024-0847 (v2) · ${record.supplier}`}
+        facts={[
+          ['Max budget', record.maxBudget],
+          ['Spent to date', record.spentToDate],
+          ['Engagement', record.engagement],
+          ['Workers', `${record.workers} active`],
+        ]}
+      />
 
       <div>
         <FieldLabel>What do you need to change?</FieldLabel>
@@ -883,19 +916,17 @@ function ProfileForm({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] space-y-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded">PW</span>
-          <p className="font-semibold text-slate-900">{record.title}</p>
-        </div>
-        <p className="text-slate-400 text-[11px]">PW-2024-0388 · Strategy</p>
-        <div className="pt-1 grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-slate-500">Site</span><span className="text-right font-medium text-slate-800">Toronto, ON</span>
-          <span className="text-slate-500">Department</span><span className="text-right font-medium text-slate-800">Strategy</span>
-          <span className="text-slate-500">Since</span><span className="text-right font-medium text-slate-800">Mar 1, 2024</span>
-          <span className="text-slate-500">Status</span><span className="text-right font-medium text-slate-800">Active — ongoing</span>
-        </div>
-      </div>
+      <RecordSummary
+        code="PW"
+        title={record.title}
+        reference="PW-2024-0388 · Strategy"
+        facts={[
+          ['Site', 'Toronto, ON'],
+          ['Department', 'Strategy'],
+          ['Since', 'Mar 1, 2024'],
+          ['Status', 'Active — ongoing'],
+        ]}
+      />
 
       <div>
         <FieldLabel>What needs to change?</FieldLabel>
@@ -978,14 +1009,14 @@ function ProfileForm({
         Profile worker changes are auto-approved and take effect immediately. All changes are logged in the audit trail.
       </NovaHint>
 
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <button type="button" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+      <div className="flex items-center justify-end gap-2 pt-2">
+        <button type="button" className={levvUi.secondaryButton}>
           Cancel
         </button>
         <button
           type="button"
           onClick={onSubmit}
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black"
+          className={levvUi.primaryButton}
         >
           Save changes
         </button>
@@ -1024,46 +1055,49 @@ function ChangeRequestModal({
       : 'Profile worker update'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-4 backdrop-blur-[2px] sm:items-center">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-4 duration-200 animate-in fade-in sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Change request forms"
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-xl duration-200 animate-in fade-in zoom-in-95"
+      >
 
         {/* Header */}
         {!submitted && (
-          <div className="flex-shrink-0 border-b border-slate-100 px-6 pt-5 pb-0">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-[17px] font-semibold text-slate-900">Change request forms</h2>
+          <div className="flex-shrink-0 border-b border-[var(--line)] px-6 pt-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-slate-950">Change request forms</h2>
                 <p className="mt-0.5 text-[13px] text-slate-500">
                   Tell us what needs to change. Procurement will review and action it directly.
+                </p>
+                <p className="mt-3 text-xs text-slate-500">
+                  Requests / Change request /{' '}
+                  <span className="text-slate-700">
+                    {activeModalTab === 'contingent' ? 'Contingent worker' : activeModalTab === 'sow' ? 'Statement of work' : 'Profile worker'}
+                  </span>
                 </p>
               </div>
               <button
                 type="button"
+                aria-label="Close"
                 onClick={onClose}
-                className="ml-4 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className={`${levvUi.ghostButton} -mr-2 w-9 px-0`}
               >
-                <X className="h-5 w-5" />
+                <X />
               </button>
             </div>
 
-            <p className="mt-3 text-[11px] text-slate-400">
-              Requests / Change request /{' '}
-              <span className="text-slate-600">
-                {activeModalTab === 'contingent' ? 'Contingent worker' : activeModalTab === 'sow' ? 'Statement of work' : 'Profile worker'}
-              </span>
-            </p>
-
-            <div className="mt-3 flex gap-1">
+            <div role="tablist" aria-label="Change request type" className="mt-3 flex gap-5 overflow-x-auto">
               {modalTabs.map(tab => (
                 <button
                   key={tab.id}
                   type="button"
+                  role="tab"
+                  aria-selected={activeModalTab === tab.id}
                   onClick={() => { setActiveModalTab(tab.id); setSubmitted(false) }}
-                  className={`rounded-t-lg px-4 py-2 text-[13px] font-medium transition-colors border border-b-0 ${
-                    activeModalTab === tab.id
-                      ? 'border-slate-200 bg-white text-slate-900'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
-                  }`}
+                  className={underlineTab(activeModalTab === tab.id)}
                 >
                   {tab.label}
                 </button>
@@ -1074,13 +1108,14 @@ function ChangeRequestModal({
 
         {/* Close button for success screen */}
         {submitted && (
-          <div className="flex-shrink-0 flex justify-end px-6 pt-5">
+          <div className="flex flex-shrink-0 justify-end px-4 pt-4">
             <button
               type="button"
+              aria-label="Close"
               onClick={onClose}
-              className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              className={`${levvUi.ghostButton} w-9 px-0`}
             >
-              <X className="h-5 w-5" />
+              <X />
             </button>
           </div>
         )}
@@ -1095,10 +1130,10 @@ function ChangeRequestModal({
             />
           ) : (
             <>
-              <h3 className="mb-1 text-[20px] font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-slate-950">
                 {changeTypeLabel}
               </h3>
-              <p className="mb-5 text-[13px] text-slate-500">
+              <p className="mb-5 mt-0.5 text-[13px] text-slate-500">
                 {activeModalTab === 'contingent'
                   ? 'Tell us what needs to change. Procurement will review and execute the work order revision.'
                   : activeModalTab === 'sow'
@@ -1117,18 +1152,18 @@ function ChangeRequestModal({
 
         {/* Footer — only for contingent and SOW, and only before submission */}
         {!submitted && activeModalTab !== 'profile' && (
-          <div className="flex-shrink-0 flex items-center justify-between border-t border-slate-100 px-6 py-4">
+          <div className="flex flex-shrink-0 items-center justify-between gap-2 border-t border-[var(--line)] px-6 py-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              className={levvUi.secondaryButton}
             >
               Save as draft
             </button>
             <button
               type="button"
               onClick={() => setSubmitted(true)}
-              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-black"
+              className={levvUi.primaryButton}
             >
               Submit change request
             </button>
@@ -1153,33 +1188,41 @@ function NovaModal({ onClose }: { onClose: () => void }) {
   ]
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] sm:items-center">
-      <div className="w-full max-w-2xl rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
-        <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-              <MessageSquare className="h-5 w-5" />
-            </div>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/40 p-4 duration-200 animate-in fade-in sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ask Nova"
+        className="w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--line)] bg-white shadow-xl duration-200 animate-in fade-in zoom-in-95"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-6 py-5">
+          <div className="flex items-center gap-3">
+            <NovaMark />
             <div>
-              <p className="text-[17px] font-semibold text-slate-900">Ask Nova</p>
-              <p className="mt-0.5 text-sm text-slate-500">Policy, rate, approval, or process questions</p>
+              <h2 className="text-base font-semibold text-slate-950">Ask Nova</h2>
+              <p className="text-[13px] text-slate-500">Policy, rate, approval, or process questions</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100">
-            <X className="h-5 w-5" />
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className={`${levvUi.ghostButton} -mr-2 w-9 px-0`}
+          >
+            <X />
           </button>
         </div>
 
-        <div className="space-y-4 px-6 py-5">
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Try asking</p>
+        <div className="space-y-5 px-6 py-5">
+          <div>
+            <p className="mb-2 text-xs text-slate-500">Try asking</p>
             <div className="flex flex-wrap gap-2">
               {prompts.map(p => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => { setQuestion(p); setSubmitted(false) }}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-300"
+                  className="levv-press rounded-lg border border-[var(--line)] bg-white px-3 py-1.5 text-left text-[13px] text-slate-700 hover:border-[var(--line-strong)] hover:bg-slate-50 hover:text-slate-900"
                 >
                   {p}
                 </button>
@@ -1188,36 +1231,35 @@ function NovaModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Your question</label>
+            <label htmlFor="nova-question" className="mb-1.5 block text-[13px] font-medium text-slate-700">Your question</label>
             <textarea
+              id="nova-question"
               value={question}
               onChange={e => { setQuestion(e.target.value); setSubmitted(false) }}
               placeholder="Type your question for Nova..."
               rows={4}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 resize-none"
+              className={textareaClass}
             />
           </div>
 
           {submitted && (
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <LevvNotice tone="emerald" icon={CheckCircle2}>
               Nova has received your question and will respond shortly.
-            </div>
+            </LevvNotice>
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-6 py-4">
+          <button type="button" onClick={onClose} className={levvUi.secondaryButton}>
             Close
           </button>
           <button
             type="button"
             onClick={() => question.trim() && setSubmitted(true)}
             disabled={!question.trim()}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-              question.trim() ? 'bg-slate-900 text-white hover:bg-black' : 'cursor-not-allowed bg-slate-100 text-slate-400'
-            }`}
+            className={levvUi.primaryButton}
           >
-            <Send className="h-4 w-4" />
+            <Send />
             Ask Nova
           </button>
         </div>
@@ -1252,162 +1294,149 @@ export default function NewRequestPage() {
   }, [activeTab, search])
 
   return (
-    <MotionWrapper>
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+    <LevvPage width="standard">
+      <div className="space-y-10">
+        <LevvPageHeader
+          title="New request"
+          description="Start a new engagement or request a change to existing work."
+        />
 
-          {/* Page header */}
-          <div className="border-b border-slate-100 px-8 py-7">
-            <h1 className="text-[28px] font-semibold tracking-tight text-slate-900">New request</h1>
-            <p className="mt-1 text-sm text-slate-500">Start a new engagement or request a change to existing work.</p>
+        {/* ── New engagement ─────────────────────────────────────────── */}
+        <section aria-labelledby="new-engagement-heading" className="space-y-3">
+          <h2 id="new-engagement-heading" className="text-[15px] font-semibold text-slate-950">
+            New engagement
+          </h2>
+
+          <button
+            type="button"
+            onClick={() => router.push('/requests/new/guided')}
+            className={`${choiceClass} flex w-full items-center gap-3.5 px-4 py-3.5`}
+          >
+            <NovaMark />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-slate-950">Help me figure out what I need</span>
+              <span className="mt-0.5 block text-[13px] text-slate-500">Nova will ask a few questions and route you to the right path</span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-slate-400 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-slate-700" />
+          </button>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {newEngagementCards.map(card => {
+              const Icon = card.icon
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => router.push(card.route)}
+                  className={`${choiceClass} flex flex-col p-4`}
+                >
+                  <span className="flex w-full items-center justify-between">
+                    <Icon className="h-4 w-4 text-slate-500" />
+                    <ArrowRight className="h-4 w-4 text-slate-300 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-slate-600" />
+                  </span>
+                  <span className="mt-6 text-sm font-semibold text-slate-950">{card.title}</span>
+                  <span className="mt-0.5 text-[13px] text-slate-500">{card.subtitle}</span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ── Change existing work ───────────────────────────────────── */}
+        <section aria-labelledby="change-work-heading" className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <h2 id="change-work-heading" className="text-[15px] font-semibold text-slate-950">
+              Change existing work
+            </h2>
+            <button
+              type="button"
+              onClick={() => router.push('/requests')}
+              className="levv-press rounded-md text-[13px] font-medium text-blue-700 outline-none hover:text-blue-800 focus-visible:shadow-[0_0_0_3px_var(--focus)]"
+            >
+              View all workforce
+            </button>
           </div>
 
-          <div className="space-y-8 px-8 py-8">
-
-            {/* ── NEW ENGAGEMENT ─────────────────────────────────────────── */}
-            <section className="space-y-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">New engagement</p>
-
-              {/* Nova card */}
-              <button
-                type="button"
-                onClick={() => router.push('/requests/new/guided')}
-                className="group flex w-full items-center justify-between rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-blue-50/60 px-5 py-4 text-left transition-all hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md hover:shadow-sky-100/80"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-semibold text-slate-900">Help me figure out what I need</p>
-                    <p className="mt-0.5 text-sm text-slate-500">Nova will ask a few questions and route you to the right path</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5" />
-              </button>
-
-              {/* 3 tiles */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {newEngagementCards.map(card => (
+          <div className="flex flex-col-reverse gap-3 border-b border-[var(--line)] sm:flex-row sm:items-end sm:justify-between">
+            <div role="tablist" aria-label="Record type" className="flex gap-5 overflow-x-auto">
+              {tabs.map(tab => {
+                const count = counts[tab.id]
+                const active = activeTab === tab.id
+                return (
                   <button
-                    key={card.id}
+                    key={tab.id}
                     type="button"
-                    onClick={() => router.push(card.route)}
-                    className={`group rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${card.cardBg} ${card.cardBorder} ${card.cardHover}`}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={underlineTab(active)}
                   >
-                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${card.bg} ${card.color} transition-colors`}>
-                      {card.icon}
-                    </div>
-                    <p className="text-[14px] font-semibold text-slate-900">{card.title}</p>
-                    <p className="mt-0.5 text-[12px] text-slate-500">{card.subtitle}</p>
-                    <div className={`mt-3 h-0.5 w-8 rounded-full ${card.accent} opacity-50 transition-all group-hover:w-12 group-hover:opacity-100`} />
+                    {tab.label}
+                    <span className={`tabular-nums ${active ? 'text-slate-500' : 'text-slate-400'}`}>{count}</span>
                   </button>
-                ))}
-              </div>
-            </section>
-
-            {/* ── CHANGE EXISTING WORK ───────────────────────────────────── */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Change existing work</p>
-                <button
-                  type="button"
-                  onClick={() => router.push('/requests')}
-                  className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
-                >
-                  View all workforce
-                </button>
-              </div>
-
-              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 md:p-5">
-
-                {/* Tabs */}
-                <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 pb-3">
-                  {tabs.map(tab => {
-                    const count = counts[tab.id]
-                    const active = activeTab === tab.id
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`relative px-3 py-1.5 text-sm font-medium transition-all ${
-                          active ? 'text-slate-900' : 'text-slate-400 hover:text-slate-700'
-                        }`}
-                      >
-                        {tab.label} <span className={active ? 'text-slate-600' : 'text-slate-300'}>{count}</span>
-                        {active && (
-                          <span className="absolute -bottom-3 left-0 right-0 h-0.5 rounded-full bg-blue-500" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Search */}
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search by name, supplier, or ID..."
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                  />
-                </div>
-
-                {/* Records list */}
-                <div className="space-y-2">
-                  {filtered.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-                      <p className="text-sm font-medium text-slate-600">No matching records</p>
-                      <p className="mt-1 text-sm text-slate-400">Try a different search or switch tabs.</p>
-                    </div>
-                  ) : (
-                    filtered.map(record => (
-                      <div
-                        key={record.id}
-                        className="flex items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white"
-                      >
-                        {/* Colored accent bar */}
-                        <div className={`w-1 self-stretch flex-shrink-0 ${typeAccentBar(record.type)}`} />
-
-                        <div className={`flex h-8 w-10 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-bold ${typePillStyles(record.type)}`}>
-                          {typeCode(record.type)}
-                        </div>
-                        <div className="min-w-0 flex-1 py-3 pr-1">
-                          <p className="truncate text-[14px] font-semibold text-slate-900">{record.title}</p>
-                          <p className="mt-0.5 truncate text-[12px] text-slate-400">
-                            {record.type === 'sow'
-                              ? `${record.maxBudget} · ${record.workers} worker${record.workers !== 1 ? 's' : ''} · ${record.meta}`
-                              : `${record.supplier} · ${record.meta}`}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRecord(record)}
-                          className="mr-3 flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                        >
-                          Request change
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Nova bar */}
-                <button
-                  type="button"
-                  onClick={() => setShowNova(true)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <span className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
-                  <span className="text-sm text-slate-400">Ask Nova — policy questions, rate guidance, process help...</span>
-                </button>
-
-              </div>
-            </section>
+                )
+              })}
+            </div>
+            <LevvSearchField
+              className="w-full sm:mb-2 sm:w-72"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, supplier, or ID..."
+              aria-label="Search by name, supplier, or ID"
+            />
           </div>
-        </div>
+
+          {/* Records list */}
+          <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+            {filtered.length === 0 ? (
+              <LevvEmptyState icon={Search} title="No matching records">
+                Try a different search or switch tabs.
+              </LevvEmptyState>
+            ) : (
+              <ul className="divide-y divide-[var(--line)]">
+                {filtered.map(record => (
+                  <li
+                    key={record.id}
+                    className="flex flex-col gap-2.5 px-4 py-3 transition-colors duration-150 hover:bg-[var(--surface-sunken)] sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <span className="flex h-6 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--surface-sunken)] text-[11px] font-semibold text-slate-600">
+                        {typeCode(record.type)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-950">{record.title}</p>
+                        <p className="mt-0.5 truncate text-xs tabular-nums text-slate-500">
+                          {record.type === 'sow'
+                            ? `${record.maxBudget} · ${record.workers} worker${record.workers !== 1 ? 's' : ''} · ${record.meta}`
+                            : `${record.supplier} · ${record.meta}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecord(record)}
+                      className={`${levvUi.secondaryButton} ml-[52px] self-start sm:ml-0 sm:self-auto`}
+                    >
+                      Request change
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Nova bar */}
+          <button
+            type="button"
+            onClick={() => setShowNova(true)}
+            className="levv-press flex h-10 w-full items-center gap-2.5 rounded-lg border border-[var(--line-strong)] bg-white pl-1.5 pr-3 text-left outline-none hover:border-slate-400/60 focus-visible:border-[var(--accent)] focus-visible:shadow-[0_0_0_3px_var(--focus)]"
+          >
+            <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)]">
+              <Sparkles className="h-3.5 w-3.5" />
+            </span>
+            <span className="truncate text-[13px] text-slate-500">Ask Nova — policy questions, rate guidance, process help...</span>
+          </button>
+        </section>
       </div>
 
       {/* Modals */}
@@ -1415,6 +1444,6 @@ export default function NewRequestPage() {
         <ChangeRequestModal record={selectedRecord} onClose={() => setSelectedRecord(null)} />
       )}
       {showNova && <NovaModal onClose={() => setShowNova(false)} />}
-    </MotionWrapper>
+    </LevvPage>
   )
 }

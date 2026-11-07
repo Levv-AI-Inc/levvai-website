@@ -9,7 +9,7 @@ export const fieldLabelClass = 'mb-1.5 block text-xs font-semibold text-slate-50
 export const inputClass =
   'w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-[7px] text-[13px] focus:border-cyan-600 focus:bg-white focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-600 read-only:cursor-default';
 const buttonBase =
-  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 disabled:cursor-not-allowed disabled:opacity-45';
+  'levv-press inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 disabled:cursor-not-allowed disabled:opacity-45';
 /** An input with a validation error: rose whether or not it has focus. */
 export const invalidInputClass = inputClass.replace('border-slate-200', 'border-rose-500').replace('focus:border-cyan-600', 'focus:border-rose-500');
 export const buttonClass = `${buttonBase} border-slate-200 bg-white text-slate-900 hover:border-cyan-600`;

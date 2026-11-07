@@ -101,10 +101,16 @@ export default function TenantLoginPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin)
-      setDeveloperMode(window.localStorage.getItem('developer') === 'true')
+      const host = normalizeHost(window.location.hostname)
+      // A local dev server has no tenant subdomain, so it signs in without the developer flag.
+      const localDev =
+        process.env.NODE_ENV === 'development' &&
+        (host === 'localhost' || host === '127.0.0.1')
+      setDeveloperMode(
+        localDev || window.localStorage.getItem('developer') === 'true'
+      )
       setDeveloperModeChecked(true)
 
-      const host = normalizeHost(window.location.hostname)
       const baseDomain = normalizeHost(
         process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'levvai.com'
       )

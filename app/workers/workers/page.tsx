@@ -1,306 +1,349 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Search,
-  User,
-  MapPin,
-  Clock,
-  X,
-  ChevronRight,
-  FileText,
-  Calendar,
-  Sparkles,
-  ChevronDown,
-  Filter,
-  ArrowRight,
-  Eye,
-  ShieldCheck,
-  Briefcase,
   AlertCircle,
+  ArrowRight,
+  Calendar,
+  ChevronRight,
+  Mail,
+  MapPin,
+  UserRound,
   Users,
-  Fingerprint
+  X,
 } from "lucide-react";
-import { DEFAULT_WORKER_STATUS, MOCK_WORKERS } from "@/lib/mockWorkers";
+import { DEFAULT_WORKER_STATUS, MOCK_WORKERS, type MockWorker } from "@/lib/mockWorkers";
+import {
+  LevvEmptyState,
+  LevvLifecycle,
+  LevvNotice,
+  LevvNovaPrompt,
+  LevvPage,
+  LevvPageHeader,
+  LevvSearchField,
+  LevvStat,
+  LevvStatStrip,
+  LevvStatusBadge,
+  LevvToolbar,
+  levvUi,
+  type LevvLifecycleStage,
+  type LevvTone,
+} from "@/components/ui/levv-app";
 
 const workers = MOCK_WORKERS;
+const STATUSES = ["All", "Active", "Onboarding", "Offboarded"] as const;
+
+const COMPLIANCE_TONE: Record<MockWorker["compliance"], LevvTone> = {
+  Compliant: "emerald",
+  "Review Required": "amber",
+  "Non-Compliant": "rose",
+};
+
+const LIFECYCLE: Record<MockWorker["status"], { stage: LevvLifecycleStage; closed: boolean }> = {
+  Onboarding: { stage: "Onboarding", closed: false },
+  Active: { stage: "In engagement", closed: false },
+  Offboarded: { stage: "Offboarding", closed: true },
+};
+
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .join("");
 
 export default function WorkersIndexPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>(DEFAULT_WORKER_STATUS);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState<MockWorker | null>(null);
   const [aiInput, setAiInput] = useState("");
 
-  const statuses = ["All", "Active", "Onboarding", "Offboarded"];
-
-  // --- Logic: Filtering ---
   const filteredWorkers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return workers.filter((w) => {
       const matchesSearch =
-        w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        w.cwsId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        w.role.toLowerCase().includes(searchTerm.toLowerCase());
-
+        w.name.toLowerCase().includes(term) ||
+        w.cwsId.toLowerCase().includes(term) ||
+        w.role.toLowerCase().includes(term);
       const matchesStatus = selectedStatus === "All" || w.status === selectedStatus;
-
       return matchesSearch && matchesStatus;
     });
   }, [searchTerm, selectedStatus]);
 
-  const nonCompliantCount = workers.filter(w => w.compliance !== "Compliant" && w.status !== "Offboarded").length;
+  const counts = useMemo(
+    () => ({
+      active: workers.filter((w) => w.status === "Active").length,
+      onboarding: workers.filter((w) => w.status === "Onboarding").length,
+      alerts: workers.filter((w) => w.compliance !== "Compliant" && w.status !== "Offboarded").length,
+    }),
+    [],
+  );
+
+  const filtersChanged = searchTerm !== "" || selectedStatus !== DEFAULT_WORKER_STATUS;
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen text-slate-900 font-sans relative overflow-hidden">
-      <div className="max-w-7xl mx-auto">
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvPageHeader
+          title="Workers"
+          description="Master directory of contingent and SOW workforce records."
+          actions={
+            <LevvNovaPrompt
+              className="w-full sm:w-96"
+              placeholder="Ask Nova to audit compliance..."
+              value={aiInput}
+              onChange={setAiInput}
+            />
+          }
+        />
 
-        {/* Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Workers</h1>
-            <p className="text-slate-500 font-medium mt-1">Master directory of contingent and SOW workforce records.</p>
-          </div>
+        <LevvStatStrip>
+          <LevvStat label="Workers on record" value={workers.length} />
+          <LevvStat label="Active" value={counts.active} />
+          <LevvStat label="Onboarding" value={counts.onboarding} />
+          <LevvStat
+            label="Compliance alerts"
+            value={counts.alerts}
+            tone={counts.alerts > 0 ? "critical" : "positive"}
+            detail={counts.alerts > 0 ? "Need review before access renews" : "Every active worker is compliant"}
+          />
+        </LevvStatStrip>
 
-          {/* Nova AI Command Bar - Cyan / Dark Navy Theme */}
-          <div className="relative w-full md:w-96 group">
-            <div className="absolute inset-0 bg-cyan-500/5 blur-xl group-hover:bg-cyan-500/10 transition-all rounded-3xl" />
-            <div className="relative flex items-center bg-white border border-cyan-100 rounded-2xl shadow-sm overflow-hidden p-1 focus-within:ring-2 focus-within:ring-cyan-500/20 transition-all">
-              <div className="bg-slate-950 p-2 rounded-xl text-cyan-400 ml-1 shadow-lg shadow-cyan-900/10">
-                <Sparkles size={18} />
-              </div>
-              <input
-                type="text"
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="Ask Nova to audit compliance..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold px-3 py-2 placeholder:text-slate-400"
-              />
-              <button className="pr-3 text-cyan-600 font-bold text-xs uppercase hover:text-cyan-800 transition-colors">
-                Ask
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* METRICS & FILTERS */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Compliance Alerts</span>
-            <div className="text-3xl font-black text-slate-900 flex items-center gap-2">
-              <ShieldCheck size={24} className={nonCompliantCount > 0 ? "text-rose-500" : "text-emerald-500"} />
-              {nonCompliantCount}
-            </div>
-          </div>
-
-          <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-6">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1">Worker Status</label>
-              <div className="relative">
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-100 py-2.5 pl-4 pr-10 rounded-xl text-sm font-bold focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                >
-                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-[300px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block px-1 text-gray-400">Quick Search</label>
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
-                <input
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
-                  placeholder="Worker Name, CWS ID, or Role..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {setSearchTerm(""); setSelectedStatus(DEFAULT_WORKER_STATUS);}}
-              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
-            >
-              <X size={14} /> Reset
-            </button>
-          </div>
-        </div>
-
-        {/* WORKER TABLE */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Worker Information</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">IDs & Type</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Lifecycle</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Compliance Status</th>
-                  <th className="px-8 py-5"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredWorkers.map((w) => (
-                  <tr
-                    key={w.cwsId}
-                    className="group hover:bg-cyan-50/40 transition-all cursor-pointer"
-                    onClick={() => setSelectedRecord(w)}
+        <section aria-label="Worker directory" className="space-y-3">
+          <LevvToolbar>
+            <LevvSearchField
+              className="w-full sm:w-72"
+              placeholder="Worker name, CWS ID, or role..."
+              aria-label="Search workers"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <div role="group" aria-label="Worker status" className="flex rounded-lg border border-[var(--line-strong)] bg-white p-0.5">
+              {STATUSES.map((status) => {
+                const selected = selectedStatus === status;
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setSelectedStatus(status)}
+                    className={`levv-press h-7 rounded-md px-3 text-[13px] font-medium ${
+                      selected ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
                   >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm border border-slate-200">
-                          {w.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 leading-tight mb-0.5">{w.name}</div>
-                          <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-tight">
-                            {w.role}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="text-[10px] font-black text-slate-400 uppercase mb-1">{w.cwsId}</div>
-                      <div className="text-xs font-bold text-slate-800">{w.workerType}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">via {w.supplier}</div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-                          w.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                          w.status === 'Onboarding' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                          'bg-slate-50 text-slate-500 border-slate-100'
-                        }`}>
-                          {w.status}
+                    {status}
+                  </button>
+                );
+              })}
+            </div>
+            {filtersChanged ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedStatus(DEFAULT_WORKER_STATUS);
+                }}
+                className={levvUi.ghostButton}
+              >
+                <X /> Reset
+              </button>
+            ) : null}
+            <span className="ml-auto text-[13px] tabular-nums text-slate-500">
+              {filteredWorkers.length} of {workers.length}
+            </span>
+          </LevvToolbar>
+
+          <div className={levvUi.tableShell}>
+            <ul aria-label="Workers" className="divide-y divide-[var(--line)] sm:hidden">
+              {filteredWorkers.map((w) => {
+                const lifecycle = LIFECYCLE[w.status];
+                return (
+                  <li key={w.cwsId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecord(w)}
+                      className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)]"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                        {initials(w.name)}
+                      </span>
+                      <span className="min-w-0 flex-1 space-y-1.5">
+                        <span className="block truncate text-[13px] font-medium text-slate-950">{w.name}</span>
+                        <span className="block truncate text-xs text-slate-500">
+                          {w.role} · {w.cwsId}
                         </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                        Ends: {w.end}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border shadow-sm bg-white ${
-                        w.compliance === 'Compliant' ? 'text-emerald-700 border-emerald-100' :
-                        w.compliance === 'Review Required' ? 'text-amber-700 border-amber-100' : 'text-rose-700 border-rose-100'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          w.compliance === 'Compliant' ? 'bg-emerald-500' :
-                          w.compliance === 'Review Required' ? 'bg-amber-500' : 'bg-rose-500'
-                        }`} />
-                        {w.compliance}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest bg-cyan-100/50 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                          <Eye size={12} /> View Preview
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                          <LevvStatusBadge tone={COMPLIANCE_TONE[w.compliance]}>{w.compliance}</LevvStatusBadge>
+                          <LevvLifecycle stage={lifecycle.stage} closed={lifecycle.closed} tone={w.status === "Onboarding" ? "amber" : "blue"} />
                         </span>
-                      </div>
-                    </td>
+                      </span>
+                      <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-slate-300" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left">
+                <thead>
+                  <tr>
+                    <th className={levvUi.th}>Worker</th>
+                    <th className={levvUi.th}>ID and type</th>
+                    <th className={levvUi.th}>Lifecycle</th>
+                    <th className={levvUi.th}>Ends</th>
+                    <th className={levvUi.th}>Compliance</th>
+                    <th className={levvUi.th}>
+                      <span className="sr-only">Open</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredWorkers.map((w) => {
+                    const lifecycle = LIFECYCLE[w.status];
+                    return (
+                      <tr
+                        key={w.cwsId}
+                        tabIndex={0}
+                        onClick={() => setSelectedRecord(w)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") setSelectedRecord(w);
+                        }}
+                        className="group cursor-pointer outline-none focus-visible:bg-blue-50"
+                      >
+                        <td className={`${levvUi.td} border-t border-[var(--line)]`}>
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                              {initials(w.name)}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate font-medium text-slate-950">{w.name}</div>
+                              <div className="truncate text-xs text-slate-500">{w.role}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`${levvUi.td} border-t border-[var(--line)]`}>
+                          <div className="font-medium tabular-nums text-slate-900">{w.cwsId}</div>
+                          <div className="text-xs text-slate-500">
+                            {w.workerType} via {w.supplier}
+                          </div>
+                        </td>
+                        <td className={`${levvUi.td} border-t border-[var(--line)]`}>
+                          <LevvLifecycle stage={lifecycle.stage} closed={lifecycle.closed} tone={w.status === "Onboarding" ? "amber" : "blue"} />
+                        </td>
+                        <td className={`${levvUi.td} border-t border-[var(--line)] tabular-nums`}>{w.end}</td>
+                        <td className={`${levvUi.td} border-t border-[var(--line)]`}>
+                          <LevvStatusBadge tone={COMPLIANCE_TONE[w.compliance]}>{w.compliance}</LevvStatusBadge>
+                        </td>
+                        <td className={`${levvUi.td} w-10 border-t border-[var(--line)] text-right`}>
+                          <ChevronRight className="ml-auto h-4 w-4 text-slate-300 transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-slate-500" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filteredWorkers.length === 0 ? (
+              <LevvEmptyState icon={Users} title="No workers match these filters">
+                Try another name or ID, or switch the status filter to All.
+              </LevvEmptyState>
+            ) : null}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* PREVIEW DRAWER */}
-      {selectedRecord && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40" onClick={() => setSelectedRecord(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out border-l border-slate-200 flex flex-col">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-start">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center text-cyan-400 font-black text-2xl shadow-lg shadow-cyan-900/10">
-                  {selectedRecord.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{selectedRecord.name}</h2>
-                  <p className="text-sm font-bold text-cyan-600 uppercase tracking-widest leading-none mt-1">{selectedRecord.role}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400">
-                <X size={24} />
-              </button>
-            </div>
+      {selectedRecord ? <WorkerPreview worker={selectedRecord} onClose={() => setSelectedRecord(null)} /> : null}
+    </LevvPage>
+  );
+}
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {selectedRecord.compliance !== "Compliant" && (
-                  <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex gap-3">
-                    <AlertCircle className="text-rose-600 shrink-0" size={20} />
-                    <div>
-                        <p className="text-sm font-bold text-rose-900">Compliance Action Required</p>
-                        <p className="text-xs text-rose-700 font-medium">Worker documentation is out of sync with current policy. Access may be restricted if not resolved.</p>
-                    </div>
-                  </div>
-              )}
+function WorkerPreview({ worker, onClose }: { worker: MockWorker; onClose: () => void }) {
+  const facts: [string, string][] = [
+    ["CWS ID", worker.cwsId],
+    ["HR ID", worker.hrSystemId],
+    ["Department", worker.department],
+    ["Location", worker.location],
+    ["Supplier", worker.supplier],
+    ["Owner", worker.owner],
+    ["Start date", worker.start],
+    ["End date", worker.end],
+  ];
+  const lifecycle = LIFECYCLE[worker.status];
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Fingerprint size={10}/> CWS ID</p>
-                  <p className="text-lg font-black text-slate-900">{selectedRecord.cwsId}</p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Users size={10}/> HR ID</p>
-                  <p className="text-lg font-black text-slate-900">{selectedRecord.hrSystemId}</p>
-                </div>
-              </div>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Briefcase size={14}/> Assignment Brief</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Department</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
-                    <p className="text-sm font-bold text-cyan-600">{selectedRecord.email}</p>
-                  </div>
-                </div>
-              </section>
-
-              <section className="grid grid-cols-2 gap-6 pt-4">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><User size={14} /> Management</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Supplier</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.supplier}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Owner</p>
-                    <p className="text-sm font-bold text-slate-900">{selectedRecord.owner}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2"><Calendar size={14} /> Contract Dates</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Start Date</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedRecord.start}</p>
-                  <div className="mt-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">End Date</p>
-                    <p className="text-sm font-bold text-rose-600">{selectedRecord.end}</p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="pt-6 border-t border-slate-100">
-                <button className="w-full bg-slate-950 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-black transition-all group shadow-xl shadow-cyan-900/10">
-                    View Full Worker Profile <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                    <Calendar size={14} /> Extend Contract
-                  </button>
-                  <button className="bg-white border border-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-rose-600">
-                    <AlertCircle size={14} /> Offboard Worker
-                  </button>
-                </div>
-              </div>
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-slate-950/30 animate-in fade-in duration-200" onClick={onClose} />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${worker.name} preview`}
+        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[440px] flex-col border-l border-[var(--line)] bg-white shadow-xl animate-in slide-in-from-right duration-300 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-6 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--rail)] text-sm font-semibold text-white">
+              {initials(worker.name)}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold text-slate-950">{worker.name}</h2>
+              <p className="truncate text-[13px] text-slate-500">{worker.role}</p>
             </div>
           </div>
-        </>
-      )}
-    </div>
+          <button type="button" onClick={onClose} aria-label="Close preview" className={`${levvUi.ghostButton} w-9 px-0`}>
+            <X />
+          </button>
+        </header>
+
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <LevvLifecycle stage={lifecycle.stage} closed={lifecycle.closed} tone={worker.status === "Onboarding" ? "amber" : "blue"} />
+            <LevvStatusBadge tone={COMPLIANCE_TONE[worker.compliance]}>{worker.compliance}</LevvStatusBadge>
+          </div>
+
+          {worker.compliance !== "Compliant" ? (
+            <LevvNotice tone="rose" icon={AlertCircle} title="Compliance action required">
+              Worker documentation is out of sync with current policy. Access may be restricted if not resolved.
+            </LevvNotice>
+          ) : null}
+
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+            {facts.map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-xs text-slate-500">{label}</dt>
+                <dd className={`mt-0.5 truncate text-[13px] font-medium tabular-nums ${label === "End date" && worker.compliance !== "Compliant" ? "text-rose-700" : "text-slate-900"}`}>
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="space-y-2 border-t border-[var(--line)] pt-5 text-[13px]">
+            <a href={`mailto:${worker.email}`} className="flex items-center gap-2 text-blue-700 hover:underline">
+              <Mail className="h-4 w-4 text-slate-400" /> {worker.email}
+            </a>
+            <p className="flex items-center gap-2 text-slate-600">
+              <MapPin className="h-4 w-4 text-slate-400" /> {worker.location}
+            </p>
+            <p className="flex items-center gap-2 text-slate-600">
+              <UserRound className="h-4 w-4 text-slate-400" /> {worker.workerType} via {worker.supplier}
+            </p>
+          </div>
+        </div>
+
+        <footer className="space-y-2 border-t border-[var(--line)] px-6 py-4">
+          <button type="button" className={`${levvUi.primaryButton} group w-full`}>
+            View full worker profile
+            <ArrowRight className="transition-transform duration-150 group-hover:translate-x-0.5" />
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={levvUi.secondaryButton}>
+              <Calendar /> Extend contract
+            </button>
+            <button type="button" className={`${levvUi.secondaryButton} text-rose-700 hover:text-rose-800`}>
+              <AlertCircle /> Offboard worker
+            </button>
+          </div>
+        </footer>
+      </aside>
+    </>
   );
 }
