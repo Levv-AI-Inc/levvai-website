@@ -71,7 +71,7 @@ const PAGE_SEARCH_ITEMS: PageSearchItem[] = [
   { label: 'Rates', href: '/admin/rates', section: 'Settings', keywords: 'bill pay markup', adminOnly: true },
   { label: 'Supplier Settings', href: '/admin/suppliers', section: 'Settings', keywords: 'vendors', adminOnly: true },
   { label: 'Worker Settings', href: '/admin/workers', section: 'Settings', keywords: 'workforce', adminOnly: true },
-  { label: 'Compliance Policies', href: '/admin/compliance/policies', section: 'Settings', keywords: 'rules risk', adminOnly: true },
+  { label: 'Compliance Policies', href: '/compliance/policies', section: 'Settings', keywords: 'rules risk', adminOnly: true },
   { label: 'Tenant Documents', href: '/admin/tenant-docs', section: 'Settings', keywords: 'files knowledge', adminOnly: true },
   { label: 'Integrations', href: '/admin/integrations', section: 'Settings', keywords: 'connections systems', adminOnly: true },
   { label: 'Configuration', href: '/admin/configuration', section: 'Settings', keywords: 'preferences setup', adminOnly: true },
