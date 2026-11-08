@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, FileText } from 'lucide-react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
+import {
+  LevvPage,
+  LevvRecordHeader,
+  LevvStatusBadge,
+  levvUi,
+  type LevvTone,
+} from '@/components/ui/levv-app'
 import {
   usePolicyStatus,
   type StoredPolicyHistoryItem,
@@ -134,25 +141,34 @@ function getGapCount(row: PolicyTableRow) {
   return rowAnalysis?.gaps?.length ?? 0
 }
 
-function getStatusMeta(row: PolicyTableRow) {
+function getStatusMeta(row: PolicyTableRow): { label: string; tone: LevvTone } {
   if (row.status === 'removed') {
-    return {
-      label: 'REMOVED',
-      className: 'bg-rose-50 text-rose-700',
-    }
+    return { label: 'REMOVED', tone: 'slate' }
   }
 
   if (row.active) {
-    return {
-      label: 'ACTIVE',
-      className: 'bg-emerald-100 text-emerald-700',
-    }
+    return { label: 'ACTIVE', tone: 'emerald' }
   }
 
-  return {
-    label: 'DEACTIVATED',
-    className: 'bg-slate-100 text-slate-600',
+  return { label: 'DEACTIVATED', tone: 'slate' }
+}
+
+function plural(count: number, one: string, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`
+}
+
+/** What the policy record says today, in one sentence: the policy in force, if any, and what Nova does with it. */
+function policyStatement(current: PolicyTableRow | null, earlier: number) {
+  if (!current) {
+    return earlier === 0
+      ? 'No policy is uploaded, so Nova advises without blocking.'
+      : `No policy is uploaded, so Nova advises without blocking; ${plural(earlier, 'earlier upload')} ${earlier === 1 ? 'is' : 'are'} listed below.`
   }
+
+  const name = getPolicyName(current)
+  return current.active
+    ? `${name} is active: Nova applies its ${plural(getRuleCount(current), 'rule')} across intake and approval workflows, and its analysis found ${plural(getGapCount(current), 'configuration gap')}.`
+    : `${name} is uploaded but deactivated, so Nova advises without blocking.`
 }
 
 function getUpdatedAtTime(row: PolicyTableRow) {
@@ -193,6 +209,8 @@ async function loadPolicyMasterData(): Promise<PolicyMasterData> {
 
 export default function CompliancePoliciesPage() {
   const policyStatus = usePolicyStatus()
+  // The policy record lives in this browser; the header waits for the first read rather than claiming "none".
+  const [ready, setReady] = useState(false)
   const [updatedAtSortDirection, setUpdatedAtSortDirection] =
     useState<UpdatedAtSortDirection>('desc')
   const [policyMasterData, setPolicyMasterData] = useState<PolicyMasterData>(
@@ -212,6 +230,8 @@ export default function CompliancePoliciesPage() {
     return getPolicyName(left).localeCompare(getPolicyName(right))
   })
 
+  useEffect(() => setReady(true), [])
+
   useEffect(() => {
     let cancelled = false
 
@@ -228,45 +248,39 @@ export default function CompliancePoliciesPage() {
     }
   }, [])
 
+  const earlier = policyStatus.history?.length ?? 0
+
   return (
-    <div className="space-y-6">
-      <div>
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">
-            Compliance Policies
-          </h1>
-          <p className="text-sm text-slate-500">
-            Upload and manage external workforce policy enforcement.
-          </p>
-        </div>
-      </div>
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail="Admin settings / Compliance Policies"
+          title="Compliance Policies"
+          statement={ready ? policyStatement(currentPolicyRow, earlier) : 'Loading compliance policies…'}
+          figures={
+            ready && currentPolicyRow
+              ? [
+                  { label: 'Rules', value: getRuleCount(currentPolicyRow) },
+                  { label: 'Gaps', value: getGapCount(currentPolicyRow) },
+                  { label: 'Uploads', value: policyRows.length },
+                ]
+              : []
+          }
+        />
 
-      <PolicyUploadPanel masterData={policyMasterData} />
+        <PolicyUploadPanel masterData={policyMasterData} />
 
-      {policyRows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--rail)] text-[var(--nova)]">
-            <FileText className="h-5 w-5" />
-          </div>
-          <h2 className="text-sm font-semibold text-slate-900">
-            No policy uploaded
-          </h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-            Use the uploader above to add a policy for compliance enforcement.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr className="text-left text-slate-600">
-                  <th className="px-4 py-3">Policy Name</th>
-                  <th className="px-4 py-3">Source File</th>
-                  <th className="px-4 py-3">Rules</th>
-                  <th className="px-4 py-3">Gaps</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">
+        {policyRows.length === 0 ? null : (
+          <div className="relative overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr>
+                  <th className={levvUi.th}>Policy Name</th>
+                  <th className={levvUi.th}>Source File</th>
+                  <th className={`${levvUi.th} w-20`}>Rules</th>
+                  <th className={`${levvUi.th} w-20`}>Gaps</th>
+                  <th className={`${levvUi.th} w-36`}>Status</th>
+                  <th className={`${levvUi.th} w-40`}>
                     <button
                       type="button"
                       onClick={() =>
@@ -274,7 +288,7 @@ export default function CompliancePoliciesPage() {
                           direction === 'desc' ? 'asc' : 'desc',
                         )
                       }
-                      className="inline-flex items-center gap-1.5 font-medium text-slate-600 transition hover:text-slate-900"
+                      className={`inline-flex items-center gap-1.5 ${levvUi.legend} text-slate-500 outline-none transition-colors hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-[var(--accent)]`}
                       aria-label={`Sort by last updated ${
                         updatedAtSortDirection === 'desc'
                           ? 'oldest first'
@@ -299,28 +313,26 @@ export default function CompliancePoliciesPage() {
                   return (
                     <tr
                       key={row.id}
-                      className="border-b border-slate-100 last:border-b-0"
+                      className="hover:bg-[var(--surface)] [&>td]:border-b [&>td]:border-[var(--line)]"
                     >
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className={`${levvUi.td} font-medium text-slate-950`}>
                         {getPolicyName(row)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={`${levvUi.td} text-slate-600`}>
                         {row.fileName || '-'}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={`${levvUi.td} font-semibold tabular-nums text-slate-950`}>
                         {getRuleCount(row)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={`${levvUi.td} font-semibold tabular-nums text-slate-950`}>
                         {getGapCount(row)}
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusMeta.className}`}
-                        >
+                      <td className={levvUi.td}>
+                        <LevvStatusBadge tone={statusMeta.tone}>
                           {statusMeta.label}
-                        </span>
+                        </LevvStatusBadge>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={`${levvUi.td} tabular-nums text-slate-600`}>
                         {formatDate(row.updatedAt)}
                       </td>
                     </tr>
@@ -329,8 +341,8 @@ export default function CompliancePoliciesPage() {
               </tbody>
             </table>
           </div>
-        </>
-      )}
-    </div>
+        )}
+      </div>
+    </LevvPage>
   )
 }

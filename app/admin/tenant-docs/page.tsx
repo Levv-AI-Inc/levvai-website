@@ -2,6 +2,14 @@
 
 import { useMemo, useState } from 'react'
 import clsx from 'clsx'
+import { Check } from 'lucide-react'
+import {
+  LevvNotice,
+  LevvPage,
+  LevvPanel,
+  LevvRecordHeader,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 type DocumentType = 'configuration' | 'integration'
 
@@ -189,145 +197,133 @@ export default function TenantDocsPage() {
   })
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-7">
-        <div className="flex items-center gap-2 mb-1">
-          <h1 className="text-xl font-bold text-gray-900">Tenant Docs</h1>
-          <span className="text-[11px] font-semibold bg-green-50 text-green-700 border border-green-200 rounded-full px-2 py-0.5">
-            Live
-          </span>
-        </div>
-        <p className="text-sm text-gray-500 leading-relaxed max-w-3xl">
-          Generate documentation directly from the current tenant state. Admins can export
-          either configuration documentation or integration specifications without relying on
-          SI handoff files at go-live.
-        </p>
-      </div>
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail="Admin settings / Tenant Docs"
+          title="Tenant Docs"
+          statement="Generate documentation directly from the current tenant state. Admins can export either configuration documentation or integration specifications without relying on SI handoff files at go-live."
+        />
 
-      <div className="bg-white rounded-xl border border-gray-200 px-6 py-5 mb-4">
-        <div className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase mb-4">
-          Document Type
-        </div>
+        <section>
+          <h2 className={`${levvUi.legend} mb-3 text-slate-500`}>
+            Document Type
+          </h2>
 
-        <div className="grid grid-cols-2 gap-3">
-          {([
-            {
-              id: 'configuration',
-              title: 'Configuration Document',
-              sub: 'Current enabled functionality, workflows, rules, fields, roles, policies, and platform setup',
-            },
-            {
-              id: 'integration',
-              title: 'Integration Specification',
-              sub: 'Current integrations, endpoints, mappings, sync rules, master data, and monitoring controls',
-            },
-          ] as const).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => switchDocumentType(item.id)}
-              className={clsx(
-                'text-left rounded-xl border-[1.5px] px-4 py-4 transition-all',
-                documentType === item.id
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-200 hover:bg-slate-50'
-              )}
-            >
-              <div className="text-sm font-semibold text-gray-900">{item.title}</div>
-              <div className="text-xs text-gray-500 mt-1 leading-relaxed">{item.sub}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 px-6 py-5 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase">
-            Include Sections
-          </span>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-400">
-              {selected.size} of {options.length} selected
-            </span>
-            <button
-              onClick={toggleAll}
-              className="text-xs font-medium text-blue-600 hover:underline"
-            >
-              {allSelected ? 'Deselect All' : 'Select All'}
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {options.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => toggleScope(option.id)}
-              className={clsx(
-                'text-left flex items-start gap-3 rounded-xl border-[1.5px] px-4 py-3 transition-all',
-                selected.has(option.id)
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-200 hover:bg-slate-50'
-              )}
-            >
-              <div
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([
+              {
+                id: 'configuration',
+                title: 'Configuration Document',
+                sub: 'Current enabled functionality, workflows, rules, fields, roles, policies, and platform setup',
+              },
+              {
+                id: 'integration',
+                title: 'Integration Specification',
+                sub: 'Current integrations, endpoints, mappings, sync rules, master data, and monitoring controls',
+              },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => switchDocumentType(item.id)}
+                aria-pressed={documentType === item.id}
                 className={clsx(
-                  'mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0',
-                  selected.has(option.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  'levv-press border px-4 py-4 text-left outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ground)]',
+                  documentType === item.id
+                    ? 'border-blue-600 bg-blue-50 ring-1 ring-inset ring-blue-600'
+                    : 'border-[var(--line-strong)] bg-[var(--surface)] hover:border-slate-500'
                 )}
               >
-                {selected.has(option.id) && (
-                  <span className="text-white text-[10px] font-bold">✓</span>
-                )}
-              </div>
+                <span className="flex items-center justify-between gap-3 text-[14px] font-semibold text-slate-950">
+                  {item.title}
+                  {documentType === item.id && <Check className="h-4 w-4 shrink-0 text-blue-600" />}
+                </span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-slate-600">{item.sub}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[13px] font-semibold text-gray-900">{option.label}</span>
-                  {option.badge && (
-                    <span className="text-[10.5px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
-                      {option.badge}
-                    </span>
+        <section>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <h2 className={`${levvUi.legend} text-slate-500`}>
+              Include Sections
+            </h2>
+            <div className="flex items-center gap-3">
+              <span className="text-[13px] tabular-nums text-slate-500">
+                <span className="font-semibold text-slate-950">{selected.size}</span> of {options.length} selected
+              </span>
+              <button
+                onClick={toggleAll}
+                className={levvUi.ghostButton}
+              >
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid border-t-2 border-slate-950 sm:grid-cols-2 sm:gap-x-6">
+            {options.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => toggleScope(option.id)}
+                aria-pressed={selected.has(option.id)}
+                className="flex items-start gap-3 border-b border-[var(--line)] px-2 py-3 text-left outline-none transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
+              >
+                <span
+                  aria-hidden
+                  className={clsx(
+                    'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
+                    selected.has(option.id) ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-500 bg-[var(--surface)]'
                   )}
-                </div>
-                <div className="text-[11.5px] text-gray-400 mt-0.5 leading-relaxed">
-                  {option.sub}
-                </div>
-              </div>
+                >
+                  {selected.has(option.id) && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14px] font-medium text-slate-950">{option.label}</span>
+                    {option.badge && (
+                      <span className={`border border-slate-400 px-1.5 py-px ${levvUi.legend} text-slate-600`}>
+                        {option.badge}
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-0.5 block text-[13px] leading-relaxed text-slate-500">
+                    {option.sub}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <LevvPanel className="px-5 py-4">
+          <h2 className={`${levvUi.legend} mb-2 text-slate-500`}>
+            Output
+          </h2>
+          <p className="text-[14px] text-slate-700">
+            Exports as a Word-compatible <span className="font-semibold text-slate-950">RTF</span> document.
+          </p>
+
+          {error && <LevvNotice tone="rose" className="mt-4">{error}</LevvNotice>}
+
+          <div className="mt-4 flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[13px] text-slate-500">
+              Snapshot generated from current tenant state as of{' '}
+              <span className="font-medium tabular-nums text-slate-950">{timestamp}</span>
+            </p>
+
+            <button
+              onClick={handleGenerate}
+              disabled={selected.size === 0 || loading}
+              className={levvUi.primaryButton}
+            >
+              {loading ? 'Generating…' : 'Generate Document'}
             </button>
-          ))}
-        </div>
+          </div>
+        </LevvPanel>
       </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 px-6 py-5 mb-5">
-        <div className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase mb-2">
-          Output
-        </div>
-        <div className="text-sm text-gray-600">
-          Exports as a Word-compatible <span className="font-medium">RTF</span> document.
-        </div>
-      </div>
-
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-400">
-          Snapshot generated from current tenant state as of{' '}
-          <span className="text-emerald-600 font-medium">{timestamp}</span>
-        </p>
-
-        <button
-          onClick={handleGenerate}
-          disabled={selected.size === 0 || loading}
-          className={clsx(
-            'rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all',
-            selected.size === 0 || loading
-              ? 'bg-gray-300 cursor-not-allowed'
-              : 'bg-gray-900 hover:bg-gray-700'
-          )}
-        >
-          {loading ? 'Generating…' : 'Generate Document'}
-        </button>
-      </div>
-    </div>
+    </LevvPage>
   )
 }

@@ -31,7 +31,7 @@ import {
 import {
   LevvNotice,
   LevvPage,
-  LevvPageHeader,
+  LevvRecordHeader,
   LevvPanel,
   LevvPanelHeader,
   LevvStatusBadge,
@@ -473,9 +473,19 @@ export default function Home() {
   const conversationRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const hasChat = chatMessages.length > 0
-  const pendingRequestCopy = loadingPendingRequests
-    ? 'Loading submitted request queue. One critical renewal, two policy advisories, and four work packages are waiting for routing.'
-    : `${pendingRequestCount.toLocaleString()} submitted ${pendingRequestCount === 1 ? 'request needs' : 'requests need'} review today. One critical renewal, two policy advisories, and four work packages are waiting for routing.`
+  // The desk's sentence says only what the page knows: the caller's submitted queue and the policy state.
+  const queueSentence = loadingPendingRequests
+    ? 'Loading your requests…'
+    : pendingRequestsError
+      ? 'Your request queue could not be loaded.'
+      : pendingRequestCount === 0
+        ? 'None of your submitted requests is waiting for review.'
+        : `${pendingRequestCount.toLocaleString()} of your submitted ${pendingRequestCount === 1 ? 'requests is' : 'requests are'} waiting for review.`
+  const policySentence = policyActive
+    ? 'Your policy is loaded and active.'
+    : policyUploaded
+      ? 'Your policy is uploaded but switched off, so Nova advises without blocking.'
+      : 'No policy is loaded, so Nova advises without blocking.'
   const activeRailInfo = (() => {
     const index = chatMessages.length - 1
     const message = chatMessages[index]
@@ -518,11 +528,9 @@ export default function Home() {
         }
         if ((error as { name?: string })?.name !== 'AbortError') {
           setPendingRequestCount(0)
-          setPendingRequestsError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load pending requests.',
-          )
+          // People see a plain sentence; the raw failure goes to the console for whoever debugs it.
+          console.error('Control desk: request queue failed to load', error)
+          setPendingRequestsError('Your request queue could not be loaded. Refresh the page to try again.')
         }
       } finally {
         if (!controller.signal.aborted) setLoadingPendingRequests(false)
@@ -722,7 +730,7 @@ export default function Home() {
   const policyTone: LevvTone = policyActive ? 'emerald' : policyUploaded ? 'slate' : 'amber'
 
   const inputBox = (
-    <div className="rounded-xl border border-[var(--line-strong)] bg-white px-3 pb-3 pt-3 transition-[border-color,box-shadow] duration-150 ease-out hover:border-slate-400/60 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--focus)]">
+    <div className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-3 pb-3 pt-3 transition-[border-color,box-shadow] duration-150 ease-out hover:border-slate-400/60 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--focus)]">
       <div className="flex items-start gap-3">
         <NovaMark className="mt-1" />
         <textarea
@@ -739,7 +747,7 @@ export default function Home() {
           aria-label="Message Nova"
           rows={1}
           disabled={isLoading}
-          className={`min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${BARE_TEXTAREA}`}
+          className={`levv-bare min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-1.5 text-sm leading-6 text-slate-900 outline-none focus-visible:outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${BARE_TEXTAREA}`}
           style={{ minHeight: 36, maxHeight: 180 }}
         />
       </div>
@@ -769,7 +777,7 @@ export default function Home() {
           onClick={() => sendMessage()}
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
-          className={`levv-press ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-sm enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none ${FOCUS_RING}`}
+          className={`levv-press ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${FOCUS_RING}`}
         >
           <ArrowUp className="h-4 w-4" />
         </button>
@@ -790,7 +798,7 @@ export default function Home() {
               Nova desk <span className="text-slate-400">/</span>{' '}
               <span className="font-normal tabular-nums text-slate-500">{clockTime || '--:--'}</span>
             </p>
-            <span aria-hidden className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span aria-hidden className="ml-1 h-1.5 w-1.5 bg-emerald-600" />
           </header>
 
           <div className="flex min-h-0 flex-1">
@@ -837,7 +845,7 @@ export default function Home() {
                     <div role="status" className="flex items-center gap-3">
                       <NovaMark />
                       <span className="flex items-center gap-2 text-[13px] text-slate-500">
-                        <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--nova)] motion-reduce:animate-none" />
+                        <span aria-hidden className="h-1.5 w-1.5 animate-pulse bg-[var(--nova)] motion-reduce:animate-none" />
                         Nova is reviewing the record...
                       </span>
                     </div>
@@ -889,11 +897,19 @@ export default function Home() {
   return (
     <LevvPage width="standard">
       <div className="space-y-6">
-        <LevvPageHeader
+        <LevvRecordHeader
+          trail="Home"
           title="Control desk"
-          description={<span aria-live="polite">{pendingRequestCopy}</span>}
-          actions={<LevvStatusBadge tone="emerald">Nova monitoring</LevvStatusBadge>}
-        />
+          statement={<span aria-live="polite">{queueSentence} {policySentence}</span>}
+          figures={[
+            {
+              label: 'Waiting for review',
+              value: loadingPendingRequests || pendingRequestsError ? '—' : pendingRequestCount.toLocaleString(),
+            },
+          ]}
+        >
+          <section aria-label="Ask Nova">{inputBox}</section>
+        </LevvRecordHeader>
 
         {pendingRequestsError && (
           <LevvNotice tone="amber" icon={AlertTriangle}>
@@ -901,8 +917,7 @@ export default function Home() {
           </LevvNotice>
         )}
 
-        <section aria-label="Ask Nova" className="space-y-3">
-          {inputBox}
+        <section aria-label="Start a request">
           <div className="grid gap-3 sm:grid-cols-2">
             <StartLink
               href="/requests/sow/create"
@@ -923,8 +938,12 @@ export default function Home() {
 
         <LevvPanel>
           <LevvPanelHeader
-            icon={Sparkles}
-            title="Nova brief"
+            title={
+              <span className="flex items-center gap-2.5">
+                <NovaMark />
+                Nova brief
+              </span>
+            }
             className="border-b border-[var(--line)] px-5 py-3.5"
           />
           <ul className="divide-y divide-[var(--line)]">
@@ -943,7 +962,6 @@ export default function Home() {
                   <Link href={item.href} className={levvUi.ghostButton}>
                     Open record
                   </Link>
-                  <CheckCircle2 aria-hidden className="ml-auto h-4 w-4 shrink-0 text-emerald-600" />
                 </div>
               </li>
             ))}
@@ -983,7 +1001,7 @@ function StartLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`levv-press group flex min-h-[64px] min-w-0 items-center gap-3 rounded-xl border border-[var(--line)] bg-white px-4 py-3 hover:border-[var(--line-strong)] hover:bg-slate-50 ${FOCUS_RING}`}
+      className={`levv-press group flex min-h-[64px] min-w-0 items-center gap-3 rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-4 py-3 hover:border-slate-950 ${FOCUS_RING}`}
     >
       <Icon aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
       <span className="min-w-0 flex-1">
@@ -1016,7 +1034,7 @@ function RailTile({
       {(tile.eyebrow || tile.badge) && (
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
-            {tone !== 'slate' && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${railToneDot[tone]}`} />}
+            {tone !== 'slate' && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 ${railToneDot[tone]}`} />}
             <span className="truncate">{displayLabel(tile.eyebrow)}</span>
           </span>
           {tile.badge && (

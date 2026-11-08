@@ -19,6 +19,16 @@ import {
   Zap,
 } from 'lucide-react'
 import {
+  LevvNotice,
+  LevvPanel,
+  LevvStat,
+  LevvStatStrip,
+  LevvStatusBadge,
+  LevvUploadZone,
+  levvUi,
+  type LevvTone,
+} from '@/components/ui/levv-app'
+import {
   clearUploadedPolicyStatus,
   readPolicyStatus,
   setPolicyStatusActive,
@@ -80,40 +90,28 @@ const EMPTY_MASTER_DATA = TABS.reduce(
   {} as PolicyMasterData,
 )
 
-const CATEGORY_META: Record<
-  PolicyRule['category'],
-  { label: string; color: string }
-> = {
-  rate_classification: {
-    label: 'Rate & classification',
-    color: 'bg-sky-50 text-sky-700 border-sky-200',
-  },
-  tenure_duration: {
-    label: 'Tenure & duration',
-    color: 'bg-violet-50 text-violet-700 border-violet-200',
-  },
-  supplier_eligibility: {
-    label: 'Supplier eligibility',
-    color: 'bg-orange-50 text-orange-700 border-orange-200',
-  },
-  approval_exception: {
-    label: 'Approval & exception',
-    color: 'bg-rose-50 text-rose-700 border-rose-200',
-  },
-  worker_type: {
-    label: 'Worker type',
-    color: 'bg-teal-50 text-teal-700 border-teal-200',
-  },
-  location_jurisdiction: {
-    label: 'Location & jurisdiction',
-    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
+const CATEGORY_META: Record<PolicyRule['category'], { label: string }> = {
+  rate_classification: { label: 'Rate & classification' },
+  tenure_duration: { label: 'Tenure & duration' },
+  supplier_eligibility: { label: 'Supplier eligibility' },
+  approval_exception: { label: 'Approval & exception' },
+  worker_type: { label: 'Worker type' },
+  location_jurisdiction: { label: 'Location & jurisdiction' },
 }
 
-const SEVERITY_BADGE: Record<PolicyGap['severity'], string> = {
-  high: 'bg-rose-50 text-rose-700 border-rose-200',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200',
-  low: 'bg-slate-100 text-slate-600 border-slate-200',
+const SEVERITY_TONE: Record<PolicyGap['severity'], LevvTone> = {
+  high: 'rose',
+  medium: 'amber',
+  low: 'slate',
+}
+
+/** A tag that names a kind, not a state: framed, no marker. */
+function Tag({ children }: { children: ReactNode }) {
+  return (
+    <span className={`inline-flex items-center whitespace-nowrap border border-slate-400 px-1.5 py-px ${levvUi.legend} text-slate-600`}>
+      {children}
+    </span>
+  )
 }
 
 function formatSeverity(severity: PolicyGap['severity']) {
@@ -242,15 +240,13 @@ function PolicyProcessingSteps({
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50">
-          <FileText className="h-4 w-4 text-emerald-600" />
-        </div>
+      <div className="mb-4 flex items-center gap-3 border border-[var(--line)] bg-[var(--surface-sunken)] px-3 py-2.5">
+        <FileText className="h-4 w-4 shrink-0 text-slate-500" />
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-900">
+          <p className="truncate text-[13px] font-semibold text-slate-950">
             {fileName || 'Policy document'}
           </p>
-          <p className="text-xs font-medium text-slate-400">
+          <p className="text-[13px] text-slate-500">
             {uploadPercent === 100
               ? 'Policy uploaded · Nova is reading...'
               : 'Uploading policy document...'}
@@ -258,18 +254,18 @@ function PolicyProcessingSteps({
         </div>
       </div>
 
-      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3">
+      <div className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="text-xs font-bold text-slate-700">
+          <span className={`${levvUi.legend} text-slate-500`}>
             {uploadPercent === 100 ? 'Upload complete' : 'Uploading to Nova'}
           </span>
-          <span className="text-xs font-black text-slate-900">
+          <span className="text-[13px] font-semibold tabular-nums text-slate-950">
             {uploadPercent === null ? 'Measuring...' : `${uploadPercent}%`}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="h-1.5 overflow-hidden bg-slate-100">
           <div
-            className={`h-full rounded-full bg-cyan-500 transition-all duration-300 ${
+            className={`h-full bg-blue-600 transition-all duration-300 ${
               uploadPercent === null ? 'w-1/3 animate-pulse' : ''
             }`}
             style={
@@ -278,13 +274,13 @@ function PolicyProcessingSteps({
           />
         </div>
         {uploadPercent === 100 ? (
-          <p className="mt-2 text-[10px] font-medium text-slate-400">
-            The file is uploaded. Waiting for Nova's policy analysis to finish.
+          <p className="mt-2 text-xs text-slate-500">
+            The file is uploaded. Waiting for Nova&apos;s policy analysis to finish.
           </p>
         ) : null}
       </div>
 
-      <ul className="space-y-1">
+      <ul className="border-t border-[var(--line)]">
         {PROCESSING_STEPS.map((step, index) => {
           const isDone = index < currentStep
           const isActive = index === currentStep && currentStep < PROCESSING_STEPS.length
@@ -292,28 +288,26 @@ function PolicyProcessingSteps({
           return (
             <li
               key={step}
-              className={`flex items-center gap-2.5 rounded-xl px-2 py-2 transition-all duration-300 ${
-                isActive ? 'bg-amber-50' : ''
+              className={`flex items-center gap-2.5 border-b border-[var(--line)] px-2 py-2 transition-colors duration-300 ${
+                isActive ? 'bg-[var(--surface-sunken)]' : ''
               }`}
             >
               <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
                 {isDone ? (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                  </span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#1f8a5b]" />
                 ) : isActive ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                 ) : (
-                  <span className="h-3 w-3 rounded-full border border-slate-300" />
+                  <span className="h-2 w-2 border border-slate-400" />
                 )}
               </span>
               <span
-                className={`text-xs transition-all duration-300 ${
+                className={`text-[13px] transition-colors duration-300 ${
                   isDone
-                    ? 'text-slate-400 line-through decoration-slate-300'
+                    ? 'text-slate-500 line-through decoration-slate-300'
                     : isActive
-                      ? 'font-bold text-amber-700'
-                      : 'font-medium text-slate-400'
+                      ? 'font-semibold text-slate-950'
+                      : 'text-slate-500'
                 }`}
               >
                 {step}
@@ -332,7 +326,7 @@ function PolicyProcessingSteps({
                 ) : null}
               </span>
               {isDone ? (
-                <span className="ml-auto text-[10px] font-bold text-emerald-600">
+                <span className={`ml-auto ${levvUi.legend} text-[#17704a]`}>
                   Done
                 </span>
               ) : null}
@@ -341,7 +335,7 @@ function PolicyProcessingSteps({
         })}
       </ul>
 
-      <p className="mt-4 text-center text-[10px] font-medium text-slate-400">
+      <p className="mt-4 text-center text-xs text-slate-500">
         {uploadPercent === 100
           ? analysisReady
             ? 'Analysis complete. Preparing results.'
@@ -438,25 +432,25 @@ export default function PolicyUploadPanel({
     setPolicyState('results')
   }, [pendingAnalysis, policyFileName])
 
-  const policyBadge =
+  const policyTone: LevvTone =
     policyState === 'results'
       ? policyActive
-        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-        : 'bg-slate-100 text-slate-600 border-slate-200'
+        ? 'emerald'
+        : 'slate'
       : policyState === 'processing'
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        ? 'blue'
         : policyState === 'error'
-          ? 'bg-rose-50 text-rose-700 border-rose-200'
-          : 'bg-slate-100 text-slate-500 border-slate-200'
+          ? 'rose'
+          : 'slate'
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-cyan-100 bg-white shadow-sm">
-      <div className="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/80 px-5 py-4">
-        <span className="rounded-xl bg-[var(--rail)] p-2 text-[var(--nova)]">
+    <LevvPanel>
+      <div className="flex items-center gap-3 border-b border-[var(--line)] px-5 py-4">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[var(--rail)] text-[var(--nova)]">
           <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-black text-slate-900">
+          <h2 className="truncate text-[15px] font-semibold text-slate-950">
             {policyState === 'upload'
               ? 'No policy uploaded'
               : policyState === 'processing'
@@ -465,26 +459,26 @@ export default function PolicyUploadPanel({
                   ? 'Policy analysis failed'
                   : analysis?.policyName || policyFileName || 'Policy uploaded'}
           </h2>
-          <p className="text-xs font-medium text-slate-500">
+          <p className="text-[13px] text-slate-500">
             External workforce policy upload
           </p>
         </div>
-        <span
-          className={`ml-auto rounded-full border px-2.5 py-1 text-xs font-bold ${policyBadge}`}
-        >
-          {policyState === 'results'
-            ? policyActive
-              ? 'Active'
-              : 'Deactivated'
-            : policyState === 'processing'
-              ? 'Processing'
-              : policyState === 'error'
-                ? 'Error'
-                : 'Not configured'}
+        <span className="ml-auto">
+          <LevvStatusBadge tone={policyTone}>
+            {policyState === 'results'
+              ? policyActive
+                ? 'Active'
+                : 'Deactivated'
+              : policyState === 'processing'
+                ? 'Processing'
+                : policyState === 'error'
+                  ? 'Error'
+                  : 'Not configured'}
+          </LevvStatusBadge>
         </span>
       </div>
 
-      <div className="p-6">
+      <div className="p-5">
         {policyState === 'processing' ? (
           <PolicyProcessingSteps
             fileName={policyFileName}
@@ -513,40 +507,35 @@ export default function PolicyUploadPanel({
           />
         ) : (
           <div>
-            <p className="mb-3 text-xs font-medium text-slate-500">
+            <p className="mb-3 text-[13px] text-slate-600">
               Upload your External Workforce Policy. Nova will extract
               enforceable rules, intake impacts, and configuration gaps.
             </p>
+            {/* The whole zone opens the file picker, as before; the button is the zone's one command. */}
             <div
               onClick={() => policyInputRef.current?.click()}
-              className="cursor-pointer rounded-2xl border border-dashed border-slate-300 p-6 text-center transition hover:border-cyan-300 hover:bg-cyan-50/40"
+              className="cursor-pointer [&>div]:transition-colors [&>div]:duration-150 hover:[&>div]:border-slate-500"
             >
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--rail)] text-[var(--nova)]">
-                <FileText className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-bold text-slate-900">
-                Drop your policy document here
-              </p>
-              <p className="mb-4 mt-1 text-xs font-medium text-slate-400">
-                Supports .pdf, .docx, .txt
-              </p>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  policyInputRef.current?.click()
-                }}
-                className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Select file
-              </button>
+              <LevvUploadZone
+                icon={FileText}
+                title="Drop your policy document here"
+                description="Supports .pdf, .docx, .txt"
+                error={policyError || undefined}
+                action={
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      policyInputRef.current?.click()
+                    }}
+                    className={levvUi.primaryButton}
+                  >
+                    <Upload />
+                    Select file
+                  </button>
+                }
+              />
             </div>
-            {policyError ? (
-              <p className="mt-3 text-xs font-medium text-rose-600">
-                {policyError}
-              </p>
-            ) : null}
           </div>
         )}
 
@@ -558,7 +547,7 @@ export default function PolicyUploadPanel({
           onChange={handlePolicyUpload}
         />
       </div>
-    </div>
+    </LevvPanel>
   )
 }
 
@@ -601,40 +590,20 @@ function PolicyResults({
   }
 
   return (
-    <div className="space-y-3">
-      <div
-        className={`flex gap-3 rounded-2xl border p-4 ${
-          active
-            ? 'border-emerald-100 bg-emerald-50'
-            : 'border-slate-200 bg-slate-50'
-        }`}
+    <div className="space-y-4">
+      <LevvNotice
+        tone={active ? 'emerald' : 'slate'}
+        icon={CheckCircle2}
+        title={analysis.summary || 'Policy uploaded and analysed.'}
       >
-        <CheckCircle2
-          className={`mt-0.5 h-4 w-4 shrink-0 ${
-            active ? 'text-emerald-600' : 'text-slate-500'
-          }`}
-        />
-        <div className="min-w-0">
-          <p
-            className={`text-sm font-bold ${
-              active ? 'text-emerald-900' : 'text-slate-900'
-            }`}
-          >
-            {analysis.summary || 'Policy uploaded and analysed.'}
-          </p>
-          <p
-            className={`mt-1 text-xs font-medium ${
-              active ? 'text-emerald-700' : 'text-slate-500'
-            }`}
-          >
-            {active ? 'Enforcement active' : 'Enforcement deactivated'} ·{' '}
-            {totalRules} rules · {gaps.length} configuration gaps
-            {analysis.activatedAt ? ` · ${analysis.activatedAt}` : ''}
-          </p>
-        </div>
-      </div>
+        <span className="tabular-nums">
+          {active ? 'Enforcement active' : 'Enforcement deactivated'} ·{' '}
+          {totalRules} rules · {gaps.length} configuration gaps
+          {analysis.activatedAt ? ` · ${analysis.activatedAt}` : ''}
+        </span>
+      </LevvNotice>
 
-      <div className="grid grid-cols-4 gap-1.5">
+      <LevvStatStrip>
         {[
           { label: 'Total', value: totalRules },
           { label: 'Rate', value: analysis.counts?.rateClassification ?? 0 },
@@ -646,83 +615,64 @@ function PolicyResults({
               (analysis.counts?.approvalException ?? 0),
           },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 text-center"
-          >
-            <p className="text-sm font-black text-slate-900">{stat.value}</p>
-            <p className="text-[10px] font-medium text-slate-500">
-              {stat.label}
-            </p>
-          </div>
+          <LevvStat key={stat.label} label={stat.label} value={stat.value} />
         ))}
-      </div>
+      </LevvStatStrip>
 
-      <PolicyAccordion
-        id="gaps"
-        openSections={openSections}
-        toggleSection={toggleSection}
-        label="Configuration gaps"
-        count={gaps.length}
-        badges={
-          highGaps > 0
-            ? [
-                {
-                  text: `${highGaps} High`,
-                  className: 'bg-rose-50 text-rose-700 border-rose-200',
-                },
-              ]
-            : []
-        }
-      >
-        {gaps.length === 0 ? (
-          <div className="flex gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-            <p className="text-xs font-medium text-emerald-800">
+      <div className="border-t border-[var(--line)]">
+        <PolicyAccordion
+          id="gaps"
+          openSections={openSections}
+          toggleSection={toggleSection}
+          label="Configuration gaps"
+          count={gaps.length}
+          badges={
+            highGaps > 0 ? [{ text: `${highGaps} High`, tone: 'rose' }] : []
+          }
+        >
+          {gaps.length === 0 ? (
+            <p className="flex items-center gap-2 text-[13px] text-slate-700">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#1f8a5b]" />
               No configuration gaps found.
             </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {gaps.map((gap, index) => {
-              const suggestedTab = TABS.includes(gap.suggestedTab as Tab)
-                ? (gap.suggestedTab as Tab)
-                : null
+          ) : (
+            <ul className="border-t border-[var(--line)]">
+              {gaps.map((gap, index) => {
+                const suggestedTab = TABS.includes(gap.suggestedTab as Tab)
+                  ? (gap.suggestedTab as Tab)
+                  : null
 
-              return (
-                <div
-                  key={gap.id || `${gap.title}-${index}`}
-                  className="rounded-xl border border-amber-100 bg-amber-50 p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                return (
+                  <li
+                    key={gap.id || `${gap.title}-${index}`}
+                    className="flex items-start gap-2.5 border-b border-[var(--line)] py-3"
+                  >
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="text-xs font-black text-amber-950">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <p className="text-[14px] font-semibold text-slate-950">
                           {gap.title}
                         </p>
-                        <span
-                          className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${SEVERITY_BADGE[gap.severity]}`}
-                        >
+                        <LevvStatusBadge tone={SEVERITY_TONE[gap.severity]}>
                           {formatSeverity(gap.severity)}
-                        </span>
+                        </LevvStatusBadge>
                       </div>
-                      <p className="mt-1 text-xs font-medium leading-relaxed text-amber-900">
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
                         {gap.description}
                       </p>
-                      <p className="mt-1 text-xs font-medium leading-relaxed text-amber-800">
+                      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
                         {gap.recommendation}
                       </p>
                       {suggestedTab && gap.suggestedRowValue ? (
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-amber-200 bg-white/80 px-2 py-1 text-[10px] font-bold text-amber-700">
+                          <Tag>
                             {suggestedTab}: {gap.suggestedRowValue}
-                          </span>
+                          </Tag>
                           {onSelectTab ? (
                             <button
                               type="button"
                               onClick={() => onSelectTab(suggestedTab)}
-                              className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+                              className={levvUi.secondaryButton}
                             >
                               Review table
                             </button>
@@ -730,146 +680,129 @@ function PolicyResults({
                         </div>
                       ) : null}
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </PolicyAccordion>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </PolicyAccordion>
 
-      <PolicyAccordion
-        id="intake"
-        openSections={openSections}
-        toggleSection={toggleSection}
-        label="Intake impacts"
-        count={intakeImpacts.length}
-      >
-        <PolicyList
-          items={intakeImpacts}
-          emptyLabel="No intake impacts were identified."
-        />
-      </PolicyAccordion>
-
-      <PolicyAccordion
-        id="config"
-        openSections={openSections}
-        toggleSection={toggleSection}
-        label="Config changes"
-        count={configChanges.length}
-      >
-        <PolicyList
-          items={configChanges}
-          emptyLabel="No configuration changes were identified."
-        />
-      </PolicyAccordion>
-
-      <PolicyAccordion
-        id="rules"
-        openSections={openSections}
-        toggleSection={toggleSection}
-        label="Active enforcement rules"
-        count={totalRules}
-        badges={[
-          {
-            text: active ? `${activeRules} live` : `${activeRules} paused`,
-            className: active
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : 'bg-slate-100 text-slate-600 border-slate-200',
-          },
-        ]}
-      >
-        <div
-          className={`mb-3 flex items-center gap-2 rounded-xl px-3 py-2.5 ${
-            active ? 'bg-slate-950' : 'bg-slate-100'
-          }`}
+        <PolicyAccordion
+          id="intake"
+          openSections={openSections}
+          toggleSection={toggleSection}
+          label="Intake impacts"
+          count={intakeImpacts.length}
         >
-          <Zap
-            className={`h-3.5 w-3.5 shrink-0 ${
-              active ? 'text-amber-400' : 'text-slate-400'
-            }`}
+          <PolicyList
+            items={intakeImpacts}
+            emptyLabel="No intake impacts were identified."
           />
-          <p className="text-xs font-medium text-white">
-            <span className={active ? 'font-black text-white' : 'font-black text-slate-700'}>
-              {activeRules} rules are {active ? 'active' : 'deactivated'}.
-            </span>{' '}
-            <span className={active ? 'text-white' : 'text-slate-600'}>
-              {active
-                ? 'Nova will use them across intake and approval workflows.'
-                : 'Nova can summarize this policy, but will not enforce it in chat or workflows.'}
-            </span>
-          </p>
-        </div>
+        </PolicyAccordion>
 
-        {rules.length === 0 ? (
-          <p className="text-xs font-medium text-slate-500">
-            No enforcement rules were returned.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {rules.map((rule, index) => {
-              const category =
-                CATEGORY_META[rule.category] ??
-                CATEGORY_META.rate_classification
+        <PolicyAccordion
+          id="config"
+          openSections={openSections}
+          toggleSection={toggleSection}
+          label="Config changes"
+          count={configChanges.length}
+        >
+          <PolicyList
+            items={configChanges}
+            emptyLabel="No configuration changes were identified."
+          />
+        </PolicyAccordion>
 
-              return (
-                <div
-                  key={rule.id || `${rule.title}-${index}`}
-                  className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-                >
-                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${category.color}`}
-                    >
-                      {category.label}
-                    </span>
-                    <span className="ml-auto rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                      {rule.enforcementType}
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {rule.enforcementStatus}
-                    </span>
-                  </div>
-                  <div className="px-3 py-2.5">
-                    <p className="text-xs font-black text-slate-900">
+        <PolicyAccordion
+          id="rules"
+          openSections={openSections}
+          toggleSection={toggleSection}
+          label="Active enforcement rules"
+          count={totalRules}
+          badges={[
+            {
+              text: active ? `${activeRules} live` : `${activeRules} paused`,
+              tone: active ? 'emerald' : 'slate',
+            },
+          ]}
+        >
+          <div
+            className={`mb-3 flex items-center gap-2.5 px-3 py-2.5 ${
+              active ? 'bg-[var(--rail)]' : 'bg-[var(--surface-sunken)]'
+            }`}
+          >
+            <Zap
+              className={`h-3.5 w-3.5 shrink-0 ${
+                active ? 'text-[var(--nova)]' : 'text-slate-400'
+              }`}
+            />
+            <p className="text-[13px] text-white">
+              <span className={active ? 'font-semibold text-white' : 'font-semibold text-slate-800'}>
+                {activeRules} rules are {active ? 'active' : 'deactivated'}.
+              </span>{' '}
+              <span className={active ? 'text-white' : 'text-slate-600'}>
+                {active
+                  ? 'Nova will use them across intake and approval workflows.'
+                  : 'Nova can summarize this policy, but will not enforce it in chat or workflows.'}
+              </span>
+            </p>
+          </div>
+
+          {rules.length === 0 ? (
+            <p className="text-[13px] text-slate-500">
+              No enforcement rules were returned.
+            </p>
+          ) : (
+            <ul className="border-t border-[var(--line)]">
+              {rules.map((rule, index) => {
+                const category =
+                  CATEGORY_META[rule.category] ??
+                  CATEGORY_META.rate_classification
+
+                return (
+                  <li
+                    key={rule.id || `${rule.title}-${index}`}
+                    className="border-b border-[var(--line)] py-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Tag>{category.label}</Tag>
+                      <span className="ml-auto">
+                        <Tag>{rule.enforcementType}</Tag>
+                      </span>
+                      <LevvStatusBadge tone={rule.enforcementStatus === 'active' ? 'emerald' : 'amber'}>
+                        {rule.enforcementStatus}
+                      </LevvStatusBadge>
+                    </div>
+                    <p className="mt-2 text-[14px] font-semibold text-slate-950">
                       {rule.title}
                     </p>
-                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-700">
+                    <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
                       {rule.statement}
                     </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-500">
-                      {rule.triggerPoint ? (
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
-                          {rule.triggerPoint}
-                        </span>
-                      ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      {rule.triggerPoint ? <Tag>{rule.triggerPoint}</Tag> : null}
                       {rule.citation ? <span>{rule.citation}</span> : null}
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </PolicyAccordion>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </PolicyAccordion>
+      </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           type="button"
           onClick={() => onActiveChange(!active)}
-          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-            active
-              ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-          }`}
+          className={active ? levvUi.dangerGhostButton : levvUi.primaryButton}
         >
           {active ? 'Deactivate policy' : 'Activate policy'}
         </button>
         <button
           type="button"
           onClick={onReset}
-          className="text-xs font-bold text-slate-400 underline underline-offset-2 hover:text-slate-600"
+          className={levvUi.ghostButton}
         >
           Re-upload policy
         </button>
@@ -892,41 +825,37 @@ function PolicyAccordion({
   toggleSection: (id: string) => void
   label: string
   count: number
-  badges?: { text: string; className: string }[]
+  badges?: { text: string; tone: LevvTone }[]
   children: ReactNode
 }) {
   const isOpen = openSections.has(id)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200">
+    <div className="border-b border-[var(--line)]">
       <button
         type="button"
         onClick={() => toggleSection(id)}
-        className="flex w-full items-center justify-between gap-3 bg-slate-50 px-3 py-2.5 text-left transition hover:bg-slate-100"
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 px-1 py-3 text-left outline-none transition-colors hover:bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-black text-slate-900">{label}</span>
-          <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-[14px] font-semibold text-slate-950">{label}</span>
+          <span className="text-[13px] font-semibold tabular-nums text-slate-500">
             {count}
           </span>
           {badges.map((badge) => (
-            <span
-              key={badge.text}
-              className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${badge.className}`}
-            >
+            <LevvStatusBadge key={badge.text} tone={badge.tone}>
               {badge.text}
-            </span>
+            </LevvStatusBadge>
           ))}
         </div>
         <ChevronDown
-          className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${
+          className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
       </button>
-      {isOpen ? (
-        <div className="border-t border-slate-100 p-3">{children}</div>
-      ) : null}
+      {isOpen ? <div className="px-1 pb-4 pt-1">{children}</div> : null}
     </div>
   )
 }
@@ -939,14 +868,14 @@ function PolicyList({
   emptyLabel: string
 }) {
   if (items.length === 0) {
-    return <p className="text-xs font-medium text-slate-500">{emptyLabel}</p>
+    return <p className="text-[13px] text-slate-500">{emptyLabel}</p>
   }
 
   return (
     <ul className="space-y-1.5">
       {items.map((item, index) => (
-        <li key={`${item}-${index}`} className="flex gap-2 text-xs font-medium text-slate-700">
-          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+        <li key={`${item}-${index}`} className="flex gap-2.5 text-[13px] text-slate-700">
+          <span className="mt-2 h-1 w-1 shrink-0 bg-slate-500" />
           <span>{item}</span>
         </li>
       ))}

@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Building2,
+  AlertCircle,
   Loader2,
   Plus,
-  Search,
   ShieldAlert,
-  Users,
   X,
 } from 'lucide-react'
 
@@ -22,7 +20,15 @@ import {
   type SupplierRecord,
   updateSupplier,
 } from '@/lib/api/suppliers'
-import { cn } from '@/lib/utils'
+import {
+  LevvNotice,
+  LevvPage,
+  LevvRecordHeader,
+  LevvSearchField,
+  LevvSelect,
+  levvUi,
+} from '@/components/ui/levv-app'
+import { useLevvDialog } from '@/components/ui/levv-dialog'
 import { isFeatureEnabled } from '@/lib/featureFlags'
 import SupplierModal from './components/SupplierModal'
 import SuppliersList from './components/SuppliersList'
@@ -69,7 +75,31 @@ function readCount(value: unknown): number {
   return 0
 }
 
-export default function SupplierDirectory() {
+/**
+ * The directory in one sentence. Totals are the tenant's, whatever the filters show; `shown` (the filtered count)
+ * is added only when a filter is on and its rows have arrived.
+ */
+function supplierStatement(total: number, active: number, flagged: number, shown: number | null) {
+  if (total === 0) return 'No suppliers yet.'
+  const lead =
+    total === 1
+      ? `One supplier; it is ${active === 1 ? 'active' : 'not active'}.`
+      : `${total} suppliers, ${active === total ? 'all' : active === 0 ? 'none' : active} active.`
+  const flags =
+    flagged === 0
+      ? 'None carries a risk flag.'
+      : `${flagged} ${flagged === 1 ? 'carries' : 'carry'} a risk flag (high risk, or not marked compliant).`
+  const matches =
+    shown === null ? '' : ` ${shown === 0 ? 'None' : shown} ${shown === 1 ? 'matches' : 'match'} these filters.`
+  return `${lead} ${flags}${matches}`
+}
+
+export default function SupplierDirectory({
+  trail = 'Management / Suppliers',
+}: {
+  /** Where the directory sits: the Management menu by default, Admin settings when the admin pages render it. */
+  trail?: string
+}) {
   const router = useRouter()
 
   const [sessionRole, setSessionRole] = useState('')
@@ -82,6 +112,8 @@ export default function SupplierDirectory() {
   const [typeFilter, setTypeFilter] = useState('')
 
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([])
+  // Every supplier, unfiltered: the header states the tenant's totals, whatever the filters show.
+  const [allSuppliers, setAllSuppliers] = useState<SupplierRecord[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState('')
   const [forbidden, setForbidden] = useState(false)
@@ -127,7 +159,7 @@ export default function SupplierDirectory() {
   }, [suppliers])
 
   const supplierStats = useMemo(() => {
-    return suppliers.reduce(
+    return (allSuppliers ?? []).reduce(
       (totals, supplier) => {
         const risk = normalizeRole(supplier.risk_level)
         const compliance = normalizeRole(supplier.compliance_status)
@@ -153,7 +185,7 @@ export default function SupplierDirectory() {
         riskFlags: 0,
       },
     )
-  }, [suppliers])
+  }, [allSuppliers])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -225,14 +257,19 @@ export default function SupplierDirectory() {
     setListError('')
 
     try {
-      const rows = await getSuppliers({
-        search: search || undefined,
-        status: statusFilter || undefined,
-        type: typeFilter || undefined,
-      })
+      const filtered = Boolean(search || statusFilter || typeFilter)
+      const [rows, everything] = await Promise.all([
+        getSuppliers({
+          search: search || undefined,
+          status: statusFilter || undefined,
+          type: typeFilter || undefined,
+        }),
+        filtered ? getSuppliers() : null,
+      ])
 
       if (requestId !== listRequestIdRef.current) return
       setSuppliers(rows)
+      setAllSuppliers(everything ?? rows)
       setForbidden(false)
     } catch (error) {
       if (requestId !== listRequestIdRef.current) return
@@ -432,6 +469,8 @@ export default function SupplierDirectory() {
     setInviteSuccessSource(null)
   }
 
+  const inviteDialogRef = useLevvDialog<HTMLDivElement>(Boolean(inviteSuccess), closeInviteSuccess)
+
   if (checkingSession) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -445,181 +484,150 @@ export default function SupplierDirectory() {
 
   if (roleError) {
     return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+      <LevvNotice tone="rose" icon={AlertCircle}>
         {roleError}
-      </div>
+      </LevvNotice>
     )
   }
 
   if (forbidden || !canViewSuppliers) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <LevvNotice tone="amber" icon={ShieldAlert}>
         You do not have access to view suppliers in this tenant.
-      </div>
+      </LevvNotice>
     )
   }
 
+  const filtersActive = Boolean(search || statusFilter || typeFilter)
+  const totalsUnknown = allSuppliers === null || (Boolean(listError) && suppliers.length === 0)
+  const statement =
+    allSuppliers === null && !listError
+      ? 'Loading suppliers…'
+      : totalsUnknown
+        ? 'Suppliers could not be loaded, so their health cannot be shown.'
+        : supplierStatement(
+            (allSuppliers ?? []).length,
+            supplierStats.activeSuppliers,
+            supplierStats.riskFlags,
+            filtersActive && !loading ? suppliers.length : null,
+          )
+  const figure = (value: number) => (totalsUnknown ? '—' : value)
+
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Suppliers</h1>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            Manage vendor relationships, compliance health, and operational footprint.
-          </p>
-        </div>
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail={trail}
+          title="Suppliers"
+          statement={statement}
+          figures={[
+            { label: 'Active suppliers', value: figure(supplierStats.activeSuppliers) },
+            { label: 'Active workers', value: figure(supplierStats.activeWorkers) },
+            { label: 'Active SOWs', value: figure(supplierStats.activeSows) },
+            { label: 'Risk flags', value: figure(supplierStats.riskFlags) },
+          ]}
+          actions={
+            <div className="group relative inline-flex">
+              <button
+                type="button"
+                onClick={openCreateModal}
+                disabled={!canManageSuppliers}
+                aria-describedby={!canManageSuppliers ? 'add-supplier-tooltip' : undefined}
+                className={levvUi.primaryButton}
+              >
+                <Plus />
+                Add supplier
+              </button>
 
-        <div className="group relative inline-flex">
-          <button
-            type="button"
-            onClick={openCreateModal}
-            disabled={!canManageSuppliers}
-            aria-describedby={!canManageSuppliers ? 'add-supplier-tooltip' : undefined}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition',
-              canManageSuppliers
-                ? 'bg-slate-950 text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800'
-                : 'cursor-not-allowed bg-slate-200 text-slate-500',
-            )}
-          >
-            <Plus className="h-4 w-4" />
-            Add supplier
-          </button>
-
-          {!canManageSuppliers && (
-            <div
-              id="add-supplier-tooltip"
-              role="tooltip"
-              className="pointer-events-none absolute right-0 top-full z-20 mt-2 hidden w-64 rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white shadow-xl group-hover:block"
-            >
-              Only admins and managers can create suppliers.
-              <span className="absolute -top-1 right-5 h-2 w-2 rotate-45 bg-slate-900" />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Active suppliers
-            </span>
-            <Building2 className="h-5 w-5 text-cyan-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {supplierStats.activeSuppliers}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Active workers
-            </span>
-            <Users className="h-5 w-5 text-cyan-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {supplierStats.activeWorkers}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Active SOWs
-            </span>
-            <Building2 className="h-5 w-5 text-slate-500" />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {supplierStats.activeSows}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Risk flags
-            </span>
-            <ShieldAlert
-              className={cn(
-                'h-5 w-5',
-                supplierStats.riskFlags > 0 ? 'text-rose-500' : 'text-emerald-500',
+              {!canManageSuppliers && (
+                <div
+                  id="add-supplier-tooltip"
+                  role="tooltip"
+                  className="pointer-events-none absolute right-0 top-full z-20 mt-2 hidden w-64 bg-slate-950 px-3 py-2 text-xs font-medium text-white group-hover:block"
+                >
+                  Only admins and managers can create suppliers.
+                  <span className="absolute -top-1 right-5 h-2 w-2 rotate-45 bg-slate-950" />
+                </div>
               )}
-            />
-          </div>
-          <div className="mt-2 text-3xl font-black text-slate-900">
-            {supplierStats.riskFlags}
-          </div>
-        </div>
-      </div>
+            </div>
+          }
+        />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="group relative">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-cyan-500" />
-            <input
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid w-full gap-1.5 sm:w-72">
+            <span className={levvUi.label}>Search</span>
+            <LevvSearchField
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Supplier name, ID, or category..."
-              className="w-full rounded-xl border border-slate-100 bg-slate-50 py-2.5 pl-11 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              aria-label="Search suppliers"
             />
-          </div>
+          </label>
 
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-          >
-            <option value="">All statuses</option>
-            {uniqueStatuses.map((status) => (
-              <option key={status} value={status}>
-                {toTitleCase(status)}
-              </option>
-            ))}
-          </select>
+          <label className="grid w-full gap-1.5 sm:w-48">
+            <span className={levvUi.label}>Status</span>
+            <LevvSelect
+              aria-label="Status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="">All statuses</option>
+              {uniqueStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {toTitleCase(status)}
+                </option>
+              ))}
+            </LevvSelect>
+          </label>
 
-          <select
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-            className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-          >
-            <option value="">All types</option>
-            {uniqueTypes.map((type) => (
-              <option key={type} value={type}>
-                {toTitleCase(type)}
-              </option>
-            ))}
-          </select>
+          <label className="grid w-full gap-1.5 sm:w-48">
+            <span className={levvUi.label}>Type</span>
+            <LevvSelect
+              aria-label="Type"
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+            >
+              <option value="">All types</option>
+              {uniqueTypes.map((type) => (
+                <option key={type} value={type}>
+                  {toTitleCase(type)}
+                </option>
+              ))}
+            </LevvSelect>
+          </label>
         </div>
+
+        {listError && (
+          <LevvNotice
+            tone="rose"
+            icon={AlertCircle}
+            action={
+              <button
+                type="button"
+                onClick={() => void loadSuppliers()}
+                className={levvUi.secondaryButton}
+              >
+                Retry
+              </button>
+            }
+          >
+            {listError}
+          </LevvNotice>
+        )}
+
+        <SuppliersList
+          loading={loading}
+          suppliers={suppliers}
+          canManageSuppliers={canManageSuppliers}
+          canManageContactAccess={canManageContactAccess}
+          canManageCoverage={canManageCoverage}
+          detailEnabled={isFeatureEnabled('supplier_detail_v2')}
+          onEditSupplier={openEditModal}
+          onInviteSupplier={openInviteModal}
+          onManageCoverage={openCoverageEditor}
+          onDeleteSupplier={deleteSupplierRecord}
+        />
       </div>
-
-      {listError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">
-          <div>{listError}</div>
-          <button
-            type="button"
-            onClick={() => void loadSuppliers()}
-            className="mt-2 text-xs font-semibold underline"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      <SuppliersList
-        loading={loading}
-        suppliers={suppliers}
-        canManageSuppliers={canManageSuppliers}
-        canManageContactAccess={canManageContactAccess}
-        canManageCoverage={canManageCoverage}
-        detailEnabled={isFeatureEnabled('supplier_detail_v2')}
-        onEditSupplier={openEditModal}
-        onInviteSupplier={openInviteModal}
-        onManageCoverage={openCoverageEditor}
-        onDeleteSupplier={deleteSupplierRecord}
-      />
 
       <SupplierModal
         open={showSupplierModal}
@@ -633,33 +641,41 @@ export default function SupplierDirectory() {
       />
 
       {inviteSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-emerald-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
+          <div
+            ref={inviteDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="supplier-invite-success-title"
+            tabIndex={-1}
+            className="w-full max-w-2xl outline-none border border-[var(--line)] bg-white shadow-[0_20px_44px_-12px_rgb(10_17_40/0.18),0_4px_10px_-4px_rgb(10_17_40/0.06)]"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
+              <h2 id="supplier-invite-success-title" className="text-lg font-semibold text-slate-950">
                 {inviteSuccessSource === 'resend' ? 'Invite resent' : 'Invite sent'}
               </h2>
               <button
                 type="button"
                 onClick={closeInviteSuccess}
-                className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                aria-label="Close"
+                className={levvUi.iconButton}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-4 px-5 py-5">
-              <p className="text-sm text-slate-700">
+              <p className="text-[14px] text-slate-700">
                 The single-use registration link was sent to {inviteSuccess.email}. Links are never exposed in the Admin response.
               </p>
 
-              <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+              <div className="grid gap-2 text-[13px] text-slate-600 md:grid-cols-2">
                 <div>
-                  <span className="font-medium text-slate-800">Access ID:</span> {String(inviteSuccess.id)}
+                  <span className="font-medium text-slate-950">Access ID:</span> <span className="tabular-nums">{String(inviteSuccess.id)}</span>
                 </div>
                 <div>
-                  <span className="font-medium text-slate-800">Expires:</span>{' '}
-                  {inviteSuccess.expires_at || 'N/A'}
+                  <span className="font-medium text-slate-950">Expires:</span>{' '}
+                  <span className="tabular-nums">{inviteSuccess.expires_at || 'N/A'}</span>
                 </div>
               </div>
 
@@ -667,7 +683,7 @@ export default function SupplierDirectory() {
                 <button
                   type="button"
                   onClick={closeInviteSuccess}
-                  className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  className={levvUi.primaryButton}
                 >
                   Close
                 </button>
@@ -676,7 +692,6 @@ export default function SupplierDirectory() {
           </div>
         </div>
       )}
-      </div>
-    </div>
+    </LevvPage>
   )
 }

@@ -49,6 +49,7 @@ Success is a governed request that turns into a ready worker without manual chas
 - Logo assets: `public/logos/levvai-brand.png` (mark + wordmark), `levvai-mark.png` (the folded "L" mark), `levvai-wordmark.png`.
 - Keep the existing brand identity and the product's plain, operational voice; the redesign modernises, it does not rebrand.
 - The AI agent is called **Nova**.
+- Inside the signed-in app, text and numbers are set in **Helvetica** (Arial on Windows), the face the app always rendered in: its old stack named Inter but never loaded it. Archivo, loaded Inter and a monospace for figures were each tried and the user preferred Helvetica (2026-11-08). The landing page keeps Inter, with Archivo as its display face.
 
 ## Evidence on Hand
 

@@ -54,10 +54,10 @@ test('clicking the tab opens a workflow on the canvas, and the tab reads as acti
   await expect(pickerButton(shell, 'Job posting created')).toBeVisible();
   await expect(canvasOf(shell).getByRole('button', { name: 'Send to suppliers', exact: true })).toBeVisible();
 
-  // Polled: the highlight fades (`transition` on the link) when it moves from Users. Levv blue-50 fill, blue-700 text.
-  const ACTIVE_FILL = 'rgb(238, 244, 255)';
+  // Polled: the highlight fades (`transition` on the link) when it moves from Users. The surface fill, Levv Blue text.
+  const ACTIVE_FILL = 'rgb(251, 250, 246)';
   await expect(tab).toHaveCSS('background-color', ACTIVE_FILL);
-  await expect(tab).toHaveCSS('color', 'rgb(30, 70, 196)');
+  await expect(tab).toHaveCSS('color', 'rgb(38, 88, 228)');
   await expect(tab).toHaveAttribute('aria-current', 'page');
   const users = adminNav(page).getByRole('link', { name: 'Users', exact: true });
   await expect(users).not.toHaveCSS('background-color', ACTIVE_FILL);

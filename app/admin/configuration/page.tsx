@@ -1,22 +1,23 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Plus,
-  Pencil,
   Trash2,
   X,
-  Save,
   Download,
-  Database,
-  Eye,
   Settings2,
-  FileCode,
-  Layers,
-  ChevronRight,
-  Info,
   CheckCircle2,
 } from 'lucide-react'
+import {
+  LevvEmptyState,
+  LevvPage,
+  LevvRecordHeader,
+  LevvSelect,
+  LevvStatusBadge,
+  levvUi,
+} from '@/components/ui/levv-app'
+import { useLevvDialog } from '@/components/ui/levv-dialog'
 
 /* ======================================================
    TYPES & CONSTANTS
@@ -63,15 +64,24 @@ const generateApiName = (label: string) =>
    COMPONENTS
 ====================================================== */
 
-const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, variant?: 'default' | 'blue' | 'purple' | 'red' }) => {
-  const styles = {
-    default: 'bg-slate-100 text-slate-600',
-    blue: 'bg-blue-50 text-blue-600 border border-blue-100',
-    purple: 'bg-purple-50 text-purple-600 border border-purple-100',
-    red: 'bg-red-50 text-red-600 border border-red-100',
-  }
-  return <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${styles[variant]}`}>{children}</span>
-}
+/** A field's type and flags: framed capitals, no fill. */
+const Badge = ({ children }: { children: ReactNode }) => (
+  <LevvStatusBadge dot={false}>{children}</LevvStatusBadge>
+)
+
+/** A group caption in the drawer, on a hairline. */
+const SectionRule = ({ children, action }: { children: ReactNode; action?: ReactNode }) => (
+  <div className="flex items-center gap-3">
+    <span className={`${levvUi.legend} text-slate-700`}>{children}</span>
+    <span aria-hidden className="h-px flex-1 bg-[var(--line)]" />
+    {action}
+  </div>
+)
+
+const moduleLabel = (m: ModuleType) => m.toLowerCase().replace('_', ' ')
+
+/** The module as the column shows it (capitalised words), for use in a sentence. */
+const moduleName = (m: ModuleType) => moduleLabel(m).replace(/\b\w/g, (letter) => letter.toUpperCase())
 
 export default function ConfigurationPage() {
   const [fields, setFields] = useState<CustomField[]>([])
@@ -130,305 +140,287 @@ export default function ConfigurationPage() {
     setDrawerOpen(false)
   }
 
+  const closeDrawer = () => setDrawerOpen(false)
+  const labelInputRef = useRef<HTMLInputElement>(null)
+  const drawerRef = useLevvDialog<HTMLDivElement>(drawerOpen, closeDrawer, labelInputRef)
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex text-slate-900">
-      {/* SIDEBAR */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-100">
-          <div className="bg-black p-2 rounded-xl">
-            <Database className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-slate-800">Field Engine</span>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          <p className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] mb-2 mt-4">Modules</p>
-          {MODULES.map((m) => (
-            <button
-              key={m}
-              onClick={() => setActiveTab(m)}
-              className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all group ${
-                activeTab === m ? 'bg-slate-100 text-black shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-              }`}
-            >
-              <span className="capitalize">{m.toLowerCase().replace('_', ' ')}</span>
-              {activeTab === m && <ChevronRight className="h-4 w-4" />}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-1 max-w-5xl mx-auto p-10">
-        <header className="flex items-end justify-between mb-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-slate-400 font-semibold text-xs uppercase tracking-wider">Customization</span>
-              <span className="text-slate-300">•</span>
-              <span className="text-slate-500 text-sm capitalize font-medium">{activeTab.toLowerCase().replace('_', ' ')}</span>
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Fields</h1>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                const blob = new Blob([JSON.stringify(fields, null, 2)], { type: 'application/json' })
-                const url = URL.createObjectURL(blob); const a = document.createElement('a')
-                a.href = url; a.download = 'schema-export.json'; a.click()
-              }}
-              className="px-6 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
-            >
-              <Download className="h-4 w-4" /> Export
-            </button>
-            <button
-              onClick={() => openDrawer()}
-              className="px-6 py-2.5 bg-black text-white rounded-full text-sm font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
-            >
-              <Plus className="h-4 w-4" /> Add Field
-            </button>
-          </div>
-        </header>
-
-        {/* FIELD LIST */}
-        <div className="grid gap-3">
-          {activeFields.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-[32px] py-24 flex flex-col items-center justify-center text-slate-400">
-              <div className="bg-slate-50 p-5 rounded-full mb-4">
-                <Settings2 className="h-10 w-10 text-slate-300" />
-              </div>
-              <p className="font-bold text-slate-600">No fields configured yet</p>
-              <p className="text-sm">Extended properties for this module will appear here.</p>
-            </div>
-          ) : (
-            activeFields.map((field) => (
-              <div
-                key={field.id}
-                className="group bg-white border border-slate-200 rounded-3xl p-6 flex justify-between items-center hover:border-black hover:shadow-xl hover:shadow-slate-100 transition-all cursor-default"
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail="Admin settings / Configuration"
+          title="Fields"
+          statement="Define extended properties for each module and how they behave across the system."
+          actions={
+            <>
+              <button
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(fields, null, 2)], { type: 'application/json' })
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a')
+                  a.href = url; a.download = 'schema-export.json'; a.click()
+                }}
+                className={levvUi.secondaryButton}
               >
-                <div className="flex items-center gap-5">
-                  <div className="bg-slate-50 p-4 rounded-2xl text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                    <FileCode className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <h3 className="font-bold text-slate-900 text-xl tracking-tight">{field.label}</h3>
-                      <Badge variant="blue">{field.type}</Badge>
-                      {field.required && <Badge variant="red">Required</Badge>}
-                      {field.visibilityRules.length > 0 && <Badge variant="purple">Conditional</Badge>}
-                    </div>
-                    <div className="flex items-center gap-4 text-[11px] text-slate-400 font-mono uppercase tracking-wider">
-                      <span>ID: {field.uniqueId}</span>
-                      <span>API: {field.name}</span>
-                      <span>v{field.version}</span>
-                    </div>
-                  </div>
-                </div>
+                <Download /> Export
+              </button>
+              <button onClick={() => openDrawer()} className={levvUi.primaryButton}>
+                <Plus /> Add Field
+              </button>
+            </>
+          }
+        />
 
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                  <button onClick={() => openDrawer(field)} className="p-3 text-slate-400 hover:text-black hover:bg-slate-100 rounded-xl transition-all">
-                    <Pencil className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => setFields(prev => prev.filter(f => f.id !== field.id))}
-                    className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
+        <div className="flex flex-col gap-5 xl:flex-row xl:gap-8">
+          {/* MODULES: a ruled column, like the admin settings column */}
+          <aside className="shrink-0 border-b border-[var(--line)] pb-2 xl:w-48 xl:self-start xl:border-b-0 xl:border-r xl:pb-0 xl:pr-3">
+            <div className="hidden px-2.5 pb-3 pt-1 xl:block">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Field Engine</p>
+              <p className="mt-1 text-xs text-slate-500">Modules</p>
+            </div>
+            <nav aria-label="Modules" className="flex gap-px overflow-x-auto xl:block xl:space-y-px xl:overflow-visible">
+              {MODULES.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setActiveTab(m)}
+                  aria-current={activeTab === m ? 'true' : undefined}
+                  className={`flex h-8 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-left text-[13.5px] capitalize transition-colors duration-150 xl:w-full ${
+                    activeTab === m
+                      ? 'bg-[var(--surface)] font-semibold text-blue-600 ring-1 ring-inset ring-[var(--line)]'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                  }`}
+                >
+                  {moduleLabel(m)}
+                </button>
+              ))}
+            </nav>
+          </aside>
+
+          {/* FIELD LIST */}
+          <section aria-label={`${moduleName(activeTab)} fields`} className="min-w-0 flex-1">
+            {activeFields.length === 0 ? (
+              <div className="border-b border-[var(--line)] xl:border-t">
+                <LevvEmptyState icon={Settings2} title="No fields configured yet">
+                  Extended properties for this module will appear here.
+                </LevvEmptyState>
               </div>
-            ))
-          )}
+            ) : (
+              <ul className="divide-y divide-[var(--line)] border-b border-t-2 border-b-[var(--line)] border-t-slate-950">
+                {activeFields.map((field) => (
+                  <li key={field.id} className="flex items-start justify-between gap-4 py-3.5">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-[14px] font-semibold text-slate-950">{field.label}</h3>
+                        <Badge>{field.type}</Badge>
+                        {field.required && <Badge>Required</Badge>}
+                        {field.visibilityRules.length > 0 && <Badge>Conditional</Badge>}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[12px] tabular-nums text-slate-500">
+                        <span>ID: {field.uniqueId}</span>
+                        <span>API: {field.name}</span>
+                        <span>v{field.version}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 gap-1">
+                      <button onClick={() => openDrawer(field)} aria-label={`Edit ${field.label}`} className={levvUi.secondaryButton}>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setFields(prev => prev.filter(f => f.id !== field.id))}
+                        aria-label={`Delete ${field.label}`}
+                        className={levvUi.dangerIconButton}
+                      >
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-      </main>
+      </div>
 
       {/* DRAWER */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <div className="relative w-full max-w-2xl bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 rounded-l-[40px]">
-            <header className="px-10 py-8 flex items-center justify-between">
+          <div className="absolute inset-0 bg-slate-950/30" onClick={() => setDrawerOpen(false)} />
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="field-drawer-title"
+            tabIndex={-1}
+            className="relative flex w-full max-w-2xl flex-col border-l border-[var(--line)] bg-[var(--surface)] shadow-[-18px_0_40px_-24px_rgb(10_19_48/0.35)] outline-none"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-6 py-5">
               <div>
-                <h2 className="text-2xl font-black text-slate-900">{editing ? 'Edit Configuration' : 'Create New Field'}</h2>
-                <p className="text-sm text-slate-400 mt-1 font-medium">Define how this property behaves across the system.</p>
+                <h2 id="field-drawer-title" className="text-lg font-semibold text-slate-950">{editing ? 'Edit Configuration' : 'Create New Field'}</h2>
+                <p className="mt-1 text-[13px] text-slate-500">Define how this property behaves across the system.</p>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="p-3 hover:bg-slate-100 rounded-full transition-all">
-                <X className="h-6 w-6 text-slate-400" />
+              <button onClick={() => setDrawerOpen(false)} aria-label="Close" className={`${levvUi.iconButton} -mr-2`}>
+                <X />
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-10 pb-10 space-y-12">
+            <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
               {/* SECTION: IDENTITY */}
-              <section className="space-y-5">
-                <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-2">Identification</span>
-                    <div className="h-px flex-1 bg-slate-100" />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700 ml-1">Display Label</label>
+              <section className="space-y-4">
+                <SectionRule>Identification</SectionRule>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="block"><span className={levvUi.label}>Display Label</span></label>
                     <input
+                      ref={labelInputRef}
                       placeholder="e.g. Cost Center ID"
                       value={form.label}
                       onChange={(e) => setForm({ ...form, label: e.target.value, name: generateApiName(e.target.value) })}
-                      className="w-full border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm focus:border-black outline-none transition-all font-medium"
+                      className={levvUi.input}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700 ml-1">Static Unique ID</label>
+                  <div className="space-y-1.5">
+                    <label className="block"><span className={levvUi.label}>Static Unique ID</span></label>
                     <input
                       placeholder="CF_101"
                       value={form.uniqueId}
                       onChange={(e) => setForm({ ...form, uniqueId: e.target.value })}
-                      className="w-full border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm focus:border-black outline-none transition-all font-medium"
+                      className={levvUi.input}
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 ml-1">System API Key (Read Only)</label>
-                  <div className="bg-slate-50 rounded-2xl px-5 py-3 text-sm font-mono text-slate-400 border-2 border-transparent select-none italic">
+                <div className="space-y-1.5">
+                  <label className="block"><span className={levvUi.label}>System API Key (Read Only)</span></label>
+                  <div className="flex h-9 select-none items-center border border-[var(--line)] bg-[var(--surface-sunken)] px-3 text-[14px] text-slate-500">
                     {form.name || 'api_key_will_generate'}
                   </div>
                 </div>
               </section>
 
               {/* SECTION: DATA TYPE */}
-              <section className="space-y-5">
-                <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-2">Data & Validation</span>
-                    <div className="h-px flex-1 bg-slate-100" />
-                </div>
-                <div className="grid grid-cols-2 gap-6 items-end">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-700 ml-1">Property Type</label>
-                        <select
-                            value={form.type}
-                            onChange={(e) => setForm({ ...form, type: e.target.value as FieldType })}
-                            className="w-full border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm focus:border-black outline-none bg-white font-medium"
-                        >
-                            {['TEXT', 'TEXTAREA', 'NUMBER', 'DATE', 'CHECKBOX', 'SELECT', 'MULTISELECT', 'ATTACHMENT', 'FORMULA'].map(t => <option key={t}>{t}</option>)}
-                        </select>
-                    </div>
-                    <label className="flex items-center gap-4 px-5 py-3.5 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-slate-50 transition-all group">
-                        <input type="checkbox" checked={form.required} onChange={(e) => setForm({...form, required: e.target.checked})} className="w-5 h-5 accent-black rounded" />
-                        <span className="text-sm font-bold text-slate-600 group-hover:text-black">Required Field</span>
-                    </label>
+              <section className="space-y-4">
+                <SectionRule>Data & Validation</SectionRule>
+                <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="block"><span className={levvUi.label}>Property Type</span></label>
+                    <LevvSelect
+                      value={form.type}
+                      onChange={(e) => setForm({ ...form, type: e.target.value as FieldType })}
+                    >
+                      {['TEXT', 'TEXTAREA', 'NUMBER', 'DATE', 'CHECKBOX', 'SELECT', 'MULTISELECT', 'ATTACHMENT', 'FORMULA'].map(t => <option key={t}>{t}</option>)}
+                    </LevvSelect>
+                  </div>
+                  <label className="flex h-9 cursor-pointer items-center gap-2.5 border border-[var(--line-strong)] px-3 transition-colors duration-150 hover:bg-slate-100">
+                    <input type="checkbox" checked={form.required} onChange={(e) => setForm({...form, required: e.target.checked})} className="h-4 w-4 accent-blue-600" />
+                    <span className="text-[14px] font-medium text-slate-800">Required Field</span>
+                  </label>
                 </div>
               </section>
 
               {/* SECTION: VISIBILITY RULES (MULTI-ADD) */}
-              <section className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Visibility Rules ({form.visibilityRules.length})</span>
+              <section className="space-y-4">
+                <SectionRule
+                  action={
                     <button
-                        type="button"
-                        onClick={addVisibilityRule}
-                        className="text-xs font-bold flex items-center gap-1.5 text-blue-600 hover:underline"
+                      type="button"
+                      onClick={addVisibilityRule}
+                      className={`${levvUi.ghostButton} h-8`}
                     >
-                        <Plus className="h-3 w-3" /> Add Logic Rule
+                      <Plus /> Add Logic Rule
                     </button>
-                </div>
+                  }
+                >
+                  Visibility Rules ({form.visibilityRules.length})
+                </SectionRule>
 
                 <div className="space-y-3">
-                    {form.visibilityRules.length === 0 && (
-                        <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 text-xs font-bold">
-                            No visibility constraints added. Field will be globally visible.
+                  {form.visibilityRules.length === 0 && (
+                    <div className="border border-dashed border-[var(--line-strong)] py-6 text-center text-[13px] text-slate-500">
+                      No visibility constraints added. Field will be globally visible.
+                    </div>
+                  )}
+                  {form.visibilityRules.map((rule, idx) => (
+                    <div key={rule.id} className="relative border border-[var(--line)] p-4 pr-12">
+                      <button
+                        onClick={() => removeVisibilityRule(rule.id)}
+                        aria-label={`Remove visibility rule ${idx + 1}`}
+                        className={`${levvUi.dangerIconButton} absolute right-2 top-2`}
+                      >
+                        <Trash2 />
+                      </button>
+                      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <label className="block"><span className={levvUi.label}>Scope</span></label>
+                          <LevvSelect
+                            value={rule.scopeType}
+                            onChange={(e) => updateVisibilityRule(rule.id, { scopeType: e.target.value as any })}
+                          >
+                            {['LEGAL_ENTITY', 'COST_CENTER', 'BUSINESS_UNIT', 'LOCATION', 'WORKSITE'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                          </LevvSelect>
                         </div>
-                    )}
-                    {form.visibilityRules.map((rule, idx) => (
-                        <div key={rule.id} className="p-5 bg-slate-50 rounded-[24px] border border-slate-200 relative animate-in zoom-in-95">
-                            <button
-                                onClick={() => removeVisibilityRule(rule.id)}
-                                className="absolute -top-2 -right-2 bg-white border border-slate-200 p-1 rounded-full text-slate-400 hover:text-red-500 shadow-sm"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Scope</label>
-                                    <select
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
-                                        value={rule.scopeType}
-                                        onChange={(e) => updateVisibilityRule(rule.id, { scopeType: e.target.value as any })}
-                                    >
-                                        {['LEGAL_ENTITY', 'COST_CENTER', 'BUSINESS_UNIT', 'LOCATION', 'WORKSITE'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Matching Value</label>
-                                    <input
-                                        placeholder="e.g. 100-Corporate"
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium"
-                                        value={rule.scopeValue}
-                                        onChange={(e) => updateVisibilityRule(rule.id, { scopeValue: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <select
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
-                                value={rule.mandatory ? 'MANDATORY' : 'OPTIONAL'}
-                                onChange={(e) => updateVisibilityRule(rule.id, { mandatory: e.target.value === 'MANDATORY' })}
-                            >
-                                <option value="MANDATORY">Required when visible</option>
-                                <option value="OPTIONAL">Optional when visible</option>
-                            </select>
+                        <div className="space-y-1.5">
+                          <label className="block"><span className={levvUi.label}>Matching Value</span></label>
+                          <input
+                            placeholder="e.g. 100-Corporate"
+                            className={levvUi.input}
+                            value={rule.scopeValue}
+                            onChange={(e) => updateVisibilityRule(rule.id, { scopeValue: e.target.value })}
+                          />
                         </div>
-                    ))}
+                      </div>
+                      <LevvSelect
+                        value={rule.mandatory ? 'MANDATORY' : 'OPTIONAL'}
+                        onChange={(e) => updateVisibilityRule(rule.id, { mandatory: e.target.value === 'MANDATORY' })}
+                      >
+                        <option value="MANDATORY">Required when visible</option>
+                        <option value="OPTIONAL">Optional when visible</option>
+                      </LevvSelect>
+                    </div>
+                  ))}
                 </div>
               </section>
 
               {/* SECTION: DEPENDENCY */}
-              <section className="space-y-5">
-                <div className="flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-2">Field Dependency</span>
-                    <div className="h-px flex-1 bg-slate-100" />
-                </div>
-                <div className="bg-slate-900 rounded-[32px] p-6 text-white space-y-4 shadow-xl">
-                    <p className="text-xs font-medium text-slate-400">Trigger this field based on another field's value:</p>
-                    <select
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-slate-500 transition-all"
-                        value={form.dependency?.dependsOnFieldId || ''}
-                        onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, dependsOnFieldId: e.target.value }})}
-                    >
-                        <option value="">No parent dependency</option>
-                        {activeFields.filter(f => f.id !== editing?.id).map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-                    </select>
+              <section className="space-y-4">
+                <SectionRule>Field Dependency</SectionRule>
+                <div className="space-y-3 border border-[var(--line)] p-4">
+                  <p className="text-[13px] text-slate-600">Trigger this field based on another field&apos;s value:</p>
+                  <LevvSelect
+                    value={form.dependency?.dependsOnFieldId || ''}
+                    onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, dependsOnFieldId: e.target.value }})}
+                  >
+                    <option value="">No parent dependency</option>
+                    {activeFields.filter(f => f.id !== editing?.id).map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </LevvSelect>
 
-                    {form.dependency?.dependsOnFieldId && (
-                        <div className="flex gap-3 animate-in fade-in slide-in-from-top-2">
-                            <select
-                                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm"
-                                onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, operator: e.target.value as any }})}
-                            >
-                                <option value="EQUALS">Is equal to</option>
-                                <option value="NOT_EQUALS">Is not equal to</option>
-                            </select>
-                            <input
-                                placeholder="Target value..."
-                                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm outline-none"
-                                onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, value: e.target.value }})}
-                            />
-                        </div>
-                    )}
+                  {form.dependency?.dependsOnFieldId && (
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <LevvSelect
+                        className="sm:w-48"
+                        onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, operator: e.target.value as any }})}
+                      >
+                        <option value="EQUALS">Is equal to</option>
+                        <option value="NOT_EQUALS">Is not equal to</option>
+                      </LevvSelect>
+                      <input
+                        placeholder="Target value..."
+                        className={`${levvUi.input} min-w-0 flex-1`}
+                        onChange={(e) => setForm({ ...form, dependency: { ...form.dependency, value: e.target.value }})}
+                      />
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
 
-            <footer className="p-10 border-t border-slate-100 flex items-center gap-4 bg-white rounded-bl-[40px]">
-              <button
-                onClick={saveField}
-                className="flex-1 py-4 bg-black text-white rounded-full font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-slate-200"
-              >
-                <CheckCircle2 className="h-6 w-6" />
+            <footer className="flex items-center justify-end gap-2 border-t border-[var(--line)] px-6 py-4">
+              <button onClick={saveField} className={levvUi.primaryButton}>
+                <CheckCircle2 />
                 {editing ? 'Update Field' : 'Commit Changes'}
               </button>
             </footer>
           </div>
         </div>
       )}
-    </div>
+    </LevvPage>
   )
 }

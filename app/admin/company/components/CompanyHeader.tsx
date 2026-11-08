@@ -1,11 +1,11 @@
-export default function CompanyHeader() {
-  return (
-    <div>
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Company</h1>
-      <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
-        Manage organizational master data used across intake, approvals,
-        compliance, and financial workflows.
-      </p>
-    </div>
-  )
+import type { ComponentProps } from 'react'
+import { LevvRecordHeader } from '@/components/ui/levv-app'
+
+type CompanyHeaderProps = Pick<
+  ComponentProps<typeof LevvRecordHeader>,
+  'statement' | 'figures' | 'actions'
+>
+
+export default function CompanyHeader(props: CompanyHeaderProps) {
+  return <LevvRecordHeader trail="Admin settings / Company" title="Company" {...props} />
 }

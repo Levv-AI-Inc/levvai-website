@@ -1,88 +1,99 @@
-import { Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { LevvStatusBadge, levvUi } from '@/components/ui/levv-app'
 import type { RowStatus, TableConfig, TableRow } from '../types'
 
+/**
+ * One tab's records on the paper: a table under the 2px head rule when the column is wide enough, stacked rows
+ * when it is not (the pilots' container-query pattern).
+ */
 export default function CompanyTable({
   config,
-  onAdd,
   renderActions,
 }: {
   config: TableConfig
-  onAdd: () => void
   renderActions?: (row: TableRow) => ReactNode
 }) {
+  const [lead, ...rest] = config.columns
+  const actions = (row: TableRow) =>
+    renderActions ? (
+      renderActions(row)
+    ) : (
+      <button className={levvUi.secondaryButton} aria-label={`Edit ${row[lead.key]}`}>
+        Edit
+      </button>
+    )
+
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-black text-slate-900">{config.title}</h2>
-        <button
-          onClick={onAdd}
-          className="rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 hover:bg-slate-800"
-        >
-          + {config.addLabel}
-        </button>
-      </div>
+    <section className="space-y-3">
+      <h2 className="text-[15px] font-semibold text-slate-950">{config.title}</h2>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/80">
-              {config.columns.map((column) => (
-                <th key={column.key} className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                  {column.label}
-                </th>
-              ))}
-              <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Status</th>
-              <th className="px-8 py-5 text-left text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Actions</th>
-            </tr>
-          </thead>
+      <div className={`${levvUi.tableShell} levv-cq`}>
+        <ul className="levv-cq-list divide-y divide-[var(--line)] border-t-2 border-slate-950">
+          {config.rows.map((row, index) => (
+            <li key={row.id ?? index} className="flex items-start justify-between gap-3 py-3.5">
+              <div className="min-w-0 space-y-1.5">
+                <p className="text-[14px] font-medium text-slate-950">{row[lead.key]}</p>
+                {rest.length > 0 ? (
+                  <dl className="grid gap-x-5 gap-y-1">
+                    {rest.map((column) => (
+                      <div key={column.key} className="flex flex-wrap items-baseline gap-x-2">
+                        <dt className={levvUi.label}>{column.label}</dt>
+                        <dd className="text-[13px] tabular-nums text-slate-800">{row[column.key]}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+                <StatusMark status={row.status} />
+              </div>
+              <div className="shrink-0">{actions(row)}</div>
+            </li>
+          ))}
+        </ul>
 
-          <tbody className="divide-y divide-slate-100">
-            {config.rows.map((row, index) => (
-              <tr key={row.id ?? index} className="transition-all hover:bg-cyan-50/40">
+        <div className="levv-cq-table relative overflow-x-auto">
+          <table className="w-full min-w-[560px]">
+            <thead>
+              <tr>
                 {config.columns.map((column) => (
-                  <td key={column.key} className="px-8 py-6 font-medium text-slate-900">
-                    {row[column.key]}
-                  </td>
+                  <th key={column.key} className={levvUi.th}>
+                    {column.label}
+                  </th>
                 ))}
-
-                <td className="px-8 py-6">
-                  <StatusPill status={row.status} />
-                </td>
-
-                <td className="px-8 py-6">
-                  {renderActions ? (
-                    renderActions(row)
-                  ) : (
-                    <button
-                      className="inline-flex items-center justify-center rounded-xl p-2 transition hover:bg-cyan-50"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="h-4 w-4 text-slate-600" />
-                    </button>
-                  )}
-                </td>
+                <th className={`${levvUi.th} w-32`}>Status</th>
+                <th className={`${levvUi.th} w-40`}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {config.rows.map((row, index) => (
+                <tr
+                  key={row.id ?? index}
+                  className="hover:bg-[var(--surface)] [&>td]:border-b [&>td]:border-[var(--line)]"
+                >
+                  {config.columns.map((column, columnIndex) => (
+                    <td
+                      key={column.key}
+                      className={`${levvUi.td} tabular-nums ${columnIndex === 0 ? 'font-medium text-slate-950' : ''}`}
+                    >
+                      {row[column.key]}
+                    </td>
+                  ))}
+
+                  <td className={levvUi.td}>
+                    <StatusMark status={row.status} />
+                  </td>
+
+                  <td className={`${levvUi.td} py-2`}>{actions(row)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
+    </section>
   )
 }
 
-function StatusPill({ status }: { status: RowStatus }) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-        status === 'Active'
-          ? 'bg-emerald-100 text-emerald-700'
-          : 'bg-slate-200 text-slate-700'
-      }`}
-    >
-      {status}
-    </span>
-  )
+function StatusMark({ status }: { status: RowStatus }) {
+  return <LevvStatusBadge tone={status === 'Active' ? 'emerald' : 'slate'}>{status}</LevvStatusBadge>
 }

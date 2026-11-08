@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Approval groups · Levv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"cv02","cv03","cv04","cv11";background:#f3f5f9;color:#364157;display:flex}
+.n{font-variant-numeric:tabular-nums}
+.rail{width:248px;flex:none;height:900px;background:#0a1330;padding:16px 12px}
+.brand{display:flex;align-items:center;gap:10px;height:40px;padding:0 8px;margin-bottom:10px}
+.tile{width:32px;height:32px;border-radius:8px;background:#fff;color:#2658e4;font-weight:700;font-size:17px;display:grid;place-items:center}
+.word{color:#fff;font-size:11px;font-weight:600;letter-spacing:.35em}
+.sec{font-size:11px;color:#95a1b5;padding:0 12px;margin:20px 0 6px}
+.nav{height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:#c9d2df}
+.ic{width:16px;height:16px;flex:none;border:1.5px solid currentColor;border-radius:4px;opacity:.7}
+.nav.on{background:rgba(255,255,255,.1);color:#fff}
+.nav.on .ic{color:#3fb6f7;opacity:1}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{height:64px;flex:none;background:#fff;border-bottom:1px solid #e0e6ef;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.q{width:360px;height:36px;background:#f6f8fb;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;font-size:13px;color:#95a1b5}
+.kbd{margin-left:auto;font-size:11px;font-weight:500;color:#616e84;background:#fff;border:1px solid #e0e6ef;border-radius:5px;padding:2px 6px}
+.me{display:flex;align-items:center;gap:12px;font-size:13px;color:#0a1128}
+.av{width:28px;height:28px;border-radius:50%;background:#131b35;color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;margin-left:8px}
+.ground{flex:1;min-height:0;display:flex;gap:32px;padding:32px}
+.set{width:208px;flex:none;align-self:flex-start;background:#fff;border:1px solid #e0e6ef;border-radius:10px;padding:8px}
+.set h2{font-size:13px;font-weight:600;color:#0a1128;margin:6px 8px 2px}
+.set p{font-size:12px;color:#616e84;margin:0 8px 10px}
+.sr{height:32px;display:flex;align-items:center;padding:0 8px;border-radius:6px;font-size:13px;color:#364157}
+.sr.on{background:#eef4ff;color:#1e46c4;font-weight:500}
+.page{flex:1;min-width:0}
+.band{position:relative;overflow:hidden;min-height:120px;background:#0a1330;border-radius:10px;padding:24px 28px;color:#fff;display:flex;align-items:center;gap:32px}
+.band::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#3fb6f7;opacity:.3}
+.band h1{margin:0;font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.band .lede{margin:6px 0 0;font-size:14px;line-height:1.45;color:rgba(255,255,255,.72);max-width:420px;text-wrap:pretty}
+.copy{flex:1;min-width:0}
+.counts{display:flex;flex:none}
+.ct{padding:0 18px;border-left:1px solid rgba(255,255,255,.14)}
+.ct:first-child{border-left:0;padding-left:0}
+.ct b{display:block;font-size:20px;font-weight:600;line-height:1.2}
+.ct span{display:block;font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
+.btn{flex:none;height:36px;display:flex;align-items:center;padding:0 14px;background:#fff;color:#0a1330;border-radius:8px;font-size:13px;font-weight:500}
+.tools{display:flex;align-items:center;gap:12px;margin:16px 0 12px}
+.find{width:280px;height:36px;background:#fff;border:1px solid #c9d2df;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:13px;color:#95a1b5}
+.seg{display:flex;background:#fff;border:1px solid #c9d2df;border-radius:8px;padding:2px}
+.seg span{height:28px;display:flex;align-items:center;padding:0 12px;border-radius:6px;font-size:13px;color:#364157}
+.seg .on{background:#131b35;color:#fff;font-weight:500}
+.tally{margin-left:auto;font-size:12px;color:#616e84}
+.tbl{background:#fff;border:1px solid #e0e6ef;border-radius:10px;overflow:hidden}
+.tr{display:grid;grid-template-columns:minmax(0,1fr) 154px 96px 88px 16px;column-gap:14px;align-items:center;height:52px;padding:0 16px;border-top:1px solid #e0e6ef;font-size:13px;color:#364157}
+.th{height:40px;border-top:0;background:#f6f8fb;font-size:12px;font-weight:550;color:#5a677d}
+.nm{font-weight:500;color:#0a1128;line-height:18px}
+.ds{font-size:12px;color:#616e84;line-height:16px;margin-top:2px}
+.nm,.ds{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mem{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.chips{display:flex;gap:3px}
+.chips i{width:22px;height:22px;border-radius:50%;background:#eef2f7;font-style:normal;font-size:10px;font-weight:600;color:#364157;display:grid;place-items:center}
+.bd{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500}
+.bd::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.any{background:#eef2f7;color:#364157}
+.any::before{background:#95a1b5}
+.all{background:#eef4ff;color:#1e46c4;box-shadow:inset 0 0 0 1px rgba(38,88,228,.18)}
+.all::before{background:#2658e4}
+.none{color:#95a1b5}
+.chev{width:16px;height:16px;display:grid;place-items:center}
+.chev::before{content:"";width:6px;height:6px;border-top:1.5px solid #95a1b5;border-right:1.5px solid #95a1b5;transform:translateX(-2px) rotate(45deg)}
+</style>
+</head>
+<body>
+<aside class="rail">
+  <div class="brand"><div class="tile">L</div><div class="word">LEVVAI</div></div>
+  <div class="sec">Main</div>
+  <div class="nav"><i class="ic"></i>Home</div>
+  <div class="nav"><i class="ic"></i>My items</div>
+  <div class="nav"><i class="ic"></i>Inbox</div>
+  <div class="nav"><i class="ic"></i>Running workflows</div>
+  <div class="sec">Management</div>
+  <div class="nav"><i class="ic"></i>Contingent workforce</div>
+  <div class="nav"><i class="ic"></i>Services</div>
+  <div class="nav"><i class="ic"></i>Workers</div>
+  <div class="nav"><i class="ic"></i>Suppliers</div>
+  <div class="sec">System</div>
+  <div class="nav"><i class="ic"></i>Finance</div>
+  <div class="nav on"><i class="ic"></i>Settings</div>
+</aside>
+<div class="main">
+  <header class="top">
+    <div class="q"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#95a1b5" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search pages and subpages…<span class="kbd">⌘K</span></div>
+    <div class="me">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#364157" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <div class="av">LA</div>Local Admin
+    </div>
+  </header>
+  <div class="ground">
+    <nav class="set">
+      <h2>Admin settings</h2>
+      <p>Tenant controls and access.</p>
+      <div class="sr">Users</div><div class="sr">Company</div><div class="sr">Roles</div>
+      <div class="sr on">Approval groups</div><div class="sr">Supplier network</div><div class="sr">Approval chains</div>
+      <div class="sr">Workflows</div><div class="sr">Financial</div><div class="sr">Rates</div>
+      <div class="sr">Suppliers</div><div class="sr">Workers</div><div class="sr">Compliance policies</div>
+      <div class="sr">Tenant docs</div><div class="sr">Integrations</div><div class="sr">Configuration</div>
+    </nav>
+    <main class="page">
+      <section class="band">
+        <div class="copy">
+          <h1>Approval groups</h1>
+          <p class="lede">7 groups decide approvals across your chains and worker workflows. 2 of them need every member to sign.</p>
+        </div>
+        <div class="counts">
+          <div class="ct"><b class="n">7</b><span>groups</span></div>
+          <div class="ct"><b class="n">13</b><span>members</span></div>
+          <div class="ct"><b class="n">2</b><span>all-must-approve</span></div>
+        </div>
+        <div class="btn">New group</div>
+      </section>
+      <div class="tools">
+        <div class="find"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#95a1b5" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search groups</div>
+        <div class="seg"><span class="on">All</span><span>Any one approves</span><span>All must approve</span></div>
+        <div class="tally n">7 of 7</div>
+      </div>
+      <div class="tbl">
+        <div class="tr th"><div>Group</div><div>Members</div><div>Decision rule</div><div>Used in</div><div></div></div>
+        <div class="tr"><div><div class="nm">Onboarding approvers</div><div class="ds">Cross-functional approval group for worker onboarding and access readiness.</div></div><div class="mem"><span class="chips"><i>DR</i><i>PN</i><i>SP</i></span><span class="n">3 members</span></div><div><span class="bd any">Any one</span></div><div class="n">1 workflow</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">People Ops sign-off</div><div class="ds">People Operations and HR approvals.</div></div><div class="mem"><span class="chips"><i>DR</i><i>TO</i></span><span class="n">2 members</span></div><div><span class="bd any">Any one</span></div><div class="none">Not used</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">Legal sign-off</div><div class="ds">Legal review and policy approval.</div></div><div class="mem"><span class="chips"><i>PN</i></span><span class="n">1 member</span></div><div><span class="bd all">All must</span></div><div class="n">1 chain</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">Security review</div><div class="ds">Security, access, and risk approvals.</div></div><div class="mem"><span class="chips"><i>AS</i><i>JP</i></span><span class="n">2 members</span></div><div><span class="bd any">Any one</span></div><div class="n">1 workflow</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">IT provisioning</div><div class="ds">IT access and provisioning approvals.</div></div><div class="mem"><span class="chips"><i>SP</i><i>LC</i></span><span class="n">2 members</span></div><div><span class="bd any">Any one</span></div><div class="n">1 workflow</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">Vendor &amp; insurance sign-off</div><div class="ds">Supplier, insurance, and procurement approvals.</div></div><div class="mem"><span class="chips"><i>SC</i><i>ML</i></span><span class="n">2 members</span></div><div><span class="bd any">Any one</span></div><div class="none">Not used</div><span class="chev"></span></div>
+        <div class="tr"><div><div class="nm">Finance sign-off</div><div class="ds">Finance and payment approvals.</div></div><div class="mem"><span class="chips"><i>OB</i></span><span class="n">1 member</span></div><div><span class="bd all">All must</span></div><div class="n">1 chain</div><span class="chev"></span></div>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

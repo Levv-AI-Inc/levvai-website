@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Approval chains · Exposure record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,400..600&display=swap" rel="stylesheet">
+<style>
+:root{--z0:#0a1330;--z1:#19213b;--z2:#283049;--z3:#3a425a;--z4:#4f566c;--z5:#676d81;--z6:#82879a;--z7:#a1a5b3;--z8:#c2c4cd;--z9:#e0e1e5;--z10:#f5f4ef;--blue:#2658e4;--ok:#1f8a5b;--red:#c0392b;
+--h1:repeating-linear-gradient(45deg,var(--z7) 0 1px,transparent 1px 3.5px);
+--h2:repeating-linear-gradient(45deg,var(--z7) 0 1px,transparent 1px 6.5px);
+--h3:repeating-linear-gradient(45deg,var(--z7) 0 1px,transparent 1px 11px);
+--hx:repeating-linear-gradient(45deg,rgba(192,57,43,.45) 0 1px,transparent 1px 5px),repeating-linear-gradient(-45deg,rgba(192,57,43,.45) 0 1px,transparent 1px 5px)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{background:var(--z10);color:var(--z0);font:400 14px/20px 'Archivo',sans-serif;font-stretch:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;display:grid;grid-template-columns:232px 1fr}
+.cap{font-family:'Archivo',sans-serif;font-stretch:72%;font-weight:600;font-size:11px;line-height:14px;letter-spacing:.06em;text-transform:uppercase}
+.m{font-family:'Martian Mono',monospace;font-stretch:87.5%;font-variant-numeric:tabular-nums;font-size:12px;font-weight:400;letter-spacing:0}
+svg{display:block;flex:none}
+/* rail */
+.rail{background:var(--z0);height:900px;display:flex;flex-direction:column;color:var(--z8)}
+.logo{height:56px;flex:none;display:flex;align-items:center;gap:11px;padding:0 20px;border-bottom:1px solid var(--z1)}
+.tile{width:26px;height:26px;background:#fff;display:grid;place-items:center;color:var(--blue);font:700 17px/1 'Archivo';font-stretch:100%}
+.word{color:#fff;font:600 13px/1 'Archivo';font-stretch:100%;letter-spacing:.3em}
+.rail h6{padding:24px 20px 8px;color:var(--z5)}
+.nav a{display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 20px;color:var(--z8);text-decoration:none}
+.nav a.on{background:var(--z1);color:#fff;font-weight:500;box-shadow:inset 3px 0 0 var(--blue)}
+.nav .m{font-size:11px;color:var(--z6)}
+.ten{margin-top:auto;border-top:1px solid var(--z1);height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+.ten .cap{color:var(--z5)}.ten b{font-weight:500;color:var(--z9);margin-right:auto;margin-left:12px}
+/* app frame */
+.app{display:grid;grid-template-columns:164px 1fr;grid-template-rows:56px 1fr;height:900px;min-width:0}
+.top{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:0 32px 0 20px;border-bottom:1px solid var(--z8)}
+.fld{display:flex;align-items:center;gap:9px;height:34px;border:1px solid var(--z7);padding:0 10px;color:var(--z5);background:var(--z10)}
+.kbd{margin-left:auto;border:1px solid var(--z8);padding:0 5px;font-size:10px;line-height:16px;color:var(--z5)}
+.who{display:flex;align-items:center;gap:16px}
+.bell{position:relative;width:34px;height:34px;border:1px solid var(--z8);display:grid;place-items:center;color:var(--z2)}
+.bell .m{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;background:var(--z0);color:#fff;font-size:10px;line-height:16px;text-align:center}
+.vr{width:1px;height:24px;background:var(--z8)}
+.av{width:30px;height:30px;background:var(--z0);color:#fff;display:grid;place-items:center;font-size:11px;letter-spacing:.04em}
+.who .nm{font-weight:500;font-size:13.5px;line-height:17px}.who small{display:block;color:var(--z5);font-size:11.5px;line-height:14px}
+/* settings sub-navigation */
+.sub{background:var(--z9);border-right:1px solid var(--z8);padding:22px 0}
+.sub h6{padding:0 20px 10px;color:var(--z4)}
+.sub a{display:flex;align-items:center;height:31px;padding:0 12px 0 20px;white-space:nowrap;font-size:13px;color:var(--z3);text-decoration:none}
+.sub a.on{background:var(--z10);color:var(--z0);font-weight:600;box-shadow:inset 2px 0 0 var(--blue)}
+/* page */
+.main{position:relative;padding:32px 28px 0;min-width:0}
+.hd{display:flex;justify-content:space-between;gap:32px}
+.crumb{color:var(--z5);display:flex;gap:8px}.crumb i{font-style:normal;color:var(--z8)}
+h1{margin-top:12px;font:600 36px/40px 'Archivo';font-stretch:112%;letter-spacing:-.02em}
+.lede{margin-top:6px;color:var(--z4)}
+.hr{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding-top:2px}
+.wedge{display:flex;outline:1px solid var(--z8)}.wedge i{width:10px;height:6px}
+.btn{height:38px;padding:0 16px 0 13px;display:flex;align-items:center;gap:9px;background:var(--blue);color:#fff;font-size:12px;border:0}
+.note{margin-top:24px;display:flex;align-items:center;gap:12px;height:40px;padding:0 14px;border:1px solid var(--z8);border-left:3px solid var(--red)}
+.xs{width:16px;height:16px;flex:none;border:1px solid var(--red);background:var(--hx),var(--z10)}
+.note .lbl{color:var(--red)}.note b{font-weight:600}
+.lnk{margin-left:auto;color:var(--z0);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--z0);line-height:16px}
+.flt{margin-top:26px;display:flex;align-items:flex-end;gap:16px}
+.f>.cap:first-child{display:block;color:var(--z5);margin-bottom:6px}
+.seg{display:flex;height:34px;border:1px solid var(--z7)}
+.seg span{display:grid;place-items:center;padding:0 15px;color:var(--z3);border-left:1px solid var(--z8)}.seg span:first-child{border-left:0}
+.seg span.on{background:var(--blue);color:#fff}
+.sel{width:220px;justify-content:space-between;color:var(--z0)}
+.cnt{margin-left:auto;color:var(--z5);line-height:34px}.cnt .m{color:var(--z0)}
+.lgd{margin-top:28px;display:flex;align-items:center;gap:8px;color:var(--z4);font-size:12.5px;line-height:16px}
+.lgd .cap{color:var(--z5);margin-right:6px}
+.sw{width:22px;height:12px;border:1px solid var(--z6);background:var(--z10)}
+.lgd .m{font-size:11px;color:var(--z0);margin-right:6px}
+.lgd .sp{width:1px;height:14px;background:var(--z8);margin:0 8px}
+/* table */
+table{width:100%;margin-top:14px;border-collapse:collapse;table-layout:fixed}
+th{height:34px;text-align:left;vertical-align:bottom;padding:0 12px 8px;border-bottom:2px solid var(--z0);color:var(--z4)}
+td{height:52px;padding:0 12px;border-bottom:1px solid var(--z8);vertical-align:middle}
+th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding-right:0;text-align:right}
+.pr{font-size:13px;font-weight:500}.pr s{text-decoration:none;color:var(--z6)}
+.cn{font-weight:600;line-height:18px}
+.ap{color:var(--z4);line-height:18px}.ap b{font-weight:500;color:var(--z0)}.ap .m{font-size:12px;font-stretch:75%;color:var(--z0)}
+.ch{display:flex;align-items:center}
+.ln{flex:none;width:8px;height:1px;background:var(--z5)}
+.st{flex:none;padding:4px 6px 5px;border:1px solid var(--z6)}
+.d1{background:var(--h1),var(--z10)}.d2{background:var(--h2),var(--z10)}.d3{background:var(--h3),var(--z10)}
+.st .n,.st .r{display:block;width:fit-content;background:var(--z10);padding:0 3px;margin-left:-3px;white-space:nowrap}
+.st .n{font-weight:500;font-size:12.5px;line-height:16px;font-stretch:87.5%}
+.st .n .m{font-size:10.5px;color:var(--z5);margin-right:5px}
+.st .r{margin-top:2px;font-size:10px;line-height:13px;color:var(--z4)}.st .r .m{font-size:10px;color:var(--z0)}
+.cx{position:relative;display:flex;align-items:center}
+.cx .st{border-color:var(--red);background:var(--hx),var(--z10)}.cx .ln{background:var(--red)}
+.cx::before{content:"";position:absolute;left:0;right:0;top:-7px;height:4px;border:1px solid var(--red);border-bottom:0}
+.cx em{position:absolute;left:50%;top:-12px;transform:translateX(-50%);font-style:normal;color:var(--red);background:var(--z10);padding:0 5px;font-size:9.5px;line-height:11px}
+.cf td{height:60px;vertical-align:bottom;padding-bottom:9px}
+.cf td,.al td{position:relative}
+.cf td:first-child::before,.al td:first-child::before{content:"";position:absolute;left:-14px;top:-1px;bottom:-1px;width:3px;background:var(--red)}
+.cf td{border-bottom:0}
+.al td{height:44px;padding-top:0;padding-bottom:10px;vertical-align:top}
+.alert{display:flex;align-items:center;gap:12px;height:34px;padding:0;border-top:1px dashed var(--z8);text-align:left;color:var(--z1)}
+.alert>.cap:first-child{color:var(--red)}
+.s{display:flex;align-items:center;gap:8px;color:var(--z1)}.s i{flex:none;width:7px;height:7px;background:var(--ok)}
+.s.off{color:var(--z6)}.s.off i{background:none;border:1px solid var(--z7)}
+.ed{height:28px;padding:0 10px;border:1px solid var(--z7);background:none;color:var(--z0);font-size:11px;display:inline-flex;align-items:center}
+.alert .ed{margin-left:auto;border-color:var(--z0)}
+.off-row .cn,.off-row .ap,.off-row .ap b{color:var(--z5)}.off-row .st{border-color:var(--z8)}.off-row .pr{color:var(--z5)}
+.sum{margin-top:14px;display:flex;gap:22px;color:var(--z5)}.sum .m{color:var(--z0);font-size:11px;margin-right:4px}
+.foot{position:absolute;left:28px;right:28px;bottom:0;height:44px;border-top:1px solid var(--z8);display:flex;align-items:center;justify-content:space-between;color:var(--z5);font-size:12px}
+.foot .cap{color:var(--z4);margin-right:10px}
+</style>
+</head>
+<body>
+<aside class="rail">
+  <div class="logo"><div class="tile">L</div><span class="word">LEVVAI</span></div>
+  <h6 class="cap">Main</h6>
+  <nav class="nav"><a>Home</a><a>My items <span class="m">5</span></a><a>Inbox <span class="m">3</span></a><a>Running workflows <span class="m">12</span></a></nav>
+  <h6 class="cap">Management</h6>
+  <nav class="nav"><a>Contingent workforce</a><a>Services</a><a>Workers</a><a>Suppliers</a></nav>
+  <h6 class="cap">System</h6>
+  <nav class="nav"><a>Finance</a><a class="on">Settings</a></nav>
+  <div class="ten"><span class="cap">Tenant</span><b>acme</b><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#82879a" stroke-width="1.3"><path d="M3 4.5 6 7.5 9 4.5"/></svg></div>
+</aside>
+<div class="app">
+  <header class="top">
+    <div class="fld" style="width:320px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#676d81" stroke-width="1.4"><circle cx="7" cy="7" r="4.8"/><path d="m10.6 10.6 3.4 3.4"/></svg>Search pages<span class="kbd m">/</span></div>
+    <div class="who">
+      <div class="bell"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 11.5V7a4 4 0 0 1 8 0v4.5l1.2 1.2H2.8zM6.5 14h3"/></svg><span class="m">2</span></div>
+      <span class="vr"></span>
+      <div class="av cap">LA</div>
+      <div><span class="nm">Local Admin</span><small>Administrator · acme</small></div>
+    </div>
+  </header>
+  <nav class="sub">
+    <h6 class="cap">Admin settings</h6>
+    <a>Users</a><a>Company</a><a>Roles</a><a>Approval groups</a><a>Supplier network</a><a class="on">Approval chains</a><a>Workflows</a><a>Financial</a><a>Rates</a><a>Suppliers</a><a>Workers</a><a>Compliance policies</a><a>Tenant docs</a><a>Integrations</a><a>Configuration</a>
+  </nav>
+  <main class="main">
+    <div class="hd">
+      <div>
+        <div class="crumb cap"><span>Admin settings</span><i>/</i><span style="color:var(--z0)">Approval chains</span></div>
+        <h1>Approval chains</h1>
+        <p class="lede">A request takes the first active chain it matches, lowest priority number first, then goes to that chain's approvers in order.</p>
+      </div>
+      <div class="hr">
+        <div class="wedge"><i style="background:#0a1330"></i><i style="background:#19213b"></i><i style="background:#283049"></i><i style="background:#3a425a"></i><i style="background:#4f566c"></i><i style="background:#676d81"></i><i style="background:#82879a"></i><i style="background:#a1a5b3"></i><i style="background:#c2c4cd"></i><i style="background:#e0e1e5"></i><i style="background:#f5f4ef"></i></div>
+        <button class="btn cap"><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.6"><path d="M6 1v10M1 6h10"/></svg>New chain</button>
+      </div>
+    </div>
+    <div class="note"><i class="xs"></i><span><span class="m" style="color:var(--red)">1</span> conflict: Sam Patel sits in two steps of <b>Contractor onboarding access</b></span><span class="lnk cap">Review chain <span class="m">P30</span></span></div>
+    <div class="flt">
+      <label class="f"><span class="cap">Search</span><span class="fld" style="width:280px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#676d81" stroke-width="1.4"><circle cx="7" cy="7" r="4.8"/><path d="m10.6 10.6 3.4 3.4"/></svg>Search chains</span></label>
+      <div class="f"><span class="cap">Status</span><div class="seg cap"><span class="on">All</span><span>Active</span><span>Inactive</span></div></div>
+      <label class="f"><span class="cap">Match strategy</span><span class="fld sel">All match strategies<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#283049" stroke-width="1.4"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span></label>
+      <span class="cnt cap">Showing <span class="m">4</span> of <span class="m">4</span></span>
+    </div>
+    <div class="lgd"><span class="cap">Legend</span><i class="sw d1"></i><span class="m">1</span><i class="sw d2"></i><span class="m">2</span><i class="sw d3"></i><span class="m">3+</span><span>Hatch density: fewer people can approve that step.</span><span class="sp"></span><i class="sw" style="border-color:var(--red);background:var(--hx),var(--z10)"></i><span>Cross-hatch: one person in two steps.</span></div>
+    <table>
+      <colgroup><col style="width:52px"><col style="width:168px"><col style="width:188px"><col><col style="width:84px"><col style="width:58px"></colgroup>
+      <thead><tr class="cap"><th>Priority</th><th>Chain</th><th>Applies when</th><th>Approvers, in order</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="m pr"><s>P</s>10</td><td class="cn">Standard US contingent approval</td><td class="ap">Job country is <b>US</b></td>
+          <td><div class="ch"><div class="st d3"><span class="n"><span class="m">1</span>Onboarding approvers</span><span class="r cap">Any one · <span class="m">3</span> people</span></div><i class="ln"></i><div class="st d1"><span class="n"><span class="m">2</span>Finance sign-off</span><span class="r cap">All must · <span class="m">1</span> person</span></div></div></td>
+          <td><span class="s"><i></i>Active</span></td><td><span class="ed cap">Edit</span></td></tr>
+        <tr><td class="m pr"><s>P</s>20</td><td class="cn">High value engagement approval</td><td class="ap">Currency is <b>USD</b> and budget is at least <span class="m">100,000</span></td>
+          <td><div class="ch"><div class="st d1"><span class="n"><span class="m">1</span>Finance sign-off</span><span class="r cap">All must · <span class="m">1</span> person</span></div><i class="ln"></i><div class="st d1"><span class="n"><span class="m">2</span>Legal sign-off</span><span class="r cap">All must · <span class="m">1</span> person</span></div><i class="ln"></i><div class="st d2"><span class="n"><span class="m">3</span>Vendor &amp; insurance sign-off</span><span class="r cap">Any one · <span class="m">2</span> people</span></div></div></td>
+          <td><span class="s"><i></i>Active</span></td><td><span class="ed cap">Edit</span></td></tr>
+        <tr class="cf"><td class="m pr"><s>P</s>30</td><td class="cn">Contractor onboarding access</td><td class="ap">Worker type is <b>contractor</b></td>
+          <td><div class="ch"><div class="st d2"><span class="n"><span class="m">1</span>Security review</span><span class="r cap">Any one · <span class="m">2</span> people</span></div><i class="ln"></i><div class="cx"><em class="cap">Conflict</em><div class="st"><span class="n"><span class="m">2</span>Onboarding approvers</span><span class="r cap">Any one · <span class="m">3</span> people</span></div><i class="ln"></i><div class="st"><span class="n"><span class="m">3</span>IT provisioning</span><span class="r cap">Any one · <span class="m">2</span> people</span></div></div></div></td>
+          <td><span class="s"><i></i>Active</span></td><td><span class="ed cap">Edit</span></td></tr>
+        <tr class="al"><td></td><td colspan="5"><div class="alert"><span class="cap">Conflict</span><span>Sam Patel is in <b>Onboarding approvers</b> and <b>IT provisioning</b>, so one person could approve twice in this chain.</span><span class="ed cap">Edit approvers</span></div></td></tr>
+        <tr class="off-row"><td class="m pr"><s>P</s>40</td><td class="cn">People changes</td><td class="ap">Request type is <b>extension</b> or <b>conversion</b></td>
+          <td><div class="ch"><div class="st d2"><span class="n"><span class="m">1</span>People Ops sign-off</span><span class="r cap">Any one · <span class="m">2</span> people</span></div></div></td>
+          <td><span class="s off"><i></i>Inactive</span></td><td><span class="ed cap">Edit</span></td></tr>
+      </tbody>
+    </table>
+    <div class="sum cap"><span><span class="m">4</span>chains</span><span><span class="m">3</span>active</span><span><span class="m">1</span>inactive</span><span>Evaluated top to bottom</span></div>
+    <footer class="foot"><span><span class="cap">Sample data</span>Chains, groups and people on this screen are illustrative.</span><span class="cap">LEVVAI · acme · Admin settings</span></footer>
+  </main>
+</div>
+</body>
+</html>

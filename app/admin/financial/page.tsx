@@ -1,8 +1,17 @@
 'use client'
 
 import { useMemo, useState, useRef } from 'react'
-import { Pencil, Upload, FileSpreadsheet } from 'lucide-react'
+import { Plus, Upload } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import {
+  LevvNovaPanel,
+  LevvPage,
+  LevvRecordHeader,
+  LevvStatusBadge,
+  LevvTabs,
+  LevvUploadZone,
+  levvUi,
+} from '@/components/ui/levv-app'
 
 const TABS = [
   'Currency',
@@ -28,6 +37,7 @@ type TableConfig = {
 
 export default function FinancialPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Currency')
+  const [aiRequest, setAiRequest] = useState('')
 
   // Manage data in state to allow for dynamic updates via upload
   const [financialData, setFinancialData] = useState<Record<Tab, TableRow[]>>({
@@ -63,56 +73,46 @@ export default function FinancialPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Financial</h1>
-        <p className="text-sm text-gray-600 mt-1 max-w-2xl">
-          Manage financial master data used across billing, invoicing,
-          compliance, and worker payments.
-        </p>
-      </div>
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail="Admin settings / Financial"
+          title="Financial"
+          statement="Manage financial master data used across billing, invoicing, compliance, and worker payments."
+          actions={
+            <button className={levvUi.primaryButton}>
+              <Plus /> {config.addLabel}
+            </button>
+          }
+        />
 
-      {/* Action Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* AI Update Panel */}
-        <div className="rounded-lg border bg-white p-4">
-          <label className="block text-sm font-medium text-gray-900 mb-2">
-            Update {activeTab} via AI
-          </label>
-          <textarea
-            className="w-full rounded-md border p-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black/10"
-            rows={3}
-            placeholder={`e.g., Change the NY-SALES tax rate to 9%`}
+        {/* Action Panels */}
+        <div className="grid gap-4 xl:grid-cols-2">
+          {/* AI Update Panel */}
+          <LevvNovaPanel
+            title={`Update ${activeTab} via AI`}
+            placeholder="e.g., Change the NY-SALES tax rate to 9%"
+            value={aiRequest}
+            onChange={setAiRequest}
+            submitLabel="Generate changes"
           />
-          <button className="mt-3 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900">
-            ✨ Generate changes
-          </button>
+
+          {/* Mass Upload Panel */}
+          <BulkUploadPanel activeTab={activeTab} onUpload={handleDataUpload} />
         </div>
 
-        {/* Mass Upload Panel */}
-        <BulkUploadPanel activeTab={activeTab} onUpload={handleDataUpload} />
-      </div>
+        <div className="space-y-5">
+          <LevvTabs<Tab>
+            label="Financial master data"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={TABS.map((tab) => ({ value: tab, label: tab }))}
+          />
 
-      {/* Tabs */}
-      <div className="border-b flex gap-6 text-sm font-medium">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-3 transition ${
-              activeTab === tab
-                ? 'border-b-2 border-black text-black'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+          <TableLayout config={config} />
+        </div>
       </div>
-
-      <TableLayout config={config} />
-    </div>
+    </LevvPage>
   )
 }
 
@@ -147,23 +147,22 @@ function BulkUploadPanel({ activeTab, onUpload }: { activeTab: Tab, onUpload: (d
   }
 
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center text-center">
-      <div className="rounded-full bg-white p-2 shadow-sm mb-2">
-        <FileSpreadsheet className="h-5 w-5 text-green-600" />
-      </div>
-      <h3 className="text-sm font-medium text-gray-900">Bulk Upload {activeTab}</h3>
-      <p className="text-xs text-gray-500 mt-1 mb-4">
-        Headers must match the {activeTab} table columns.
-      </p>
+    <>
       <input type="file" ref={fileRef} onChange={handleFile} className="hidden" accept=".xlsx,.xls" />
-      <button
-        onClick={() => fileRef.current?.click()}
-        className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-      >
-        <Upload className="h-4 w-4" />
-        Choose Excel File
-      </button>
-    </div>
+      <LevvUploadZone
+        title={`Bulk Upload ${activeTab}`}
+        description={`Headers must match the ${activeTab} table columns.`}
+        action={
+          <button
+            onClick={() => fileRef.current?.click()}
+            className={levvUi.secondaryButton}
+          >
+            <Upload />
+            Choose Excel File
+          </button>
+        }
+      />
+    </>
   )
 }
 
@@ -171,56 +170,76 @@ function BulkUploadPanel({ activeTab, onUpload }: { activeTab: Tab, onUpload: (d
    Table Layout & UI (Unchanged logic, minor tweaks)
 ----------------------------------- */
 
+/** A tab's records on the paper: a table when the column is wide enough, stacked rows when it is not. */
 function TableLayout({ config }: { config: TableConfig }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{config.title}</h2>
-        <button className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
-          + {config.addLabel}
-        </button>
-      </div>
+  const [lead, ...rest] = config.columns
+  const edit = (row: TableRow) => (
+    <button className={levvUi.secondaryButton} aria-label={`Edit ${row[lead.key] || config.title}`}>
+      Edit
+    </button>
+  )
 
-      <div className="overflow-x-auto rounded-lg border bg-white">
-        <table className="min-w-full text-sm text-gray-900">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              {config.columns.map((col) => (
-                <th key={col.key} className="px-4 py-3 text-left font-medium">{col.label}</th>
-              ))}
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {config.rows.map((row, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
+  return (
+    <section className="space-y-3">
+      <h2 className="text-[15px] font-semibold text-slate-950">{config.title}</h2>
+
+      <div className={`${levvUi.tableShell} levv-cq`}>
+        <ul className="levv-cq-list divide-y divide-[var(--line)] border-t-2 border-slate-950">
+          {config.rows.map((row, idx) => (
+            <li key={idx} className="flex items-start justify-between gap-3 py-3.5">
+              <div className="min-w-0 space-y-1.5">
+                <p className="text-[14px] font-medium text-slate-950">{row[lead.key] || '—'}</p>
+                <dl className="grid gap-y-1">
+                  {rest.map((col) => (
+                    <div key={col.key} className="flex flex-wrap items-baseline gap-x-2">
+                      <dt className={levvUi.label}>{col.label}</dt>
+                      <dd className="text-[13px] tabular-nums text-slate-800">{row[col.key] || '—'}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <StatusPill status={row.status} />
+              </div>
+              {edit(row)}
+            </li>
+          ))}
+        </ul>
+
+        <div className="levv-cq-table relative overflow-x-auto">
+          <table className="w-full min-w-[560px]">
+            <thead>
+              <tr>
                 {config.columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3">{row[col.key] || '—'}</td>
+                  <th key={col.key} className={levvUi.th}>{col.label}</th>
                 ))}
-                <td className="px-4 py-3"><StatusPill status={row.status} /></td>
-                <td className="px-4 py-3">
-                  <button className="p-2 rounded-md hover:bg-gray-100">
-                    <Pencil className="h-4 w-4 text-gray-600" />
-                  </button>
-                </td>
+                <th className={`${levvUi.th} w-32`}>Status</th>
+                <th className={`${levvUi.th} w-24`}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {config.rows.map((row, idx) => (
+                <tr key={idx} className="hover:bg-[var(--surface)] [&>td]:border-b [&>td]:border-[var(--line)]">
+                  {config.columns.map((col, colIdx) => (
+                    <td
+                      key={col.key}
+                      className={`${levvUi.td} tabular-nums ${colIdx === 0 ? 'font-medium text-slate-950' : ''}`}
+                    >
+                      {row[col.key] || '—'}
+                    </td>
+                  ))}
+                  <td className={levvUi.td}><StatusPill status={row.status} /></td>
+                  <td className={`${levvUi.td} py-2`}>{edit(row)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
 function StatusPill({ status }: { status: RowStatus }) {
-  return (
-    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-      status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
-    }`}>
-      {status}
-    </span>
-  )
+  return <LevvStatusBadge tone={status === 'Active' ? 'emerald' : 'slate'}>{status}</LevvStatusBadge>
 }
 
 function getTableConfig(activeTab: Tab): Omit<TableConfig, 'rows'> {

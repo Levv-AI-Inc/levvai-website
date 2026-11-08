@@ -69,12 +69,21 @@ module.exports = {
         ink: levvInk,
         brand: levvBlue,
         nova: { 50: '#ecf8ff', 100: '#d3efff', 400: '#3fb6f7', 500: '#1a9de6', 600: '#0b7fc4', 700: '#0b659c' },
+        // The shared Button's default and destructive variants (app/components/ui/button.tsx) read these.
+        primary: { DEFAULT: levvInk[900], foreground: '#ffffff' },
+        destructive: { DEFAULT: '#e11d48', foreground: '#ffffff' },
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // --font-app is the loaded Inter (--font-sans) on the landing page and Helvetica inside the signed-in app (globals.css).
+        sans: ['var(--font-app)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['var(--font-display)', 'var(--font-sans)', 'ui-sans-serif', 'sans-serif'],
       },
+      // Every corner reads a variable, so the app can run square while the landing page and spec-pinned screens keep theirs.
       borderRadius: {
+        sm: 'var(--radius-sm)',
+        DEFAULT: 'var(--radius)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
         xl: 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
         '3xl': 'var(--radius-3xl)',
@@ -115,12 +124,22 @@ module.exports = {
       addBase({
         ':root': {
           ...variables(BRAND),
+          '--font-app': 'var(--font-sans)',
+          '--radius-sm': '0.125rem',
+          '--radius': '0.25rem',
+          '--radius-md': '0.375rem',
+          '--radius-lg': '0.5rem',
           '--radius-xl': '0.625rem',
           '--radius-2xl': '0.75rem',
           '--radius-3xl': '1rem',
         },
         '.levv-spec': {
           ...variables({ slate: defaults.slate, gray: defaults.gray, blue: defaults.blue, cyan: defaults.cyan }),
+          '--font-app': 'var(--font-sans)',
+          '--radius-sm': '0.125rem',
+          '--radius': '0.25rem',
+          '--radius-md': '0.375rem',
+          '--radius-lg': '0.5rem',
           '--radius-xl': '0.75rem',
           '--radius-2xl': '1rem',
           '--radius-3xl': '1.5rem',
