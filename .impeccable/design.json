@@ -1,586 +1,548 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-07T13:41:39.832Z",
+  "generatedAt": "2026-11-08T07:08:26+00:00",
   "title": "Design System: Levv",
   "extensions": {
     "colorMeta": {
-      "accent": {
+      "levv-blue": {
         "role": "primary",
         "displayName": "Levv Blue",
         "canonical": "#2658e4",
         "tonalRamp": [
           "#15214a",
+          "#1e357b",
           "#1f3c9c",
           "#1e46c4",
           "#2658e4",
+          "#3f72f1",
           "#6692f8",
+          "#96b6fd",
           "#c0d4ff",
           "#dce7ff",
           "#eef4ff"
-        ],
-        "cssVariable": "--accent"
+        ]
       },
-      "accent-hover": {
+      "levv-blue-deep": {
         "role": "primary",
-        "displayName": "Deep Levv Blue",
+        "displayName": "Levv Blue Deep",
         "canonical": "#1e46c4",
         "tonalRamp": [
           "#15214a",
+          "#1e357b",
           "#1f3c9c",
           "#1e46c4",
           "#2658e4",
+          "#3f72f1",
           "#6692f8",
+          "#96b6fd",
           "#c0d4ff",
           "#dce7ff",
           "#eef4ff"
-        ],
-        "cssVariable": "--accent-hover"
+        ]
       },
-      "accent-soft": {
+      "levv-blue-wash": {
         "role": "primary",
-        "displayName": "Selection Wash",
+        "displayName": "Levv Blue Wash",
         "canonical": "#eef4ff",
         "tonalRamp": [
           "#15214a",
+          "#1e357b",
           "#1f3c9c",
           "#1e46c4",
           "#2658e4",
+          "#3f72f1",
           "#6692f8",
+          "#96b6fd",
           "#c0d4ff",
           "#dce7ff",
           "#eef4ff"
-        ],
-        "cssVariable": "--accent-soft"
-      },
-      "focus": {
-        "role": "primary",
-        "displayName": "Focus Glow",
-        "canonical": "rgb(38 88 228 / 0.28)",
-        "tonalRamp": [
-          "#15214a",
-          "#1f3c9c",
-          "#1e46c4",
-          "#2658e4",
-          "#6692f8",
-          "#c0d4ff",
-          "#dce7ff",
-          "#eef4ff"
-        ],
-        "cssVariable": "--focus"
-      },
-      "rail": {
-        "role": "secondary",
-        "displayName": "Rail Navy",
-        "canonical": "#0a1330",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--rail"
-      },
-      "command-navy": {
-        "role": "secondary",
-        "displayName": "Command Navy",
-        "canonical": "#131b35",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
         ]
       },
-      "nova": {
+      "focus-halo": {
+        "role": "primary",
+        "displayName": "Focus Halo",
+        "canonical": "rgb(38 88 228 / 0.28)"
+      },
+      "record-surface": {
+        "role": "neutral",
+        "displayName": "Record Surface",
+        "canonical": "#fbfaf6"
+      },
+      "record-sunken": {
+        "role": "neutral",
+        "displayName": "Record Sunken",
+        "canonical": "#ecebe6"
+      },
+      "record-rule": {
+        "role": "neutral",
+        "displayName": "Record Rule",
+        "canonical": "#d3d4d9"
+      },
+      "status-positive": {
+        "role": "status",
+        "displayName": "Positive",
+        "canonical": "#1f8a5b"
+      },
+      "status-attention": {
+        "role": "status",
+        "displayName": "Attention",
+        "canonical": "#d97706"
+      },
+      "status-critical": {
+        "role": "status",
+        "displayName": "Critical",
+        "canonical": "#c0392b"
+      },
+      "nova-cyan": {
         "role": "tertiary",
-        "displayName": "Nova Sky",
+        "displayName": "Nova Cyan",
         "canonical": "#3fb6f7",
         "tonalRamp": [
-          "#0a3f61",
           "#0b659c",
           "#0b7fc4",
           "#1a9de6",
           "#3fb6f7",
-          "#8fd6fb",
           "#d3efff",
           "#ecf8ff"
-        ],
-        "cssVariable": "--nova"
-      },
-      "ink": {
-        "role": "neutral",
-        "displayName": "Wordmark Ink",
-        "canonical": "#0a1128",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--ink"
-      },
-      "ink-2": {
-        "role": "neutral",
-        "displayName": "Ink Soft",
-        "canonical": "#232c42",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--ink-2"
-      },
-      "ink-body": {
-        "role": "neutral",
-        "displayName": "Body Ink",
-        "canonical": "#364157",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
         ]
       },
-      "ink-copy": {
+      "landing-ground": {
         "role": "neutral",
-        "displayName": "Copy Slate",
-        "canonical": "#465166",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ]
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Muted Slate",
-        "canonical": "#5a677d",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--muted"
-      },
-      "ink-muted": {
-        "role": "neutral",
-        "displayName": "Ink Muted",
-        "canonical": "#616e84",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ]
-      },
-      "faint": {
-        "role": "neutral",
-        "displayName": "Faint Slate",
-        "canonical": "#8d99ad",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--faint"
-      },
-      "ink-faint": {
-        "role": "neutral",
-        "displayName": "Ink Faint",
-        "canonical": "#95a1b5",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ]
-      },
-      "line-strong": {
-        "role": "neutral",
-        "displayName": "Control Line",
-        "canonical": "#c9d2df",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--line-strong"
-      },
-      "line": {
-        "role": "neutral",
-        "displayName": "Hairline",
-        "canonical": "#e0e6ef",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--line"
-      },
-      "wash": {
-        "role": "neutral",
-        "displayName": "Wash",
-        "canonical": "#eef2f7",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ]
-      },
-      "surface-sunken": {
-        "role": "neutral",
-        "displayName": "Sunken Grey",
-        "canonical": "#f6f8fb",
-        "tonalRamp": [
-          "#0a1128",
-          "#131b35",
-          "#232c42",
-          "#364157",
-          "#616e84",
-          "#95a1b5",
-          "#e0e6ef",
-          "#f6f8fb"
-        ],
-        "cssVariable": "--surface-sunken"
-      },
-      "ground": {
-        "role": "neutral",
-        "displayName": "Cool Ground",
+        "displayName": "Landing Ground (landing only)",
         "canonical": "#f3f5f9",
         "tonalRamp": [
           "#0a1128",
           "#131b35",
           "#232c42",
           "#364157",
+          "#465166",
           "#616e84",
           "#95a1b5",
+          "#c9d2df",
           "#e0e6ef",
+          "#eef2f7",
           "#f6f8fb"
-        ],
-        "cssVariable": "--ground"
+        ]
       },
-      "surface": {
+      "landing-surface": {
         "role": "neutral",
-        "displayName": "Surface White",
+        "displayName": "Landing Surface (landing only)",
         "canonical": "#ffffff",
         "tonalRamp": [
           "#0a1128",
           "#131b35",
           "#232c42",
           "#364157",
+          "#465166",
           "#616e84",
           "#95a1b5",
+          "#c9d2df",
           "#e0e6ef",
+          "#eef2f7",
           "#f6f8fb"
-        ],
-        "cssVariable": "--surface"
-      },
-      "positive": {
-        "role": "status",
-        "displayName": "Positive",
-        "canonical": "#047857",
-        "tonalRamp": [
-          "#022c22",
-          "#064e3b",
-          "#047857",
-          "#059669",
-          "#10b981",
-          "#6ee7b7",
-          "#d1fae5",
-          "#ecfdf5"
         ]
       },
-      "positive-soft": {
-        "role": "status",
-        "displayName": "Positive Wash",
-        "canonical": "#ecfdf5",
+      "landing-sunken": {
+        "role": "neutral",
+        "displayName": "Landing Sunken (landing only)",
+        "canonical": "#f6f8fb",
         "tonalRamp": [
-          "#022c22",
-          "#064e3b",
-          "#047857",
-          "#059669",
-          "#10b981",
-          "#6ee7b7",
-          "#d1fae5",
-          "#ecfdf5"
+          "#0a1128",
+          "#131b35",
+          "#232c42",
+          "#364157",
+          "#465166",
+          "#616e84",
+          "#95a1b5",
+          "#c9d2df",
+          "#e0e6ef",
+          "#eef2f7",
+          "#f6f8fb"
         ]
       },
-      "attention": {
-        "role": "status",
-        "displayName": "Attention",
-        "canonical": "#b45309",
+      "landing-line": {
+        "role": "neutral",
+        "displayName": "Landing Line (landing only)",
+        "canonical": "#e0e6ef",
         "tonalRamp": [
-          "#451a03",
-          "#92400e",
-          "#b45309",
-          "#d97706",
-          "#f59e0b",
-          "#fcd34d",
-          "#fef3c7",
-          "#fffbeb"
+          "#0a1128",
+          "#131b35",
+          "#232c42",
+          "#364157",
+          "#465166",
+          "#616e84",
+          "#95a1b5",
+          "#c9d2df",
+          "#e0e6ef",
+          "#eef2f7",
+          "#f6f8fb"
         ]
       },
-      "attention-ink": {
-        "role": "status",
-        "displayName": "Attention Ink",
-        "canonical": "#92400e",
+      "landing-ink": {
+        "role": "neutral",
+        "displayName": "Landing Ink (landing only)",
+        "canonical": "#0a1128",
         "tonalRamp": [
-          "#451a03",
-          "#92400e",
-          "#b45309",
-          "#d97706",
-          "#f59e0b",
-          "#fcd34d",
-          "#fef3c7",
-          "#fffbeb"
+          "#0a1128",
+          "#131b35",
+          "#232c42",
+          "#364157",
+          "#465166",
+          "#616e84",
+          "#95a1b5",
+          "#c9d2df",
+          "#e0e6ef",
+          "#eef2f7",
+          "#f6f8fb"
         ]
       },
-      "attention-soft": {
-        "role": "status",
-        "displayName": "Attention Wash",
-        "canonical": "#fffbeb",
+      "landing-muted": {
+        "role": "neutral",
+        "displayName": "Landing Muted (landing only)",
+        "canonical": "#616e84",
         "tonalRamp": [
-          "#451a03",
-          "#92400e",
-          "#b45309",
-          "#d97706",
-          "#f59e0b",
-          "#fcd34d",
-          "#fef3c7",
-          "#fffbeb"
+          "#0a1128",
+          "#131b35",
+          "#232c42",
+          "#364157",
+          "#465166",
+          "#616e84",
+          "#95a1b5",
+          "#c9d2df",
+          "#e0e6ef",
+          "#eef2f7",
+          "#f6f8fb"
         ]
       },
-      "critical": {
-        "role": "status",
-        "displayName": "Critical",
-        "canonical": "#be123c",
+      "zone-0-rail-navy": {
+        "role": "neutral",
+        "displayName": "Z0 Rail Navy",
+        "canonical": "#0a1330",
         "tonalRamp": [
-          "#4c0519",
-          "#9f1239",
-          "#be123c",
-          "#e11d48",
-          "#f43f5e",
-          "#fda4af",
-          "#ffe4e6",
-          "#fff1f2"
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
         ]
       },
-      "critical-soft": {
-        "role": "status",
-        "displayName": "Critical Wash",
-        "canonical": "#fff1f2",
+      "zone-1": {
+        "role": "neutral",
+        "displayName": "Z1",
+        "canonical": "#19213b",
         "tonalRamp": [
-          "#4c0519",
-          "#9f1239",
-          "#be123c",
-          "#e11d48",
-          "#f43f5e",
-          "#fda4af",
-          "#ffe4e6",
-          "#fff1f2"
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-2": {
+        "role": "neutral",
+        "displayName": "Z2",
+        "canonical": "#283049",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-3": {
+        "role": "neutral",
+        "displayName": "Z3",
+        "canonical": "#3a425a",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-4": {
+        "role": "neutral",
+        "displayName": "Z4",
+        "canonical": "#4f566c",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-5": {
+        "role": "neutral",
+        "displayName": "Z5",
+        "canonical": "#676d81",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-6": {
+        "role": "neutral",
+        "displayName": "Z6",
+        "canonical": "#82879a",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-7": {
+        "role": "neutral",
+        "displayName": "Z7",
+        "canonical": "#a1a5b3",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-8": {
+        "role": "neutral",
+        "displayName": "Z8",
+        "canonical": "#c2c4cd",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-9": {
+        "role": "neutral",
+        "displayName": "Z9",
+        "canonical": "#e0e1e5",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
+        ]
+      },
+      "zone-10-backlit-paper": {
+        "role": "neutral",
+        "displayName": "Z10 Backlit Paper",
+        "canonical": "#f5f4ef",
+        "tonalRamp": [
+          "#0a1330",
+          "#19213b",
+          "#283049",
+          "#3a425a",
+          "#4f566c",
+          "#676d81",
+          "#82879a",
+          "#a1a5b3",
+          "#c2c4cd",
+          "#e0e1e5",
+          "#f5f4ef"
         ]
       }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "Display",
-        "purpose": "The landing h1 only; 2.5rem, 3rem from 640px, 3.75rem from 1024px."
+      "record-title": {
+        "displayName": "Record title",
+        "purpose": "h1 of every record header, from 640px up."
       },
-      "display-section": {
-        "displayName": "Display Section",
-        "purpose": "Landing section headings and the close line; 2.25rem, 3rem from 640px."
+      "record-title-compact": {
+        "displayName": "Record title (compact)",
+        "purpose": "h1 below 640px and on LevvPageHeader."
       },
-      "lead": {
-        "displayName": "Lead",
-        "purpose": "Landing paragraphs, held to 42-48ch."
-      },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "The app page title, one per page."
-      },
-      "figure": {
-        "displayName": "Figure",
-        "purpose": "Stat values in the stat strip."
+      "stat-figure": {
+        "displayName": "Stat figure",
+        "purpose": "Values in a stat strip; tabular."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Panel titles."
+        "purpose": "Panel headings."
+      },
+      "statement": {
+        "displayName": "Statement",
+        "purpose": "The live sentence under the record title, max 72ch."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Page descriptions (68ch), Nova brief copy, empty-state titles at 600."
+        "purpose": "Table cells, fields, prose."
       },
-      "control": {
-        "displayName": "Control",
-        "purpose": "Buttons, segmented options, nav rows, settings nav."
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Secondary lines, status text, notices, summary-line values."
       },
-      "ui": {
-        "displayName": "UI",
-        "purpose": "The working size: table cells, inputs, menus, notices, values."
+      "legend": {
+        "displayName": "Legend",
+        "purpose": "Uppercase. Column heads, figure labels, filter labels, trail, tags, segmented options."
       },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Field labels, table headers, badges, meta lines; sentence case, no tracking."
+      "legend-control": {
+        "displayName": "Legend (controls)",
+        "purpose": "Uppercase. Buttons and tabs."
+      },
+      "landing-display": {
+        "displayName": "Landing display",
+        "purpose": "Landing hero only; font-stretch 112%."
+      },
+      "landing-section": {
+        "displayName": "Landing section head",
+        "purpose": "Landing section headings."
+      },
+      "landing-body": {
+        "displayName": "Landing body",
+        "purpose": "Landing page copy (Inter, loaded)."
       }
     },
     "shadows": [
       {
-        "name": "button-lift",
-        "value": "0 1px 2px rgb(10 17 40 / 0.05)",
-        "purpose": "Primary and secondary buttons sit a hair above the surface."
-      },
-      {
-        "name": "control-rest",
-        "value": "0 1px 1px rgb(10 17 40 / 0.03)",
-        "purpose": "Inputs, selects and textareas in the app at rest (app layer)."
-      },
-      {
-        "name": "focus-glow",
-        "value": "0 0 0 3px rgb(38 88 228 / 0.28)",
-        "purpose": "Focused fields and the Nova prompt, with the border turning Levv Blue."
+        "name": "record-flat",
+        "value": "none",
+        "purpose": "Every page-flow surface in the app: panels, tables, stat strips, fields."
       },
       {
         "name": "pop",
         "value": "0 16px 40px -12px rgb(10 17 40 / 0.22), 0 2px 6px -1px rgb(10 17 40 / 0.06)",
-        "purpose": "Menus, page-search results, dialogs."
+        "purpose": "Floating menus: account menu, search results."
       },
       {
         "name": "drawer",
-        "value": "0 20px 44px -12px rgb(10 17 40 / 0.18), 0 4px 10px -4px rgb(10 17 40 / 0.06)",
-        "purpose": "Record preview drawers and the phone rail."
-      },
-      {
-        "name": "product-window",
-        "value": "0 24px 60px -28px rgb(10 17 40 / 0.35), 0 2px 6px rgb(10 17 40 / 0.05)",
-        "purpose": "Live product windows on brand pages, and nothing else."
-      },
-      {
-        "name": "sheet-edge",
         "value": "-24px 0 48px -32px rgb(10 17 40 / 0.4)",
-        "purpose": "App layer: the edge shadow it gives older right-hand sheets."
+        "purpose": "Right-hand drawers inside the app."
       },
       {
-        "name": "standalone-card",
-        "value": "0 24px 56px -32px rgb(10 17 40 / 0.28)",
-        "purpose": "The sign-in and other standalone cards."
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgb(38 88 228 / 0.28)",
+        "purpose": "Focused fields (with a Levv Blue border)."
+      },
+      {
+        "name": "landing-glass",
+        "value": "inset 0 1px 1px rgb(255 255 255 / 0.1)",
+        "purpose": "Landing glass material, with backdrop-filter blur(4px) and a gradient rim."
+      },
+      {
+        "name": "landing-glass-strong",
+        "value": "0 40px 80px -40px rgb(0 0 0 / 0.6), inset 0 1px 1px rgb(255 255 255 / 0.15)",
+        "purpose": "Landing hero window glass, backdrop-filter blur(24px)."
       }
     ],
     "motion": [
       {
-        "name": "ease-out",
-        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
-        "purpose": "Default easing: presses, pops, chevrons, lifecycle segment widths."
+        "name": "press",
+        "value": "transform 120ms cubic-bezier(0.23, 1, 0.32, 1); :active scale(0.97)",
+        "purpose": "Every pressable control in the app."
       },
       {
-        "name": "ease-drawer",
-        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
-        "purpose": "Right-hand record drawers sliding in (300ms)."
+        "name": "fade",
+        "value": "background-color, border-color, color 160ms ease",
+        "purpose": "Hover and row-hover colour changes."
       },
       {
-        "name": "dur-press",
-        "value": "120ms",
-        "purpose": "Press feedback: scale(0.97) on :active for anything pressable (.levv-press)."
+        "name": "pop",
+        "value": "200ms cubic-bezier(0.23, 1, 0.32, 1), from opacity 0 scale(0.97) translateY(-2px)",
+        "purpose": "Frame menus opening (account menu). Falls back to a 160ms fade under reduced motion."
       },
       {
-        "name": "dur-fast",
-        "value": "160ms",
-        "purpose": "Colour, border and shadow changes on hover and focus; table row hover."
+        "name": "disclosure",
+        "value": "200ms ease-out on width / grid-template-rows / rotate",
+        "purpose": "Frame only: rail collapse, rail sub-nav expand, chevron turn."
       },
       {
-        "name": "dur-pop",
-        "value": "200ms",
-        "purpose": "Menus open from scale(0.97) and 2px up with a fade, from their trigger corner (.levv-pop); nav groups expand."
+        "name": "landing-ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Landing entrances (blur-rise 1.1s, fade-rise 1s, window-rise 1.2s, pop 0.5s) and the ribbon fade-in (1.8s). Landing only."
       },
       {
-        "name": "brand-entrance",
-        "value": "700ms fade + slide up, staggered 100ms; product window 1000ms at 150ms",
-        "purpose": "Landing hero entrance only, behind motion-safe."
-      },
-      {
-        "name": "integration-pulse",
-        "value": "3.2s linear, 3 runs; infinite while hovered",
-        "purpose": "Pulses along the integration lines on the landing page (.levv-pulse)."
-      },
-      {
-        "name": "reduced-motion",
-        "value": "press: none; pop: fade only; pulse: hidden",
-        "purpose": "Under prefers-reduced-motion: reduce."
+        "name": "landing-reveal",
+        "value": "opacity, transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1), translateY(28px)",
+        "purpose": "Scroll reveals armed only below the first screen. Landing only."
       }
     ],
     "breakpoints": [
       {
         "name": "sm",
-        "value": "640px",
-        "note": "Top-bar page search appears; brand sections step up in size."
+        "value": "640px"
       },
       {
-        "name": "md",
-        "value": "768px",
-        "note": "Brand nav moves to its three-part grid."
+        "name": "lg (rail and settings column dock)",
+        "value": "1024px"
       },
       {
-        "name": "lg",
-        "value": "1024px",
-        "note": "Rail docks; stat strip becomes one row; page header actions move right; settings column becomes vertical."
+        "name": "cq-table (container)",
+        "value": "700px"
+      },
+      {
+        "name": "cq-wide (container)",
+        "value": "860px"
       }
     ]
   },
@@ -589,164 +551,145 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Command Navy fill for the one command a view asks for. Presses to 0.97.",
-      "html": "<button type=\"button\" class=\"ds-btn-primary\">View full worker profile <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; text-decoration: none; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; border: 0; background: rgb(var(--c-slate-900, 19 27 53)); color: #fff; box-shadow: 0 1px 2px rgb(10 17 40 / 0.05); } .ds-btn-primary svg { width: 16px; height: 16px; flex-shrink: 0; transition: transform 150ms ease; } .ds-btn-primary:hover { background: var(--ink-2, #232c42); } .ds-btn-primary:hover svg { transform: translateX(2px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.97); }"
+      "description": "The page's one command, at the right of the record header.",
+      "html": "<button class=\"ds-btn-primary\">New chain</button>",
+      "css": ".ds-btn-primary { font-family: Helvetica, Arial, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; background: #2658e4; color: #fff; border: 0; } .ds-btn-primary:hover { background: #1e46c4; } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid #2658e4; outline-offset: 2px; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "White with a Control Line border; the companion actions beside a primary.",
-      "html": "<button type=\"button\" class=\"ds-btn-secondary\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/></svg> Extend contract</button>",
-      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; text-decoration: none; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; border: 1px solid var(--line-strong, #c9d2df); background: var(--surface, #fff); color: var(--ink-2, #232c42); box-shadow: 0 1px 2px rgb(10 17 40 / 0.05); } .ds-btn-secondary svg { width: 16px; height: 16px; flex-shrink: 0; } .ds-btn-secondary:hover { border-color: rgb(149 161 181 / 0.6); background: var(--surface-sunken, #f6f8fb); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; } .ds-btn-secondary:active { transform: scale(0.97); }"
+      "description": "Second actions: navy hairline frame on the paper.",
+      "html": "<button class=\"ds-btn-secondary\">Export</button>",
+      "css": ".ds-btn-secondary { font-family: Helvetica, Arial, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; background: transparent; color: #0a1330; border: 1px solid #0a1330; } .ds-btn-secondary:hover { background: #e0e1e5; } .ds-btn-secondary:active { transform: scale(0.97); } .ds-btn-secondary:focus-visible { outline: 2px solid #2658e4; outline-offset: 2px; }"
     },
     {
       "name": "Ghost Button",
       "kind": "button",
       "refersTo": "button-ghost",
-      "description": "No fill until hovered; Reset, Open record, Close and icon-only buttons.",
-      "html": "<button type=\"button\" class=\"ds-btn-ghost\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg> Reset</button>",
-      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; text-decoration: none; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; border: 0; background: transparent; color: rgb(var(--c-slate-600, 70 81 102)); } .ds-btn-ghost svg { width: 16px; height: 16px; flex-shrink: 0; } .ds-btn-ghost:hover { background: rgb(var(--c-slate-100, 238 242 247)); color: rgb(var(--c-slate-900, 19 27 53)); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; } .ds-btn-ghost:active { transform: scale(0.97); }"
+      "description": "Quiet actions inside rows and toolbars.",
+      "html": "<button class=\"ds-btn-ghost\">Clear filters</button>",
+      "css": ".ds-btn-ghost { font-family: Helvetica, Arial, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; background: transparent; color: #3a425a; border: 0; } .ds-btn-ghost:hover { background: #e0e1e5; color: #0a1330; } .ds-btn-ghost:active { transform: scale(0.97); } .ds-btn-ghost:focus-visible { outline: 2px solid #2658e4; outline-offset: 2px; }"
     },
     {
-      "name": "Brand Main Action and Tonal Button",
-      "kind": "button",
-      "refersTo": "button-brand",
-      "description": "Brand pages only: the Levv Blue main action, paired with the tonal \"See how it works\".",
-      "html": "<div class=\"ds-brand-actions\"><a href=\"#\" class=\"ds-btn-brand\">Contact Levv</a><a href=\"#\" class=\"ds-btn-tonal\">See how it works</a></div>",
-      "css": ".ds-brand-actions { display: flex; flex-wrap: wrap; gap: 12px; } .ds-btn-brand, .ds-btn-tonal { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 8px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 500; text-decoration: none; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; } .ds-btn-brand { background: var(--accent, #2658e4); color: #fff; } .ds-btn-brand:hover { background: var(--accent-hover, #1e46c4); transform: translateY(-1px); } .ds-btn-tonal { background: var(--accent-soft, #eef4ff); color: var(--accent-hover, #1e46c4); } .ds-btn-tonal:hover { background: rgb(var(--c-blue-100, 220 231 255)); transform: translateY(-1px); } .ds-btn-brand:focus-visible, .ds-btn-tonal:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; } .ds-btn-brand:active, .ds-btn-tonal:active { transform: scale(0.97); }"
-    },
-    {
-      "name": "Search Field",
+      "name": "Field",
       "kind": "input",
       "refersTo": "input",
-      "description": "The 36px field with the control-rest shadow; focus turns the border blue and adds the glow.",
-      "html": "<label class=\"ds-search\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/></svg><input type=\"search\" placeholder=\"Worker name, CWS ID, or role...\" aria-label=\"Search workers\"></label>",
-      "css": ".ds-search { position: relative; display: block; width: 288px; max-width: 100%; } .ds-search svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: rgb(var(--c-slate-400, 149 161 181)); pointer-events: none; } .ds-search input { width: 100%; height: 36px; padding: 0 12px 0 36px; border: 1px solid var(--line-strong, #c9d2df); border-radius: 8px; background: var(--surface, #fff); color: var(--ink, #0a1128); font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; box-shadow: 0 1px 1px rgb(10 17 40 / 0.03); outline: none; -webkit-appearance: none; appearance: none; transition: border-color 150ms ease, box-shadow 150ms ease; } .ds-search input::placeholder { color: rgb(var(--c-slate-400, 149 161 181)); } .ds-search input:hover { border-color: rgb(149 161 181 / 0.6); } .ds-search input:focus, .ds-search input:focus-visible { border-color: var(--accent, #2658e4); box-shadow: 0 0 0 3px var(--focus, rgb(38 88 228 / 0.28)); }"
+      "description": "Standard text field with a legend label above.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Match strategy</span><input class=\"ds-input\" placeholder=\"Search chains\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; font-family: Helvetica, Arial, sans-serif; } .ds-field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #676d81; } .ds-input { font-family: Helvetica, Arial, sans-serif; height: 36px; width: 260px; padding: 0 12px; background: #fbfaf6; border: 1px solid #a1a5b3; border-radius: 2px; font-size: 14px; color: #0a1330; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; } .ds-input::placeholder { color: #676d81; } .ds-input:hover { border-color: #676d81; } .ds-input:focus { border-color: #2658e4; box-shadow: 0 0 0 3px rgb(38 88 228 / 0.28); }"
     },
     {
-      "name": "Status Badges",
+      "name": "Segmented Control",
       "kind": "chip",
-      "refersTo": "badge-neutral",
-      "description": "Sentence-case 12px badges in five tones, each led by a 6px dot; status colours for status only.",
-      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-positive\"><span class=\"ds-dot\"></span>Compliant</span><span class=\"ds-badge ds-badge-attention\"><span class=\"ds-dot\"></span>Review required</span><span class=\"ds-badge ds-badge-critical\"><span class=\"ds-dot\"></span>Non-compliant</span><span class=\"ds-badge ds-badge-info\"><span class=\"ds-dot\"></span>In onboarding</span><span class=\"ds-badge ds-badge-neutral\"><span class=\"ds-dot\"></span>Draft</span></div>",
-      "css": ".ds-badges { display: flex; flex-wrap: wrap; gap: 8px; } .ds-badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.45; white-space: nowrap; } .ds-dot { width: 6px; height: 6px; border-radius: 9999px; } .ds-badge-positive { background: #ecfdf5; color: #047857; box-shadow: inset 0 0 0 1px rgb(5 150 105 / 0.15); } .ds-badge-positive .ds-dot { background: #10b981; } .ds-badge-attention { background: #fffbeb; color: #92400e; box-shadow: inset 0 0 0 1px rgb(217 119 6 / 0.2); } .ds-badge-attention .ds-dot { background: #f59e0b; } .ds-badge-critical { background: #fff1f2; color: #be123c; box-shadow: inset 0 0 0 1px rgb(225 29 72 / 0.15); } .ds-badge-critical .ds-dot { background: #f43f5e; } .ds-badge-info { background: var(--accent-soft, #eef4ff); color: var(--accent-hover, #1e46c4); box-shadow: inset 0 0 0 1px rgb(38 88 228 / 0.15); } .ds-badge-info .ds-dot { background: var(--accent, #2658e4); } .ds-badge-neutral { background: rgb(var(--c-slate-100, 238 242 247)); color: rgb(var(--c-slate-600, 70 81 102)); box-shadow: inset 0 0 0 1px rgb(97 110 132 / 0.15); } .ds-badge-neutral .ds-dot { background: rgb(var(--c-slate-400, 149 161 181)); }"
+      "refersTo": "segmented-option-selected",
+      "description": "One choice among two to four; chosen option in Levv Blue.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button class=\"ds-seg-opt\" aria-pressed=\"true\">All</button><button class=\"ds-seg-opt\">Active</button><button class=\"ds-seg-opt\">Inactive</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1px solid #0a1330; } .ds-seg-opt { font-family: Helvetica, Arial, sans-serif; height: 34px; padding: 0 14px; border: 0; border-left: 1px solid #0a1330; background: transparent; color: #283049; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background-color 160ms ease, transform 120ms cubic-bezier(0.23,1,0.32,1); } .ds-seg-opt:first-child { border-left: 0; } .ds-seg-opt:hover { background: #e0e1e5; } .ds-seg-opt[aria-pressed=\"true\"] { background: #2658e4; color: #fff; } .ds-seg-opt:focus-visible { outline: 2px solid #2658e4; outline-offset: -2px; } .ds-seg-opt:active { transform: scale(0.97); }"
     },
     {
-      "name": "Stat Strip",
-      "kind": "card",
-      "refersTo": "stat",
-      "description": "Figures as one strip of a record: one hairlined 10px panel with dividers, no shadow; a tone colours only the figure.",
-      "html": "<dl class=\"ds-stats\"><div class=\"ds-stat\"><dt>Workers on record</dt><dd class=\"ds-fig\">128</dd></div><div class=\"ds-stat\"><dt>Active</dt><dd class=\"ds-fig\">96</dd></div><div class=\"ds-stat\"><dt>Onboarding</dt><dd class=\"ds-fig\">14</dd></div><div class=\"ds-stat\"><dt>Compliance alerts</dt><dd class=\"ds-fig ds-fig-critical\">3</dd><dd class=\"ds-detail\">Need review before access renews</dd></div></dl>",
-      "css": ".ds-stats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); margin: 0; overflow: hidden; border: 1px solid var(--line, #e0e6ef); border-radius: 10px; background: var(--surface, #fff); font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; } .ds-stat { padding: 16px 20px; } .ds-stat + .ds-stat { border-left: 1px solid var(--line, #e0e6ef); } .ds-stat dt { font-size: 13px; color: rgb(var(--c-slate-500, 97 110 132)); } .ds-stat dd { margin: 0; } .ds-fig { margin-top: 4px !important; font-size: 1.375rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; color: var(--ink, #0a1128); } .ds-fig-critical { color: #be123c; } .ds-detail { margin-top: 2px !important; font-size: 12px; color: rgb(var(--c-slate-500, 97 110 132)); }"
+      "name": "Status Marker",
+      "kind": "chip",
+      "refersTo": "status-marker",
+      "description": "A status is a small solid square beside plain text; neutral is hollow; a tag without a marker is framed.",
+      "html": "<span class=\"ds-status\"><span class=\"ds-mark ds-mark-pos\"></span>Active</span> <span class=\"ds-status ds-status-muted\"><span class=\"ds-mark ds-mark-neutral\"></span>Inactive</span> <span class=\"ds-status\"><span class=\"ds-mark ds-mark-crit\"></span>Conflict</span> <span class=\"ds-tag\">Draft</span>",
+      "css": ".ds-status { font-family: Helvetica, Arial, sans-serif; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #0a1330; margin-right: 16px; } .ds-status-muted { color: #676d81; } .ds-mark { width: 8px; height: 8px; display: inline-block; } .ds-mark-pos { background: #1f8a5b; } .ds-mark-crit { background: #c0392b; } .ds-mark-neutral { border: 1px solid #82879a; } .ds-tag { font-family: Helvetica, Arial, sans-serif; display: inline-flex; padding: 1px 6px; border: 1px solid #82879a; color: #4f566c; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }"
     },
     {
-      "name": "Lifecycle Track",
+      "name": "Record Table",
       "kind": "custom",
-      "refersTo": "lifecycle-current",
-      "description": "The signature: five stages on one record. Current is a 16px blue segment, passed 10px Ink Faint, ahead 10px Hairline; amber or rose when held up.",
-      "html": "<div class=\"ds-life-list\"><div class=\"ds-life\"><span class=\"ds-track\" role=\"img\" aria-label=\"Lifecycle: Approval (stage 2 of 5)\"><span class=\"is-passed\"></span><span class=\"is-current\"></span><span></span><span></span><span></span></span><span>Approval</span></div><div class=\"ds-life\"><span class=\"ds-track\" role=\"img\" aria-label=\"Lifecycle: Onboarding (stage 3 of 5)\"><span class=\"is-passed\"></span><span class=\"is-passed\"></span><span class=\"is-current is-amber\"></span><span></span><span></span></span><span>Onboarding</span></div><div class=\"ds-life\"><span class=\"ds-track\" role=\"img\" aria-label=\"Lifecycle: Offboarding, closed (stage 5 of 5)\"><span class=\"is-passed\"></span><span class=\"is-passed\"></span><span class=\"is-passed\"></span><span class=\"is-passed\"></span><span class=\"is-passed\"></span></span><span>Offboarding complete</span></div></div>",
-      "css": ".ds-life-list { display: grid; gap: 12px; } .ds-life { display: flex; align-items: center; gap: 10px; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-slate-700, 54 65 87)); } .ds-track { display: flex; align-items: center; gap: 3px; flex-shrink: 0; } .ds-track > span { display: block; width: 10px; height: 6px; border-radius: 9999px; background: var(--line, #e0e6ef); transition: background-color 200ms ease, width 300ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-track > .is-passed { background: rgb(var(--c-slate-400, 149 161 181)); } .ds-track > .is-current { width: 16px; background: var(--accent, #2658e4); } .ds-track > .is-current.is-amber { background: #f59e0b; }"
+      "description": "Unframed table on the paper: legend heads over a 2px Rail Navy rule, hairlines between rows, a hatch swatch per step.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Priority</th><th>Chain</th><th>Steps</th><th>Status</th></tr></thead><tbody><tr><td class=\"ds-num\">P1</td><td>Contractor requests over £50k</td><td><span class=\"ds-hatch ds-hatch-dense\"></span><span class=\"ds-hatch ds-hatch-light\"></span></td><td><span class=\"ds-mark\"></span> Active</td></tr><tr><td class=\"ds-num\">P2</td><td>SOW renewals</td><td><span class=\"ds-hatch ds-hatch-conflict\"></span><span class=\"ds-hatch ds-hatch-mid\"></span></td><td><span class=\"ds-mark\"></span> Active</td></tr></tbody></table>",
+      "css": ".ds-table { font-family: Helvetica, Arial, sans-serif; border-collapse: separate; border-spacing: 0; width: 100%; background: #f5f4ef; } .ds-table th { text-align: left; padding: 10px 12px; border-bottom: 2px solid #0a1330; color: #676d81; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; } .ds-table td { padding: 12px; border-bottom: 1px solid #d3d4d9; font-size: 14px; color: #283049; font-variant-numeric: tabular-nums; } .ds-table tbody tr { transition: background-color 160ms ease; } .ds-table tbody tr:hover { background: #ecebe6; } .ds-num { font-weight: 600; color: #0a1330; } .ds-mark { display: inline-block; width: 8px; height: 8px; background: #1f8a5b; margin-right: 6px; } .ds-hatch { display: inline-block; width: 20px; height: 12px; margin-right: 4px; border: 1px solid #676d81; } .ds-hatch-dense { background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.5) 0 1px, transparent 1px 4px); } .ds-hatch-mid { background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.45) 0 1px, transparent 1px 7px); } .ds-hatch-light { background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.4) 0 1px, transparent 1px 11px); } .ds-hatch-conflict { border-color: #c0392b; background-image: repeating-linear-gradient(45deg, rgb(192 57 43 / 0.32) 0 1px, transparent 1px 5px), repeating-linear-gradient(-45deg, rgb(192 57 43 / 0.32) 0 1px, transparent 1px 5px); }"
     },
     {
-      "name": "Nova Prompt",
+      "name": "Record Header",
       "kind": "custom",
-      "refersTo": "nova-prompt",
-      "description": "One recognisable place to ask the agent: the Nova chip (sky on navy), a bare field, and Ask Nova; takes the input focus treatment.",
-      "html": "<form class=\"ds-nova\" onsubmit=\"return false\"><span class=\"ds-nova-chip\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/><path d=\"M20 2v4\"/><path d=\"M22 4h-4\"/><circle cx=\"4\" cy=\"20\" r=\"2\"/></svg></span><input type=\"text\" placeholder=\"Ask Nova to audit compliance...\" aria-label=\"Ask Nova to audit compliance...\"><button type=\"submit\" class=\"ds-nova-ask\">Ask Nova</button></form>",
-      "css": ".ds-nova { display: flex; align-items: center; gap: 8px; width: 320px; max-width: 100%; height: 36px; padding: 0 4px; border: 1px solid var(--line-strong, #c9d2df); border-radius: 8px; background: var(--surface, #fff); transition: border-color 150ms ease, box-shadow 150ms ease; } .ds-nova:hover { border-color: rgb(149 161 181 / 0.6); } .ds-nova:focus-within { border-color: var(--accent, #2658e4); box-shadow: 0 0 0 3px var(--focus, rgb(38 88 228 / 0.28)); } .ds-nova-chip { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 6px; background: var(--rail, #0a1330); color: var(--nova, #3fb6f7); } .ds-nova-chip svg { width: 14px; height: 14px; } .ds-nova input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; outline: none; font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; color: rgb(var(--c-slate-900, 19 27 53)); } .ds-nova input::placeholder { color: rgb(var(--c-slate-400, 149 161 181)); } .ds-nova-ask { height: 28px; flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--accent-hover, #1e46c4); font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; } .ds-nova-ask:hover { background: var(--accent-soft, #eef4ff); } .ds-nova-ask:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; } .ds-nova-ask:active { transform: scale(0.97); }"
+      "description": "Trail and zone wedge, title, the live statement, the summary line of figures, and the one command.",
+      "html": "<header class=\"ds-rh\"><div class=\"ds-rh-top\"><p class=\"ds-legend\">Admin settings / Approval chains</p><span class=\"ds-wedge\"><i style=\"background:#0a1330\"></i><i style=\"background:#19213b\"></i><i style=\"background:#283049\"></i><i style=\"background:#3a425a\"></i><i style=\"background:#4f566c\"></i><i style=\"background:#676d81\"></i><i style=\"background:#82879a\"></i><i style=\"background:#a1a5b3\"></i><i style=\"background:#c2c4cd\"></i><i style=\"background:#e0e1e5\"></i><i style=\"background:#f5f4ef\"></i></span></div><div class=\"ds-rh-row\"><div><h1>Approval chains</h1><p class=\"ds-rh-st\">A request takes the first of 4 active chains it matches, lowest priority number first, then goes to its approvers in order.</p></div><button class=\"ds-rh-btn\">New chain</button></div><dl class=\"ds-rh-fig\"><div><dd>4</dd><dt class=\"ds-legend\">Active</dt></div><div><dd>11</dd><dt class=\"ds-legend\">Steps</dt></div></dl></header>",
+      "css": ".ds-rh { font-family: Helvetica, Arial, sans-serif; background: #f5f4ef; padding: 24px; color: #0a1330; } .ds-rh-top { display: flex; justify-content: space-between; align-items: center; } .ds-legend { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #676d81; } .ds-wedge { display: flex; border: 1px solid #d3d4d9; } .ds-wedge i { width: 10px; height: 6px; display: block; } .ds-rh-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; margin-top: 8px; } .ds-rh h1 { margin: 0; font-size: 2.125rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.025em; } .ds-rh-st { margin: 8px 0 0; max-width: 72ch; font-size: 14px; line-height: 1.625; color: #3a425a; } .ds-rh-btn { font-family: Helvetica, Arial, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: transform 120ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease, border-color 160ms ease, color 160ms ease; background: #2658e4; color: #fff; border: 0; flex-shrink: 0; } .ds-rh-btn:hover { background: #1e46c4; } .ds-rh-btn:active { transform: scale(0.97); } .ds-rh-fig { display: flex; gap: 24px; margin: 12px 0 0; } .ds-rh-fig div { display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: baseline; gap: 8px; } .ds-rh-fig dd { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }"
     },
     {
       "name": "Rail Navigation",
       "kind": "nav",
-      "refersTo": "rail-item",
-      "description": "The navy rail: sentence-case section label, 36px rows, the current page at white 10% with a Nova Sky icon.",
-      "html": "<nav class=\"ds-rail\" aria-label=\"Main\"><p class=\"ds-rail-label\">Main</p><a href=\"#\" class=\"ds-rail-item is-current\" aria-current=\"page\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Home</span></a><a href=\"#\" class=\"ds-rail-item\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/></svg><span>Inbox</span></a><a href=\"#\" class=\"ds-rail-item\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\"/></svg><span>Workers</span></a></nav>",
-      "css": ".ds-rail { width: 248px; padding: 12px; background: var(--rail, #0a1330); font-family: var(--font-sans, Inter), Inter, ui-sans-serif, system-ui, sans-serif; } .ds-rail-label { margin: 0 0 6px; padding: 0 10px; font-size: 11px; font-weight: 500; color: #7d8aa3; } .ds-rail-item { display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 13.5px; font-weight: 500; color: rgb(var(--c-slate-300, 201 210 223)); text-decoration: none; transition: background-color 150ms ease, color 150ms ease; } .ds-rail-item + .ds-rail-item { margin-top: 2px; } .ds-rail-item svg { width: 18px; height: 18px; flex-shrink: 0; color: rgb(var(--c-slate-400, 149 161 181)); } .ds-rail-item:hover { background: var(--rail-raised, rgb(255 255 255 / 0.07)); color: #fff; } .ds-rail-item.is-current { background: rgb(255 255 255 / 0.1); color: #fff; } .ds-rail-item.is-current svg { color: var(--nova, #3fb6f7); } .ds-rail-item:focus-visible { outline: 2px solid var(--accent, #2658e4); outline-offset: 2px; }"
+      "refersTo": "rail-nav-item-active",
+      "description": "The navy rail: section legends, 36px rows, the current page filled Levv Blue.",
+      "html": "<nav class=\"ds-rail\"><p class=\"ds-rail-sec\">Workspace</p><a class=\"ds-rail-item\" aria-current=\"page\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z\"/></svg>Home</a><a class=\"ds-rail-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"9\" cy=\"8\" r=\"4\"/><path d=\"M2 21v-1a7 7 0 0 1 14 0v1\"/></svg>Workers</a><a class=\"ds-rail-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 2z\"/></svg>Admin settings</a></nav>",
+      "css": ".ds-rail { font-family: Helvetica, Arial, sans-serif; width: 248px; padding: 12px 10px; background: #0a1330; } .ds-rail-sec { margin: 0 0 6px; padding: 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #82879a; } .ds-rail-item { display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px; border-radius: 2px; font-size: 13.5px; font-weight: 500; color: #a1a5b3; text-decoration: none; transition: background-color 150ms ease, color 150ms ease; } .ds-rail-item svg { color: #82879a; flex-shrink: 0; } .ds-rail-item:hover { background: rgb(255 255 255 / 0.07); color: #fff; } .ds-rail-item[aria-current=\"page\"] { background: #2658e4; color: #fff; } .ds-rail-item[aria-current=\"page\"] svg { color: #fff; } .ds-rail-item:focus-visible { outline: 2px solid #2658e4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab-selected",
+      "description": "Sections of one page: tracked capitals on a hairline, the open one underlined in Levv Blue.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\">Members <span>12</span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Chains <span>3</span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">History</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 24px; border-bottom: 1px solid #d3d4d9; background: #f5f4ef; } .ds-tab { font-family: Helvetica, Arial, sans-serif; margin-bottom: -1px; height: 40px; display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; border-bottom: 2px solid transparent; color: #676d81; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: color 150ms ease; } .ds-tab span { color: #82879a; font-variant-numeric: tabular-nums; } .ds-tab:hover { color: #0a1330; } .ds-tab[aria-selected=\"true\"] { border-bottom-color: #2658e4; color: #0a1330; } .ds-tab:focus-visible { outline: 2px solid #2658e4; outline-offset: -2px; }"
     }
   ],
   "narrative": {
-    "northStar": "The Operating Record",
-    "overview": "Levv draws everything as one record that moves. A worker, a request or a work order is a row, a panel, a stat strip and a five-stage track, and every screen is a view onto that same record rather than a dashboard about it. The navy of the wordmark is the structure the record sits in: the rail down the left of the app, the stage behind the landing page's hero and close, the chip that marks Nova. Levv Blue points at where the record stands and what has focus. Everything else is cool white, hairlines and ink.\n\nThe app is dense and calm: 13px Inter for working text, 36px controls, flat white panels on a cool grey ground, borders instead of shadows. The brand surface (the landing page) runs the same materials at a larger scale and adds one voice the app never uses, Archivo set wide after the wordmark's stance. Product proof on brand pages is the product itself, drawn as live HTML windows, never a screenshot or an illustration.\n\nColour is spent on meaning. Navy commands, blue locates, sky belongs to Nova, and emerald, amber and rose report status. A screen that is all working well is mostly ink on white.\n\nCoverage today: the shell (rail, top bar, settings column), the landing page and about twenty of the 127 routes are built on the components in app/components/ui/levv-app.tsx; the Workers index (app/workers/workers/page.tsx) is the reference implementation. The remaining routes still use raw Tailwind classes. They inherit the palette, because the slate, gray, blue and cyan families are the Levv ramps, and the app layer in globals.css normalises their headings, labels, tables, inputs and buttons, but their layouts are not yet rebuilt. Flow Studio, the run screens and the inbox are a deliberate exception, described under Colors.",
+    "northStar": "The Exposure Record",
+    "overview": "**Creative North Star: \"The Exposure Record\"**\n\nThe signed-in app reads like a precise record, not a SaaS dashboard. One tonal ramp runs from Rail Navy to backlit paper. Geometry is square. Every legend is set in tracked capitals and every figure is tabular. Hatching shows where approval capacity is thin before anyone reads a word. Pages open on what they govern: a location trail, a title, one plain sentence computed from the live data, and a summary line of figures. Tables sit straight on the paper, with no box around them.\n\nThe density suits operators at a desk who return to the same settings over and over. Rows are compact (12px cells, 36px controls), colour is held back, and Levv Blue is the only thing that glows. Text and numbers are set in Helvetica (Arial on Windows). The app always rendered in this face, because the old stack named Inter but never loaded it. The user tried Archivo, loaded Inter and a monospace for figures, and kept Helvetica.",
     "keyCharacteristics": [
-      "One record, one track: the five-stage lifecycle (Requisition, Approval, Onboarding, In engagement, Offboarding) appears wherever a record's position matters.",
-      "Navy structure, blue position, sky for Nova, status colours for status only.",
-      "Flat and hairlined: panels, tables and stat strips have borders, not shadows; only floating things cast shadow.",
-      "Inter everywhere in the product; Archivo, set wide, only on brand surfaces.",
-      "Small, firm corners (6–12px), 36px controls, tabular figures, sentence-case labels.",
-      "Every pressable thing presses (scale 0.97); nothing animates in from nothing."
+      "Eleven-step zone ramp, Z0 Rail Navy to Z10 backlit paper; Levv Blue the single accent.",
+      "1–2px corners on everything inside the shell, whatever radius class a component asks for.",
+      "Tracked uppercase legends (11–12px, .06em) for column heads, labels, buttons, tabs and segmented options.",
+      "A status is a small solid square beside plain text.",
+      "Tables are unframed, with a 2px Rail Navy rule under the heads and hairline rules between rows.",
+      "Motion is feedback only: press, colour fades and the frame's disclosures."
     ],
     "rules": [
       {
-        "name": "The Navy Commands, Blue Locates Rule",
-        "body": "Navy fills what a person does next (the primary button, the chosen filter, a step already taken); blue marks where the record or the person is (the current stage, the current page, the focused field). In the app the one command per view is navy; on brand pages Levv Blue carries the main action.",
+        "name": "The One Glow Rule",
+        "body": "Levv Blue is the only accent inside the shell. Violet and purple utilities are repainted to Levv Blue by the shell itself. Never add a second accent.",
         "section": "colors"
       },
       {
-        "name": "The Sky-On-Navy Rule",
-        "body": "Nova Sky only ever sits on Rail Navy. It never appears on white, never fills a button, and never stands in for the accent outside the Nova band.",
+        "name": "The Ramp Rule",
+        "body": "Neutrals come from the zone ramp or its three surface companions (surface, sunken, rule). Don't hand-mix another grey.",
         "section": "colors"
       },
       {
-        "name": "The Signals Only Rule",
-        "body": "Emerald, amber and rose report status and nothing else. There is no violet or purple in the product: the app layer recolours legacy violet classes to Levv Blue.",
-        "section": "colors"
-      },
-      {
-        "name": "The Pinned Spec Rule",
-        "body": "Screens a specification pins (Flow Studio in src/components/flow-studio/, the run screens and the inbox) carry .levv-spec, which restores Tailwind's own slate, gray, blue, cyan and its larger xl/2xl/3xl radii, and they render outside main.flex-1 (Flow Studio is portalled to <body>; run screens use grow basis-0) so the app layer cannot touch them. Their colours are the ones docs/flow-studio/04-ui.md §1.2–1.3 pins: cyan accent, slate-950 canvas. Only their chrome follows Levv: Inter, press feedback and the 64px top bar.",
-        "section": "colors"
-      },
-      {
-        "name": "The Wide Name Rule",
-        "body": "Archivo, set wide, is the brand's voice and appears only on brand surfaces: the landing page, its dialog and its mobile menu. Inside the authenticated app, every heading is Inter.",
+        "name": "The Tabular Rule",
+        "body": "Every number is tabular (`tabular-nums`; tables apply it automatically). A number that leads its line is semibold.",
         "section": "typography"
       },
       {
-        "name": "The Sentence-Case Label Rule",
-        "body": "Labels, table headers, badges and buttons are sentence case with no added letter-spacing. The app layer strips uppercase and tracking from older pages' headers, labels and buttons. (Flow Studio's spec-pinned 10px uppercase badge is the one exception.)",
+        "name": "The One Face Rule",
+        "body": "Don't load Inter, Archivo or a monospace inside the shell. They were tried and rejected. Inside the shell, `font-sans` resolves to Helvetica.",
         "section": "typography"
       },
       {
-        "name": "The Tabular Figures Rule",
-        "body": "Every ID, date, count, rate and money value uses tabular numerals; table cells and [data-numeric] get them by default.",
-        "section": "typography"
+        "name": "The Live Sentence Rule",
+        "body": "Every record header carries one sentence computed from the data on the page: counts, the routing rule, or the empty or error case. It has states for loading, error, empty, and one versus many. Never write a slogan or a static description there.",
+        "section": "layout"
       },
       {
-        "name": "The Hairline-First Rule",
-        "body": "Panels, tables, stat strips, tiles and cards sit flat with a 1px Hairline. If it does not float above the page (menu, dialog, drawer) or is not a product window on a brand page, it has no shadow.",
+        "name": "The Flat Record Rule",
+        "body": "Anything that sits in the page flow is flat. A shadow means the layer floats above the page and can be dismissed.",
         "section": "elevation"
       },
       {
-        "name": "The Inner-Step Rule",
-        "body": "Whatever sits inside a rounded control takes the next step down: 6px options in an 8px segmented group, a 6px chip and button inside the 8px Nova prompt, 8px tiles inside 10px panels.",
-        "section": "shapes"
-      },
-      {
-        "name": "The 8px Control Rule",
-        "body": "Every standalone button and field is 8px, at every size, on every surface; only a control nested inside another control steps down to 6px.",
+        "name": "The Square Rule",
+        "body": "Corners are 1–2px. Don't use pills or circles for status, tags, buttons or segmented options.",
         "section": "shapes"
       }
     ],
     "dos": [
-      "Do build app screens from app/components/ui/levv-app.tsx in the index anatomy (page header → stat strip → toolbar → table shell → empty state), and check new work against the Workers index (app/workers/workers/page.tsx).",
-      "Do show where a record stands with the five-stage lifecycle track (16px current, 10px others, 6px tall, 3px apart).",
-      "Do mark everything Nova does or offers with the Nova chip: Rail Navy, 6px corners, a Nova Sky sparkle.",
-      "Do give every pressable element the press (scale 0.97, 120ms, ease-out) and the 2px Levv Blue focus outline; under reduced motion, presses stop scaling, pops only fade and the integration pulse is hidden.",
-      "Do set every ID, date, count and money value in tabular figures.",
-      "Do show the product on brand pages as live HTML windows built from real product UI and the app's own tokens.",
-      "Do keep spec-pinned screens (Flow Studio, run screens, inbox) inside .levv-spec and outside main.flex-1, so the colours their spec pins compute exactly."
+      "**Do** open every record page with `LevvRecordHeader` and a statement computed from its data, with loading, error and empty variants.",
+      "**Do** set every legend, column head, button, tab and filter label in 11–12px uppercase at .06em.",
+      "**Do** put tables straight on the paper under a 2px Rail Navy head rule, and let `levv-cq` switch them to stacked rows in narrow columns.",
+      "**Do** show status as an 8px square beside plain text.",
+      "**Do** keep Levv Blue for the primary action, selection, the current page and focus.",
+      "**Do** pair hatching with its legend every time it appears.",
+      "**Do** limit motion to the 120ms press, 160ms colour fades and the frame's disclosure transitions, and honour reduced motion."
     ],
     "donts": [
-      "Don't put Nova Sky on white, use it as a button fill, or use it for anything that is not Nova or the current item on the navy rail.",
-      "Don't use emerald, amber or rose for decoration, and don't use violet or purple anywhere outside Flow Studio's spec-pinned Digital Worker tone.",
-      "Don't set Archivo inside the authenticated app; app headings are Inter.",
-      "Don't uppercase or letter-space labels, table headers, badges or buttons (Flow Studio's spec-pinned badge excepted).",
-      "Don't shadow panels, tables, stat strips or cards; a 1px Hairline separates them.",
-      "Don't lay figures out as a row of separate stat tiles; a set of figures is one stat strip.",
-      "Don't box filters in a panel of their own; the toolbar sits on the page, directly above what it scopes.",
-      "Don't round a standalone button or field anything but 8px."
+      "**Don't** wrap a table or list in a card, or give a page-flow surface a shadow.",
+      "**Don't** use pill badges, rounded-full chips or corners above 2px inside the shell.",
+      "**Don't** invent a statement, figure, count or mark. If the data has not loaded, the sentence says so.",
+      "**Don't** load Inter, Archivo or a monospace inside the shell, or set figures in a second face.",
+      "**Don't** introduce a second accent, and don't use status colours as decoration.",
+      "**Don't** animate content into view inside the app. Entrances, reveals and the ribbon belong to the landing page."
     ]
   }
 }

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Levv · Approvals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:"cv02","cv03","cv04","cv11";color:#0a1128;background:#f3f5f9;display:flex}
+.num{font-variant-numeric:tabular-nums}
+.nw{white-space:nowrap}
+.rail{width:248px;height:900px;background:#0a1330;padding:16px 12px;flex:none}
+.brand{display:flex;align-items:center;gap:10px;height:32px;padding:0 4px;margin-bottom:28px}
+.tile{width:32px;height:32px;border-radius:8px;background:#fff;display:grid;place-items:center;color:#2658e4;font-weight:700;font-size:17px;line-height:1}
+.word{color:#fff;font-size:11px;font-weight:600;letter-spacing:.35em}
+.sec{font-size:11px;color:#95a1b5;padding:0 12px;margin:22px 0 6px;line-height:16px}
+.ri{height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:#c9d2df}
+.ic{width:16px;height:16px;border:1.5px solid currentColor;border-radius:4px;flex:none;opacity:.75}
+.ri.on{background:rgba(255,255,255,.1);color:#fff}
+.ri.on .ic{color:#3fb6f7;opacity:1}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{height:64px;flex:none;background:#fff;border-bottom:1px solid #e0e6ef;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.search{width:360px;height:36px;background:#f6f8fb;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;font-size:13px;color:#95a1b5}
+.kbd{margin-left:auto;font-size:11px;font-weight:500;color:#616e84;background:#fff;border:1px solid #e0e6ef;border-radius:5px;padding:2px 6px;line-height:14px}
+.me{display:flex;align-items:center;gap:12px}
+.av{width:28px;height:28px;border-radius:50%;background:#131b35;color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;margin-left:8px}
+.me span{font-size:13px;font-weight:500;color:#0a1128}
+.body{flex:1;padding:32px;display:flex;gap:32px;align-items:flex-start}
+.set{width:208px;flex:none;background:#fff;border:1px solid #e0e6ef;border-radius:10px;padding:8px}
+.set h2{margin:0;padding:8px 10px 0;font-size:13px;font-weight:600;line-height:18px}
+.set p{margin:2px 0 8px;padding:0 10px 10px;font-size:12px;color:#616e84;line-height:16px;border-bottom:1px solid #eef1f5}
+.si{height:32px;display:flex;align-items:center;padding:0 10px;border-radius:6px;font-size:13px;color:#364157}
+.si.on{background:#eef4ff;color:#1e46c4;font-weight:500}
+.page{flex:1;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:flex-start}
+h1{margin:0;font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:32px}
+.ph p{margin:6px 0 0;font-size:14px;color:#616e84;line-height:20px}
+.acts{display:flex;gap:8px;padding-top:2px}
+.btn{height:36px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center}
+.b2{background:#fff;border:1px solid #c9d2df;color:#232c42}
+.b1{background:#131b35;border:1px solid #131b35;color:#fff}
+.tabs{display:flex;gap:28px;border-bottom:1px solid #e0e6ef;margin:24px 0 20px}
+.tab{font-size:14px;color:#616e84;padding-bottom:11px;border-bottom:2px solid transparent;margin-bottom:-1px;line-height:20px}
+.tab.on{color:#0a1128;font-weight:500;border-color:#2658e4}
+.tab span{color:#95a1b5;margin-left:5px}
+.shell{background:#fff;border:1px solid #e0e6ef;border-radius:10px;overflow:hidden}
+.g{display:grid;grid-template-columns:260px repeat(7,1fr)}
+.hd{background:#f6f8fb}
+.hd>div{padding:12px 8px;text-align:center;font-size:12px;font-weight:550;color:#5a677d;line-height:16px;display:flex;flex-direction:column;justify-content:flex-end}
+.hd small{display:block;font-size:11px;font-weight:400;color:#95a1b5;line-height:14px;margin-top:3px}
+.hd>.c1{text-align:left;padding-left:16px}
+.hd .sel{background:#eef4ff}
+.c1{border-right:1px solid #e0e6ef}
+.r{height:64px;border-top:1px solid #e0e6ef}
+.r.sel{background:#eef4ff}
+.r>.c1{grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:center;min-width:0;padding:0 14px 0 16px}
+.sub{display:flex;align-items:baseline;gap:12px;margin-top:1px}
+.sub .cd{flex:1;min-width:0}
+.nm{font-size:13px;font-weight:500;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd{font-size:12px;color:#616e84;line-height:16px;text-wrap:pretty}
+.pr{font-size:11px;font-weight:500;color:#95a1b5;font-variant-numeric:tabular-nums;flex:none}
+.st{grid-row:1;display:grid;place-items:center;position:relative;z-index:1}
+.st i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;background:#fff;border:1.5px solid #131b35;color:#131b35}
+.st i.f{background:#131b35;color:#fff}
+.st i.ring{box-shadow:0 0 0 3px rgba(38,88,228,.28)}
+.ln{grid-row:1;align-self:center;height:1px;background:#c9d2df}
+.lg{display:flex;align-items:center;gap:16px;margin-top:14px;font-size:12px;color:#616e84;line-height:16px;white-space:nowrap}
+.lg>span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%;background:#131b35}
+.dot.o{background:#fff;border:1.5px solid #131b35}
+.sep{width:1px;height:12px;background:#e0e6ef}
+</style></head>
+<body>
+<nav class="rail">
+  <div class="brand"><div class="tile">L</div><div class="word">LEVVAI</div></div>
+  <div class="sec" style="margin-top:0">Main</div>
+  <div class="ri"><i class="ic"></i>Home</div>
+  <div class="ri"><i class="ic"></i>My items</div>
+  <div class="ri"><i class="ic"></i>Inbox</div>
+  <div class="ri"><i class="ic"></i>Running workflows</div>
+  <div class="sec">Management</div>
+  <div class="ri"><i class="ic"></i>Contingent workforce</div>
+  <div class="ri"><i class="ic"></i>Services</div>
+  <div class="ri"><i class="ic"></i>Workers</div>
+  <div class="ri"><i class="ic"></i>Suppliers</div>
+  <div class="sec">System</div>
+  <div class="ri"><i class="ic"></i>Finance</div>
+  <div class="ri on"><i class="ic"></i>Settings</div>
+</nav>
+<div class="main">
+  <header class="top">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#95a1b5" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.75"/><path d="M10.5 10.5 14 14"/></svg>
+      Search pages and subpages…<span class="kbd">⌘K</span>
+    </div>
+    <div class="me">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#364157" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5.5 2 6H3c.5-.5 2-2 2-6Z"/><path d="M8.25 16.5a1.9 1.9 0 0 0 3.5 0"/></svg>
+      <div class="av">LA</div><span>Local Admin</span>
+    </div>
+  </header>
+  <div class="body">
+    <aside class="set">
+      <h2>Admin settings</h2><p>Tenant controls and access.</p>
+      <div class="si">Users</div><div class="si">Company</div><div class="si">Roles</div>
+      <div class="si on">Approvals</div><div class="si">Supplier network</div><div class="si">Workflows</div>
+      <div class="si">Financial</div><div class="si">Rates</div><div class="si">Suppliers</div>
+      <div class="si">Workers</div><div class="si">Compliance policies</div><div class="si">Tenant docs</div>
+      <div class="si">Integrations</div><div class="si">Configuration</div>
+    </aside>
+    <main class="page">
+      <div class="ph">
+        <div><h1>Approvals</h1><p>Who decides each kind of request, in what order.</p></div>
+        <div class="acts"><span class="btn b2">New group</span><span class="btn b1">New chain</span></div>
+      </div>
+      <div class="tabs">
+        <div class="tab on">Who approves what</div>
+        <div class="tab">Chains<span class="num">4</span></div>
+        <div class="tab">Groups<span class="num">7</span></div>
+      </div>
+      <div class="shell">
+        <div class="g hd">
+          <div class="c1">Chain</div>
+          <div>Onboarding approvers<small>Any one</small></div>
+          <div>People Ops <span class="nw">sign-off</span><small>Any one</small></div>
+          <div class="sel">Legal <span class="nw">sign-off</span><small>All must</small></div>
+          <div>Security review<small>Any one</small></div>
+          <div>IT provisioning<small>Any one</small></div>
+          <div>Vendor &amp; insurance<small>Any one</small></div>
+          <div>Finance <span class="nw">sign-off</span><small>All must</small></div>
+        </div>
+        <div class="g r">
+          <div class="c1"><div class="nm">Standard US contingent approval</div><div class="sub"><div class="cd">Job country is US</div><span class="pr">P10</span></div></div>
+          <div class="ln" style="grid-column:2/9;margin:0 calc(100%/14)"></div>
+          <div class="st" style="grid-column:2"><i class="f">1</i></div>
+          <div class="st" style="grid-column:8"><i>2</i></div>
+        </div>
+        <div class="g r sel">
+          <div class="c1"><div class="nm">High value engagement approval</div><div class="sub"><div class="cd">Currency is USD and budget is at least <span class="num">100,000</span></div><span class="pr">P20</span></div></div>
+          <div class="ln" style="grid-column:4/9;margin:0 10%"></div>
+          <div class="st" style="grid-column:8"><i class="f">1</i></div>
+          <div class="st" style="grid-column:4"><i class="ring">2</i></div>
+          <div class="st" style="grid-column:7"><i>3</i></div>
+        </div>
+        <div class="g r">
+          <div class="c1"><div class="nm">Contractor onboarding access</div><div class="sub"><div class="cd">Worker type is contractor</div><span class="pr">P30</span></div></div>
+          <div class="ln" style="grid-column:5/7;margin:0 25%"></div>
+          <div class="st" style="grid-column:5"><i class="f">1</i></div>
+          <div class="st" style="grid-column:6"><i>2</i></div>
+        </div>
+        <div class="g r">
+          <div class="c1"><div class="nm">People changes</div><div class="sub"><div class="cd">Request type is extension or conversion</div><span class="pr">P40</span></div></div>
+          <div class="st" style="grid-column:3"><i class="f">1</i></div>
+        </div>
+      </div>
+      <div class="lg">
+        <span><i class="dot"></i>First approver</span>
+        <span><i class="dot o"></i>Then</span>
+        <i class="sep"></i>
+        <span>Rows run top to bottom by priority; the first chain whose conditions match routes the request.</span>
+      </div>
+    </main>
+  </div>
+</div>
+</body></html>

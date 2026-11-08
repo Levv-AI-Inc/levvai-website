@@ -5,5 +5,5 @@ export default function RatesModuleLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <div className="px-1 py-1">{children}</div>
+  return <div>{children}</div>
 }

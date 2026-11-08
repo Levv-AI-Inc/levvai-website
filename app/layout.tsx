@@ -542,7 +542,7 @@ export default function RootLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-[var(--line)] bg-white px-4 sm:px-5 lg:px-8">
+          <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--ground)] px-4 sm:px-5 lg:px-8">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
@@ -558,10 +558,10 @@ export default function RootLayout({
               <button
                 type="button"
                 aria-label="Notifications"
-                className="levv-press relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                className="levv-press relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--line-strong)] text-slate-600 hover:bg-slate-100 hover:text-slate-950"
               >
                 <Bell className="h-[18px] w-[18px]" />
-                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 bg-[#c0392b]" />
               </button>
               <div className="h-6 w-px bg-[var(--line)]" />
               {sessionUser && (
@@ -672,9 +672,9 @@ function PageSearch({ isAdmin }: { isAdmin: boolean }) {
           aria-expanded={open}
           aria-controls="levvai-page-search-results"
           placeholder="Search pages and subpages..."
-          className="h-9 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-sunken)] pl-9 pr-14 text-[13px] text-slate-800 outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-slate-400 hover:border-[var(--line-strong)] focus:border-[var(--accent)] focus:bg-white focus:shadow-[0_0_0_3px_var(--focus)]"
+          className="h-9 w-full rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] pl-9 pr-14 text-[14px] text-slate-900 outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-slate-500 hover:border-slate-500 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus)]"
         />
-        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[var(--line)] bg-white px-1.5 py-0.5 font-sans text-[11px] font-medium text-slate-500">
+        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[var(--line)] bg-[var(--ground)] px-1.5 py-0.5 font-semibold tabular-nums text-[11px] text-slate-500">
           ⌘K
         </kbd>
       </form>
@@ -763,7 +763,7 @@ function AccountMenu({
         aria-expanded={open}
         className="levv-press inline-flex h-9 items-center gap-2.5 rounded-lg pl-1 pr-2 text-[13px] font-medium text-slate-800 hover:bg-slate-100"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--rail)] text-[11px] font-semibold text-white">
+        <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-[var(--rail)] text-[11px] font-semibold text-white">
           {display.initials}
         </span>
         <span className="hidden max-w-40 truncate sm:block">
@@ -827,7 +827,7 @@ function NavSection({
   return (
     <div>
       {!collapsed ? (
-        <p className="mb-1.5 px-2.5 text-[11px] font-medium text-[#7d8aa3]">
+        <p className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#82879a]">
           {label}
         </p>
       ) : (
@@ -870,12 +870,12 @@ function NavItem({
       aria-current={isActive ? 'page' : undefined}
       className={`${NAV_ROW} ${collapsed ? 'justify-center' : 'gap-3'} ${
         isActive
-          ? 'bg-white/[0.1] text-white'
+          ? 'bg-blue-600 text-white'
           : 'text-slate-300 hover:bg-[var(--rail-raised)] hover:text-white'
       }`}
     >
       <Icon
-        className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-[var(--nova)]' : 'text-slate-400'}`}
+        className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}
       />
       {!collapsed ? <span className="truncate">{label}</span> : null}
     </Link>
@@ -919,7 +919,7 @@ function NavGroup({
       >
         <span className={`flex min-w-0 items-center ${collapsed ? '' : 'gap-3'}`}>
           <Icon
-            className={`h-[18px] w-[18px] shrink-0 ${isAnyActive ? 'text-[var(--nova)]' : 'text-slate-400'}`}
+            className={`h-[18px] w-[18px] shrink-0 ${isAnyActive ? 'text-white' : 'text-slate-400'}`}
           />
           {!collapsed ? <span className="truncate">{label}</span> : null}
         </span>
@@ -949,7 +949,7 @@ function NavGroup({
                   aria-current={isActive ? 'page' : undefined}
                   className={`flex h-8 items-center rounded-md px-2.5 text-[13px] transition-colors duration-150 ${
                     isActive
-                      ? 'bg-white/[0.1] font-medium text-white'
+                      ? 'bg-blue-600 font-medium text-white'
                       : 'text-slate-400 hover:bg-[var(--rail-raised)] hover:text-white'
                   }`}
                 >

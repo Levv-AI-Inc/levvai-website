@@ -1,5 +1,5 @@
 import SupplierDirectory from './SupplierDirectory'
 
 export default function SuppliersPage() {
-  return <SupplierDirectory />
+  return <SupplierDirectory trail="Management / Suppliers" />
 }

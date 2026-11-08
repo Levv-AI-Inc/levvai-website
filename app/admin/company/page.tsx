@@ -21,10 +21,10 @@ import AddSiteModal, {
 import CompanyHeader from './components/CompanyHeader'
 import CompanyTable from './components/CompanyTable'
 import CompanyTabs from './components/CompanyTabs'
-import WorksiteActionsDropdown from './components/WorksiteActionsDropdown'
 import { getTableConfig } from './config'
 import { TABS, type RowStatus, type Tab } from './types'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
+import { LevvNotice, LevvPage, levvUi } from '@/components/ui/levv-app'
 import {
   BusinessUnitsApiError,
   createBusinessUnit,
@@ -122,6 +122,26 @@ function mapLegalEntitiesToRows(rows: LegalEntityRecord[]) {
     country: entity.country || '-',
     status: toRowStatus(entity.status),
   }))
+}
+
+function plural(count: number, one: string, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`
+}
+
+/** The header's sentence, from the business units as loaded: how many, and how many of them are active. */
+function businessUnitStatement(
+  units: BusinessUnitRecord[],
+  loaded: boolean,
+  error: string,
+) {
+  if (!loaded) return 'Loading business units…'
+  if (error) return 'Business units could not be loaded, so they are not counted here.'
+  if (units.length === 0) return 'No business units yet.'
+  const active = units.filter((unit) => toRowStatus(unit.status) === 'Active').length
+  const lead = plural(units.length, 'business unit')
+  if (active === units.length) return units.length === 1 ? `${lead}, active.` : `${lead}, all active.`
+  if (active === 0) return units.length === 1 ? `${lead}, inactive.` : `${lead}, none active.`
+  return `${lead}: ${active} active, ${units.length - active} inactive.`
 }
 
 function toCreatePayload(
@@ -1241,200 +1261,245 @@ export default function CompanyPage() {
     }
   }
 
+  const businessUnitsCounted = businessUnitsLoaded && !businessUnitsError
+  const activeBusinessUnits = businessUnits.filter(
+    (unit) => toRowStatus(unit.status) === 'Active',
+  ).length
+  const businessUnitFigure = (value: number) =>
+    businessUnitsCounted ? value : '—'
+  const tabCounts: Partial<Record<Tab, number>> = {
+    'Business Units': businessUnitsCounted ? businessUnits.length : undefined,
+    'Cost Centers':
+      costCentersLoaded && !costCentersError ? costCenters.length : undefined,
+    Locations: locationsLoaded && !locationsError ? locations.length : undefined,
+    Worksites: sitesLoaded && !sitesError ? sites.length : undefined,
+    'Legal Entities':
+      legalEntitiesLoaded && !legalEntitiesError
+        ? legalEntities.length
+        : undefined,
+  }
+  const loadingLine = 'text-[13px] text-slate-500'
+
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-900">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <CompanyHeader />
+    <LevvPage>
+      <div className="space-y-6">
+        <CompanyHeader
+          statement={businessUnitStatement(
+            businessUnits,
+            businessUnitsLoaded,
+            businessUnitsError,
+          )}
+          figures={[
+            { label: 'Business units', value: businessUnitFigure(businessUnits.length) },
+            { label: 'Active', value: businessUnitFigure(activeBusinessUnits) },
+            {
+              label: 'Inactive',
+              value: businessUnitFigure(businessUnits.length - activeBusinessUnits),
+            },
+          ]}
+          actions={
+            <button onClick={handleAddClick} className={levvUi.primaryButton}>
+              <Plus /> {config.addLabel}
+            </button>
+          }
+        />
         <AIRulesPanel
           onBusinessUnitUpload={handleBusinessUnitUpload}
           uploadingBusinessUnits={uploadingBusinessUnits}
           businessUnitUploadError={businessUnitUploadError}
         />
 
-      <CompanyTabs
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+        <div className="space-y-5">
+          <CompanyTabs
+            tabs={TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            counts={tabCounts}
+          />
 
-      {activeTab === 'Business Units' && businessUnitsLoading && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
-          Loading business units...
+          {activeTab === 'Business Units' && businessUnitsLoading && (
+            <p className={loadingLine}>
+              Loading business units...
+            </p>
+          )}
+
+          {activeTab === 'Business Units' && businessUnitsError && (
+            <LevvNotice tone="rose">
+              {businessUnitsError}
+            </LevvNotice>
+          )}
+
+          {activeTab === 'Cost Centers' && costCentersLoading && (
+            <p className={loadingLine}>
+              Loading cost centers...
+            </p>
+          )}
+
+          {activeTab === 'Cost Centers' && costCentersError && (
+            <LevvNotice tone="rose">
+              {costCentersError}
+            </LevvNotice>
+          )}
+
+          {activeTab === 'Locations' && locationsLoading && (
+            <p className={loadingLine}>
+              Loading locations...
+            </p>
+          )}
+
+          {activeTab === 'Locations' && locationsError && (
+            <LevvNotice tone="rose">
+              {locationsError}
+            </LevvNotice>
+          )}
+
+          {activeTab === 'Worksites' && sitesLoading && (
+            <p className={loadingLine}>
+              Loading worksites...
+            </p>
+          )}
+
+          {activeTab === 'Worksites' && sitesError && (
+            <LevvNotice tone="rose">
+              {sitesError}
+            </LevvNotice>
+          )}
+
+          {activeTab === 'Legal Entities' && legalEntitiesLoading && (
+            <p className={loadingLine}>
+              Loading legal entities...
+            </p>
+          )}
+
+          {activeTab === 'Legal Entities' && legalEntitiesError && (
+            <LevvNotice tone="rose">
+              {legalEntitiesError}
+            </LevvNotice>
+          )}
+
+          <CompanyTable
+            config={config}
+            renderActions={
+              activeTab === 'Cost Centers'
+                ? (row) =>
+                    row.costCenterRecord ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEditCostCenter(
+                            row.costCenterRecord as CostCenterRecord,
+                          )
+                        }
+                        className={levvUi.secondaryButton}
+                        aria-label={`Edit ${row.costCenter}`}
+                      >
+                        Edit
+                      </button>
+                    ) : null
+                : activeTab === 'Locations'
+                ? (row) =>
+                    row.locationRecord ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleEditLocation(row.locationRecord as LocationRecord)
+                          }
+                          className={levvUi.secondaryButton}
+                          aria-label={`Edit ${row.location}`}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleDeleteLocation(
+                              row.locationRecord as LocationRecord,
+                            )
+                          }
+                          disabled={
+                            deletingLocationId ===
+                            (row.locationRecord as LocationRecord).id
+                          }
+                          className={levvUi.dangerIconButton}
+                          aria-label={`Delete ${row.location}`}
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                    ) : null
+                : activeTab === 'Worksites'
+                ? (row) =>
+                    row.siteRecord ? (
+                      <button
+                        type="button"
+                        onClick={() => handleEditSite(row.siteRecord as SiteRecord)}
+                        className={levvUi.secondaryButton}
+                        aria-label={`Edit ${row.worksite}`}
+                      >
+                        Edit
+                      </button>
+                    ) : null
+                : undefined
+            }
+          />
         </div>
-      )}
 
-      {activeTab === 'Business Units' && businessUnitsError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-          {businessUnitsError}
-        </div>
-      )}
+        <AddBusinessUnitModal
+          isOpen={showAddBusinessUnitModal}
+          isSubmitting={creatingBusinessUnit}
+          error={addBusinessUnitError}
+          parentOptions={businessUnits}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitBusinessUnit}
+        />
 
-      {activeTab === 'Cost Centers' && costCentersLoading && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
-          Loading cost centers...
-        </div>
-      )}
+        <AddCostCenterModal
+          isOpen={showAddCostCenterModal}
+          isSubmitting={creatingCostCenter}
+          error={addCostCenterError}
+          businessUnits={businessUnits}
+          mode={editingCostCenter ? 'edit' : 'create'}
+          initialValues={
+            editingCostCenter
+              ? toCostCenterFormValues(editingCostCenter)
+              : null
+          }
+          onClose={handleCloseCostCenterModal}
+          onSubmit={handleSubmitCostCenter}
+        />
 
-      {activeTab === 'Cost Centers' && costCentersError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-          {costCentersError}
-        </div>
-      )}
+        <AddLocationModal
+          isOpen={showAddLocationModal}
+          isSubmitting={creatingLocation}
+          error={addLocationError}
+          mode={editingLocation ? 'edit' : 'create'}
+          initialValues={
+            editingLocation ? toLocationFormValues(editingLocation) : null
+          }
+          onClose={handleCloseLocationModal}
+          onSubmit={handleSubmitLocation}
+        />
 
-      {activeTab === 'Locations' && locationsLoading && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
-          Loading locations...
-        </div>
-      )}
+        <AddSiteModal
+          isOpen={showAddSiteModal}
+          isSubmitting={creatingSite}
+          error={addSiteError}
+          legalEntities={legalEntities}
+          mode={editingSite ? 'edit' : 'create'}
+          initialValues={editingSite ? toSiteFormValues(editingSite) : null}
+          onClose={handleCloseSiteModal}
+          onSubmit={handleSubmitSite}
+        />
 
-      {activeTab === 'Locations' && locationsError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-          {locationsError}
-        </div>
-      )}
-
-      {activeTab === 'Worksites' && sitesLoading && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
-          Loading worksites...
-        </div>
-      )}
-
-      {activeTab === 'Worksites' && sitesError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-          {sitesError}
-        </div>
-      )}
-
-      {activeTab === 'Legal Entities' && legalEntitiesLoading && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
-          Loading legal entities...
-        </div>
-      )}
-
-      {activeTab === 'Legal Entities' && legalEntitiesError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700">
-          {legalEntitiesError}
-        </div>
-      )}
-
-      <CompanyTable
-        config={config}
-        onAdd={handleAddClick}
-        renderActions={
-          activeTab === 'Cost Centers'
-            ? (row) =>
-                row.costCenterRecord ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleEditCostCenter(
-                        row.costCenterRecord as CostCenterRecord,
-                      )
-                    }
-                    className="inline-flex items-center justify-center rounded-xl p-2 transition hover:bg-cyan-50"
-                    aria-label={`Edit ${row.costCenter}`}
-                  >
-                    <Pencil className="h-4 w-4 text-slate-600" />
-                  </button>
-                ) : null
-            : activeTab === 'Locations'
-            ? (row) =>
-                row.locationRecord ? (
-                  <div className="inline-flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleEditLocation(row.locationRecord as LocationRecord)
-                      }
-                      className="inline-flex items-center justify-center rounded-xl p-2 transition hover:bg-cyan-50"
-                      aria-label="Edit location"
-                    >
-                      <Pencil className="h-4 w-4 text-slate-600" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void handleDeleteLocation(
-                          row.locationRecord as LocationRecord,
-                        )
-                      }
-                      disabled={
-                        deletingLocationId ===
-                        (row.locationRecord as LocationRecord).id
-                      }
-                      className="inline-flex items-center justify-center rounded-xl p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                      aria-label="Delete location"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : null
-            : activeTab === 'Worksites'
-            ? (row) =>
-                row.siteRecord ? (
-                  <WorksiteActionsDropdown
-                    onEdit={() => handleEditSite(row.siteRecord as SiteRecord)}
-                  />
-                ) : null
-            : undefined
-        }
-      />
-
-      <AddBusinessUnitModal
-        isOpen={showAddBusinessUnitModal}
-        isSubmitting={creatingBusinessUnit}
-        error={addBusinessUnitError}
-        parentOptions={businessUnits}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmitBusinessUnit}
-      />
-
-      <AddCostCenterModal
-        isOpen={showAddCostCenterModal}
-        isSubmitting={creatingCostCenter}
-        error={addCostCenterError}
-        businessUnits={businessUnits}
-        mode={editingCostCenter ? 'edit' : 'create'}
-        initialValues={
-          editingCostCenter
-            ? toCostCenterFormValues(editingCostCenter)
-            : null
-        }
-        onClose={handleCloseCostCenterModal}
-        onSubmit={handleSubmitCostCenter}
-      />
-
-      <AddLocationModal
-        isOpen={showAddLocationModal}
-        isSubmitting={creatingLocation}
-        error={addLocationError}
-        mode={editingLocation ? 'edit' : 'create'}
-        initialValues={
-          editingLocation ? toLocationFormValues(editingLocation) : null
-        }
-        onClose={handleCloseLocationModal}
-        onSubmit={handleSubmitLocation}
-      />
-
-      <AddSiteModal
-        isOpen={showAddSiteModal}
-        isSubmitting={creatingSite}
-        error={addSiteError}
-        legalEntities={legalEntities}
-        mode={editingSite ? 'edit' : 'create'}
-        initialValues={editingSite ? toSiteFormValues(editingSite) : null}
-        onClose={handleCloseSiteModal}
-        onSubmit={handleSubmitSite}
-      />
-
-      <AddLegalEntityModal
-        isOpen={showAddLegalEntityModal}
-        isSubmitting={creatingLegalEntity}
-        error={addLegalEntityError}
-        onClose={handleCloseLegalEntityModal}
-        onSubmit={handleSubmitLegalEntity}
-      />
+        <AddLegalEntityModal
+          isOpen={showAddLegalEntityModal}
+          isSubmitting={creatingLegalEntity}
+          error={addLegalEntityError}
+          onClose={handleCloseLegalEntityModal}
+          onSubmit={handleSubmitLegalEntity}
+        />
       </div>
-    </div>
+    </LevvPage>
   )
 }

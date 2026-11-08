@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, type ChangeEvent } from 'react'
-import { FileSpreadsheet, Loader2, Upload } from 'lucide-react'
+import { Loader2, Upload } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { LevvUploadZone, levvUi } from '@/components/ui/levv-app'
 
 type BusinessUnitUploadRow = Record<string, unknown>
 
@@ -39,17 +40,7 @@ export default function AIRulesPanel({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center shadow-sm">
-      <div className="mb-3 rounded-full bg-white p-3 shadow-sm">
-        <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
-      </div>
-      <h2 className="text-sm font-black text-slate-900">
-        Mass Upload Business Units
-      </h2>
-      <p className="mt-1 max-w-sm text-xs font-medium text-slate-500">
-        Upload an .xlsx or .xls file with columns like code, name, parent,
-        description, status, company, legalEntityId, and glAccountId.
-      </p>
+    <>
       <input
         ref={businessUnitInputRef}
         type="file"
@@ -57,24 +48,26 @@ export default function AIRulesPanel({
         className="hidden"
         onChange={handleBusinessUnitUpload}
       />
-      <button
-        type="button"
-        onClick={() => businessUnitInputRef.current?.click()}
-        disabled={uploadingBusinessUnits}
-        className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {uploadingBusinessUnits ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Upload className="h-4 w-4" />
-        )}
-        {uploadingBusinessUnits ? 'Uploading...' : 'Select Business Unit File'}
-      </button>
-      {businessUnitUploadError ? (
-        <p className="mt-2 text-xs font-medium text-rose-600">
-          {businessUnitUploadError}
-        </p>
-      ) : null}
-    </div>
+      <LevvUploadZone
+        title="Mass Upload Business Units"
+        description="Upload an .xlsx or .xls file with columns like code, name, parent, description, status, company, legalEntityId, and glAccountId."
+        error={businessUnitUploadError || undefined}
+        action={
+          <button
+            type="button"
+            onClick={() => businessUnitInputRef.current?.click()}
+            disabled={uploadingBusinessUnits}
+            className={levvUi.secondaryButton}
+          >
+            {uploadingBusinessUnits ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Upload />
+            )}
+            {uploadingBusinessUnits ? 'Uploading...' : 'Select Business Unit File'}
+          </button>
+        }
+      />
+    </>
   )
 }

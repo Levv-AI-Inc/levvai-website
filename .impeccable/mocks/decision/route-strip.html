@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Approval chains · Route strip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:"cv02","cv03","cv04","cv11";color:#0a1128;background:#f3f5f9;display:grid;grid-template-columns:248px 1fr}
+.tn{font-variant-numeric:tabular-nums}
+.rail{background:#0a1330;padding:16px 12px;height:900px}
+.brand{display:flex;align-items:center;gap:10px;height:32px;padding:0 4px;margin-bottom:24px}
+.tile{width:32px;height:32px;border-radius:8px;background:#fff;color:#2658e4;font-weight:700;font-size:17px;display:grid;place-items:center}
+.word{color:#fff;font-size:11px;font-weight:600;letter-spacing:.35em}
+.sec{font-size:11px;line-height:14px;color:#95a1b5;padding:0 12px;margin:18px 0 6px}
+.sec.first{margin-top:0}
+.nav{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:#c9d2df}
+.nav i{width:16px;height:16px;border:1.5px solid currentColor;border-radius:4px;opacity:.75;flex:none}
+.nav.on{background:rgba(255,255,255,.1);color:#fff}
+.nav.on i{color:#3fb6f7;opacity:1}
+main{display:flex;flex-direction:column;min-width:0}
+.top{height:64px;flex:none;background:#fff;border-bottom:1px solid #e0e6ef;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.search{width:360px;height:36px;background:#f6f8fb;border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 12px;font-size:13px;color:#95a1b5}
+.kbd{font-size:11px;line-height:16px;color:#616e84;background:#fff;border:1px solid #e0e6ef;border-radius:5px;padding:1px 6px}
+.me{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#0a1128}
+.av{width:28px;height:28px;border-radius:50%;background:#131b35;color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;margin-left:14px}
+.content{flex:1;display:flex;gap:32px;padding:32px;align-items:flex-start}
+.set{width:208px;flex:none;background:#fff;border:1px solid #e0e6ef;border-radius:10px;padding:8px}
+.set h2{margin:0;padding:6px 10px 0;font-size:13px;line-height:18px;font-weight:600}
+.set p{margin:2px 0 0;padding:0 10px 10px;font-size:12px;line-height:16px;color:#616e84}
+.si{height:32px;display:flex;align-items:center;padding:0 10px;border-radius:6px;font-size:13px;color:#364157}
+.si.on{background:#eef4ff;color:#1e46c4;font-weight:500}
+.page{flex:1;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+h1{margin:0;font-size:26px;line-height:32px;font-weight:650;letter-spacing:-.02em}
+.ph p{margin:6px 0 0;font-size:14px;line-height:20px;color:#616e84}
+.btn{height:36px;flex:none;padding:0 14px;border-radius:8px;background:#131b35;color:#fff;font-size:13px;font-weight:500;display:flex;align-items:center}
+.stats{margin-top:24px;background:#fff;border:1px solid #e0e6ef;border-radius:10px;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:16px;white-space:nowrap}
+.stat+.stat{border-left:1px solid #e0e6ef}
+.stat span{display:block;font-size:13px;line-height:18px;color:#616e84}
+.stat b{display:block;margin-top:6px;font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+.tools{margin-top:24px;display:flex;align-items:center;gap:8px}
+.field{height:36px;background:#fff;border:1px solid #d5dce6;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:13px}
+.q{width:280px;color:#95a1b5}
+.sel{color:#232c42;gap:28px;padding-right:10px}
+.ghost{height:36px;padding:0 10px;display:flex;align-items:center;font-size:13px;font-weight:500;color:#364157}
+.count{margin-left:auto;font-size:12px;color:#616e84}
+.tbl{margin-top:12px;background:#fff;border:1px solid #e0e6ef;border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:52px minmax(0,1fr) 324px 72px 100px 16px;column-gap:16px;align-items:center;padding:0 16px}
+.hd{height:40px;background:#f6f8fb;border-bottom:1px solid #e0e6ef;font-size:12px;font-weight:550;color:#5a677d}
+.bd{min-height:84px;padding-top:14px;padding-bottom:14px}
+.bd+.bd{border-top:1px solid #e0e6ef}
+.pri{font-size:13px;font-weight:600}
+.nm{font-size:13px;line-height:18px;font-weight:500}
+.cond{margin-top:3px;font-size:12px;line-height:17px;color:#616e84}
+.cond em{font-style:normal;white-space:nowrap;color:#364157;font-weight:500}
+.route{display:flex;align-items:center}
+.step{height:28px;display:inline-flex;align-items:center;gap:7px;padding:0 10px 0 4px;border:1px solid #c9d2df;border-radius:6px;background:#fff;white-space:nowrap}
+.num{width:18px;height:18px;border-radius:50%;background:#131b35;color:#fff;font-size:10px;font-weight:600;display:grid;place-items:center}
+.who{font-size:12px;font-weight:500;color:#232c42}
+.gate{font-size:11px;color:#616e84;padding-left:7px;border-left:1px solid #e0e6ef;line-height:14px}
+.link{width:12px;height:1.5px;background:#c9d2df;flex:none}
+.done{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:#047857}
+.ok{width:18px;height:18px;border-radius:50%;border:1.5px solid #047857;display:grid;place-items:center}
+.badge{justify-self:start;display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;background:#ecfdf5;color:#047857;box-shadow:inset 0 0 0 1px rgba(4,120,87,.18);font-size:12px;font-weight:500}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.up{font-size:13px;line-height:18px;color:#364157}
+.by{margin-top:2px;font-size:12px;line-height:16px;color:#616e84}
+.foot{border-top:1px solid #e0e6ef;background:#f6f8fb;padding:12px 16px;font-size:12px;line-height:18px;color:#616e84;display:flex;gap:10px}
+.foot strong{color:#364157;font-weight:500}
+.foot a{color:#1e46c4;font-weight:500;text-decoration:none}
+</style>
+</head>
+<body>
+<aside class="rail">
+  <div class="brand"><div class="tile">L</div><span class="word">LEVVAI</span></div>
+  <div class="sec first">Main</div>
+  <div class="nav"><i></i>Home</div><div class="nav"><i></i>My items</div><div class="nav"><i></i>Inbox</div><div class="nav"><i></i>Running workflows</div>
+  <div class="sec">Management</div>
+  <div class="nav"><i></i>Contingent workforce</div><div class="nav"><i></i>Services</div><div class="nav"><i></i>Workers</div><div class="nav"><i></i>Suppliers</div>
+  <div class="sec">System</div>
+  <div class="nav"><i></i>Finance</div><div class="nav on"><i></i>Settings</div>
+</aside>
+<main>
+  <header class="top">
+    <div class="search">Search pages and subpages…<span class="kbd">⌘K</span></div>
+    <div class="me">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#616e84" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="av">LA</span>Local Admin
+    </div>
+  </header>
+  <div class="content">
+    <nav class="set">
+      <h2>Admin settings</h2><p>Tenant controls and access.</p>
+      <div class="si">Users</div><div class="si">Company</div><div class="si">Roles</div><div class="si">Approval groups</div><div class="si">Supplier network</div>
+      <div class="si on">Approval chains</div><div class="si">Workflows</div><div class="si">Financial</div><div class="si">Rates</div><div class="si">Suppliers</div>
+      <div class="si">Workers</div><div class="si">Compliance policies</div><div class="si">Tenant docs</div><div class="si">Integrations</div><div class="si">Configuration</div>
+    </nav>
+    <section class="page">
+      <div class="ph">
+        <div><h1>Approval chains</h1><p>Each request takes the first chain whose conditions it matches, then goes to its approvers in order.</p></div>
+        <div class="btn">New chain</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>Active chains</span><b class="tn">2</b></div>
+        <div class="stat"><span>Inactive</span><b class="tn">0</b></div>
+        <div class="stat"><span>Approver steps</span><b class="tn">2</b></div>
+        <div class="stat"><span>Unrouted requests this month</span><b class="tn">0</b></div>
+      </div>
+      <div class="tools">
+        <div class="field q"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#95a1b5" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>Search chains</div>
+        <div class="field sel">All statuses<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#616e84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3 3 3-3"/></svg></div>
+        <div class="field sel">All match strategies<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#616e84" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3 3 3-3"/></svg></div>
+        <div class="ghost">Reset</div>
+        <span class="count tn">2 of 2</span>
+      </div>
+      <div class="tbl">
+        <div class="row hd"><span>Priority</span><span>Chain</span><span>Route</span><span>Status</span><span>Updated</span><span></span></div>
+        <div class="row bd">
+          <span class="pri tn">10</span>
+          <div><div class="nm">US jobs</div><div class="cond"><em>Job country</em> is US</div></div>
+          <div class="route">
+            <span class="step"><span class="num">1</span><span class="who">Local Admin</span></span><span class="link"></span>
+            <span class="done"><span class="ok"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#047857" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg></span>Approved</span>
+          </div>
+          <span class="badge">Active</span>
+          <div><div class="up tn">Nov 7, 2026</div><div class="by">by Local Admin</div></div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#95a1b5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+        </div>
+        <div class="row bd">
+          <span class="pri tn">20</span>
+          <div><div class="nm">High-value USD budgets</div><div class="cond"><em>Currency</em> is USD and <em>budget amount</em> is at least <span class="tn">100,000</span></div></div>
+          <div class="route">
+            <span class="step"><span class="num">1</span><span class="who">Local Admin</span><span class="gate tn">≥ USD 100,000</span></span><span class="link"></span>
+            <span class="done"><span class="ok"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#047857" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg></span>Approved</span>
+          </div>
+          <span class="badge">Active</span>
+          <div><div class="up tn">Nov 7, 2026</div><div class="by">by Local Admin</div></div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#95a1b5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+        </div>
+        <div class="foot"><span>Requests that match no chain go to: <strong>Programme admins</strong> (fallback)</span><a href="#">Change</a></div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

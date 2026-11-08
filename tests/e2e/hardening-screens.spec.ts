@@ -63,9 +63,9 @@ test.describe('/runs and /inbox are cyan and slate-950 (AGENTS, 04 §1.2, 05 §6
         div.remove();
         return color;
       }, classes);
-    expect(await probe('bg-slate-950')).toBe('rgb(10, 17, 40)');
+    expect(await probe('bg-slate-950')).toBe('rgb(10, 19, 48)');
     expect(await probe('bg-cyan-600')).toBe('rgb(38, 88, 228)');
-    expect(await bg(main)).toBe('rgb(243, 245, 249)');
+    expect(await bg(main)).toBe('rgb(245, 244, 239)');
   });
 
   test('the page fills the same space without the class: same box as an existing page', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('/runs and /inbox are cyan and slate-950 (AGENTS, 04 §1.2, 05 §6
     await page.goto('/inbox');
     const inbox = await boxOf(page.locator('main').first());
     expect([inbox.x, inbox.y, inbox.width]).toEqual([existing.x, existing.y, existing.width]);
-    expect(await bg(page.locator('main').first())).toBe('rgb(243, 245, 249)');
+    expect(await bg(page.locator('main').first())).toBe('rgb(245, 244, 239)');
   });
 });
 

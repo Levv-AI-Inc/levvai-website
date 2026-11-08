@@ -2,6 +2,17 @@
 
 import { useState, useMemo } from 'react'
 import { X, Search, Settings2, ShieldCheck, Activity, ChevronRight, Globe } from 'lucide-react'
+import {
+  LevvEmptyState,
+  LevvPage,
+  LevvRecordHeader,
+  LevvSearchField,
+  LevvStatusBadge,
+  LevvTabs,
+  levvUi,
+  type LevvTone,
+} from '@/components/ui/levv-app'
+import { useLevvDialog } from '@/components/ui/levv-dialog'
 
 type Integration = {
   name: string
@@ -25,6 +36,21 @@ const integrations: Integration[] = [
 
 const categories = ['All', 'Work Management', 'Procurement', 'ERP / Finance', 'Communications']
 
+const STATUS: Record<Integration['status'], { label: string; tone: LevvTone }> = {
+  connected: { label: 'Connected', tone: 'emerald' },
+  disconnected: { label: 'Disconnected', tone: 'slate' },
+  error: { label: 'Error', tone: 'rose' },
+}
+
+/** The catalogue as it stands: how many integrations it lists and how many of them are connected. */
+function catalogueStatement() {
+  const connected = integrations.filter((item) => item.status === 'connected').length
+  const failing = integrations.filter((item) => item.status === 'error').length
+  const lead = `${integrations.length} integrations in the catalogue`
+  if (connected === 0 && failing === 0) return `${lead}; none is connected.`
+  return `${lead}; ${connected} connected${failing > 0 ? `, ${failing} with an error` : ''}.`
+}
+
 export default function IntegrationsPage() {
   const [activeIntegration, setActiveIntegration] = useState<Integration | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -39,72 +65,62 @@ export default function IntegrationsPage() {
     })
   }, [searchQuery, activeTab])
 
+  const connected = integrations.filter((item) => item.status === 'connected').length
+
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="max-w-7xl mx-auto px-6 py-12">
+    <LevvPage>
+      <div className="space-y-6">
+        <LevvRecordHeader
+          trail="Admin settings / Integrations"
+          title="Integrations"
+          statement={catalogueStatement()}
+          figures={[
+            { label: 'Available', value: integrations.length },
+            { label: 'Connected', value: connected },
+          ]}
+          actions={<span className="text-[13px] text-slate-500">System Status: Operational</span>}
+        />
 
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Integrations</h1>
-            <p className="mt-2 text-gray-600 max-w-xl">
-              Connect your third-party tools to automate workflows and keep your enterprise data in sync.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 bg-white p-1 rounded-lg border shadow-sm">
-             <div className="px-3 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-md flex items-center gap-1.5">
-               <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-               System Status: Operational
-             </div>
-          </div>
-        </div>
+        <LevvTabs
+          label="Integration categories"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={categories.map((cat) => ({ value: cat, label: cat }))}
+        />
 
-        {/* Toolbar: Search & Tabs */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-8">
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveTab(cat)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                  activeTab === cat
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid w-full gap-1.5 sm:w-72">
+            <span className={levvUi.label}>Search</span>
+            <LevvSearchField
               placeholder="Search integrations..."
+              aria-label="Search integrations"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border rounded-xl focus:ring-2 focus:ring-black/5 outline-none transition"
             />
-          </div>
+          </label>
+          <span className={`${levvUi.legend} ml-auto text-slate-500`}>
+            Showing <span className="font-semibold tabular-nums normal-case tracking-normal text-slate-950">{filteredIntegrations.length} of {integrations.length}</span>
+          </span>
         </div>
 
-        {/* Grid */}
+        {/* Grid: a ruled catalogue on the paper */}
         {filteredIntegrations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredIntegrations.map((integration) => (
-              <IntegrationCard
-                key={integration.name}
-                integration={integration}
-                onOpenSettings={() => setActiveIntegration(integration)}
-              />
-            ))}
+          <div className="overflow-hidden border-t-2 border-slate-950">
+            <ul className="-mr-px grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredIntegrations.map((integration) => (
+                <IntegrationCard
+                  key={integration.name}
+                  integration={integration}
+                  onOpenSettings={() => setActiveIntegration(integration)}
+                />
+              ))}
+            </ul>
           </div>
         ) : (
-          <div className="text-center py-20 bg-white rounded-2xl border border-dashed">
-            <div className="mx-auto h-12 w-12 text-gray-300 mb-4"><Search size={48} /></div>
-            <h3 className="text-lg font-medium text-gray-900">No integrations found</h3>
-            <p className="text-gray-500">Try adjusting your search or filters.</p>
+          <div className="border-t-2 border-slate-950">
+            <LevvEmptyState icon={Search} title="No integrations found">
+              Try adjusting your search or filters.
+            </LevvEmptyState>
           </div>
         )}
       </div>
@@ -116,7 +132,7 @@ export default function IntegrationsPage() {
           onClose={() => setActiveIntegration(null)}
         />
       )}
-    </div>
+    </LevvPage>
   )
 }
 
@@ -124,84 +140,95 @@ export default function IntegrationsPage() {
     Components
 ----------------------------------- */
 
+function Monogram({ name }: { name: string }) {
+  return (
+    <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center bg-slate-950 text-[15px] font-semibold text-white">
+      {name[0]}
+    </span>
+  )
+}
+
 function IntegrationCard({ integration, onOpenSettings }: { integration: Integration, onOpenSettings: () => void }) {
-  const statusStyles = {
-    connected: 'bg-green-50 text-green-700 border-green-100',
-    disconnected: 'bg-gray-50 text-gray-600 border-gray-100',
-    error: 'bg-red-50 text-red-700 border-red-100'
-  }
+  const status = STATUS[integration.status]
 
   return (
-    <div className="group relative bg-white rounded-2xl border p-6 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300">
-      <div className="flex justify-between items-start mb-4">
-        <div className="h-12 w-12 rounded-xl bg-gray-900 text-white flex items-center justify-center text-lg font-bold shadow-lg shadow-gray-200">
-          {integration.name[0]}
-        </div>
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusStyles[integration.status]}`}>
-          {integration.status}
-        </span>
+    <li className="group flex flex-col border-b border-r border-[var(--line)] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <Monogram name={integration.name} />
+        <LevvStatusBadge tone={status.tone}>{status.label}</LevvStatusBadge>
       </div>
 
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+      <div className="mt-4 flex-1">
+        <h3 className="text-[15px] font-semibold text-slate-950">
           {integration.name}
         </h3>
-        <p className="text-xs font-medium text-gray-400 mb-3">{integration.category}</p>
-        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+        <p className={`${levvUi.legend} mt-0.5 text-slate-500`}>{integration.category}</p>
+        <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-slate-600">
           {integration.description}
         </p>
       </div>
 
-      <div className="mt-6 pt-6 border-t flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-3">
         <button
           onClick={onOpenSettings}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition"
+          className={`${levvUi.ghostButton} -ml-3.5`}
         >
-          <Settings2 size={16} />
+          <Settings2 />
           Configure
         </button>
-        <ChevronRight size={16} className="text-gray-300 group-hover:translate-x-1 transition-transform" />
+        <ChevronRight aria-hidden className="h-4 w-4 text-slate-400 transition-transform duration-150 group-hover:translate-x-0.5" />
       </div>
-    </div>
+    </li>
   )
 }
 
 function SettingsDrawer({ integration, onClose }: { integration: Integration, onClose: () => void }) {
+  const dialogRef = useLevvDialog<HTMLDivElement>(true, onClose)
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="absolute inset-0 bg-slate-950/30" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="integration-settings-title"
+        tabIndex={-1}
+        className="relative flex outline-none h-full w-full max-w-lg flex-col bg-white shadow-[0_20px_44px_-12px_rgb(10_17_40/0.18),0_4px_10px_-4px_rgb(10_17_40/0.06)]"
+      >
 
-        <div className="p-8 border-b flex items-center justify-between bg-gray-50/50">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-black text-white flex items-center justify-center font-bold">
-              {integration.name[0]}
-            </div>
+        <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] px-6 py-5">
+          <div className="flex items-center gap-3">
+            <Monogram name={integration.name} />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{integration.name}</h2>
-              <p className="text-sm text-gray-500">Configure connection & data flow</p>
+              <h2 id="integration-settings-title" className="text-lg font-semibold text-slate-950">{integration.name}</h2>
+              <p className="text-[13px] text-slate-500">Configure connection & data flow</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white rounded-full border transition shadow-sm">
-            <X size={20} />
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className={`${levvUi.iconButton} shrink-0`}
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
           <section>
-            <div className="flex items-center gap-2 mb-4 text-gray-900 font-bold">
-              <Activity size={18} />
+            <div className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-slate-950">
+              <Activity className="h-4 w-4 text-slate-400" />
               <h3>Connection Status</h3>
             </div>
-            <div className="p-4 rounded-xl border bg-gray-50 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Primary API Endpoint</span>
-              <span className="text-sm font-mono text-gray-400">v2.api.auth</span>
+            <div className="flex items-center justify-between border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5">
+              <span className="text-[13px] text-slate-600">Primary API Endpoint</span>
+              <span className="text-[13px] text-slate-500">v2.api.auth</span>
             </div>
           </section>
 
           <section className="space-y-4">
-             <div className="flex items-center gap-2 mb-2 text-gray-900 font-bold">
-              <Globe size={18} />
+            <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-950">
+              <Globe className="h-4 w-4 text-slate-400" />
               <h3>Authentication</h3>
             </div>
             <Field label="Instance URL" placeholder="https://company.service.com" />
@@ -209,11 +236,11 @@ function SettingsDrawer({ integration, onClose }: { integration: Integration, on
           </section>
 
           <section className="space-y-4">
-             <div className="flex items-center gap-2 mb-2 text-gray-900 font-bold">
-              <ShieldCheck size={18} />
+            <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-950">
+              <ShieldCheck className="h-4 w-4 text-slate-400" />
               <h3>Scopes & Permissions</h3>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-2">
               {['Read Tasks', 'Update Workflow', 'Post Notifications'].map(perm => (
                 <Checkbox key={perm} label={perm} />
               ))}
@@ -221,11 +248,11 @@ function SettingsDrawer({ integration, onClose }: { integration: Integration, on
           </section>
         </div>
 
-        <div className="p-8 border-t bg-gray-50 flex items-center gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-3 text-sm font-bold border bg-white rounded-xl hover:bg-gray-50 transition">
+        <div className="flex items-center gap-3 border-t border-[var(--line)] px-6 py-4">
+          <button onClick={onClose} className={`${levvUi.secondaryButton} flex-1`}>
             Discard
           </button>
-          <button className="flex-1 px-4 py-3 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-black transition shadow-lg shadow-gray-200">
+          <button className={`${levvUi.primaryButton} flex-1`}>
             Save Integration
           </button>
         </div>
@@ -236,22 +263,22 @@ function SettingsDrawer({ integration, onClose }: { integration: Integration, on
 
 function Field({ label, placeholder, type = 'text' }: { label: string, placeholder: string, type?: string }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</label>
+    <label className="grid gap-1.5">
+      <span className={levvUi.label}>{label}</span>
       <input
         type={type}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:ring-4 focus:ring-black/5 focus:border-black outline-none transition"
+        className={levvUi.input}
       />
-    </div>
+    </label>
   )
 }
 
 function Checkbox({ label }: { label: string }) {
   return (
-    <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-300 transition cursor-pointer group">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
-      <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black" />
+    <label className="flex cursor-pointer items-center justify-between border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 transition-colors duration-150 hover:border-[var(--line-strong)]">
+      <span className="text-[13px] font-medium text-slate-800">{label}</span>
+      <input type="checkbox" className="h-4 w-4 accent-blue-600" />
     </label>
   )
 }

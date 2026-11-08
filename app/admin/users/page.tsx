@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -9,6 +10,7 @@ import {
   type ChangeEvent,
   type ElementType,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import {
   AlertCircle,
@@ -22,7 +24,6 @@ import {
   Plus,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   Upload,
   Users,
   X,
@@ -60,16 +61,18 @@ import {
 import { isFeatureEnabled } from '@/lib/featureFlags'
 import {
   LevvNotice,
+  LevvNovaPanel,
   LevvPage,
-  LevvPageHeader,
-  LevvPanel,
+  LevvRecordHeader,
   LevvSearchField,
+  LevvSegmented,
   LevvSelect,
   LevvStatusBadge,
-  LevvToolbar,
+  LevvUploadZone,
   levvUi,
   type LevvTone,
 } from '@/components/ui/levv-app'
+import { useLevvDialog } from '@/components/ui/levv-dialog'
 
 type UserRow = AdminUserRecord
 
@@ -103,6 +106,11 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'disabled', label: 'Disabled' },
 ]
+
+/** The membership states in the order the record reads them: who has access, who is on the way, who is shut out. */
+const STATUS_ORDER = ['active', 'invited', 'disabled'].map(
+  (value) => STATUS_OPTIONS.find((option) => option.value === value) as { value: string; label: string },
+)
 
 const BUSINESS_UNIT_STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -169,26 +177,68 @@ function statusTone(row: UserRow): LevvTone {
 
 /* =========================
    Local recipes
-   Row actions are quiet until hovered; textareas and notes share the input and notice vocabulary.
+   Table rows separate with a hairline under each cell.
 ========================= */
-const ROW_ACTION =
-  'levv-press inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:shrink-0'
-
-const rowAction = (tone: 'default' | 'danger' = 'default') =>
-  `${ROW_ACTION} ${
-    tone === 'danger'
-      ? 'hover:bg-rose-50 hover:text-rose-700'
-      : 'hover:bg-slate-100 hover:text-slate-950'
-  }`
-
-const TEXTAREA =
-  'block w-full rounded-lg border border-[var(--line-strong)] bg-white px-3 py-2 text-[13px] leading-5 text-slate-900 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-slate-400 hover:border-slate-400/60 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus)]'
-
 const FIELD_LABEL = `${levvUi.label} mb-1.5 block`
 
 const CHECKBOX = 'mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-600'
 
-const TD = `${levvUi.td} border-t border-[var(--line)]`
+const ROW = 'group hover:bg-[var(--surface)] [&>td]:border-b [&>td]:border-[var(--line)]'
+
+function plural(count: number, one: string, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`
+}
+
+function listWords(words: string[]) {
+  if (words.length <= 1) return words.join('')
+  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
+}
+
+/**
+ * Who holds access in the tenant, from the unfiltered list as the server returned it (staged rows are not in it):
+ * memberships by status and how many are administrators. The filtered count and any staged rows are named apart.
+ */
+function usersStatement(tenant: UserRow[], shown: UserRow[], filtered: boolean) {
+  const staged = shown.filter((row) => row.membershipId.startsWith('local-')).length
+  const stagedTail = staged > 0 ? ` ${plural(staged, 'row')} staged here ${staged === 1 ? 'is' : 'are'} not saved.` : ''
+  const filterTail = !filtered
+    ? ''
+    : shown.length === 0
+      ? ' None match these filters.'
+      : ` ${shown.length} ${shown.length === 1 ? 'matches' : 'match'} these filters.`
+  if (tenant.length === 0) {
+    return `No users in this tenant yet.${stagedTail}`
+  }
+  const admins = tenant.filter((row) => normalizeRole(row.role) === 'admin').length
+  let lead: string
+  let adminText: string
+  if (tenant.length === 1) {
+    const status = STATUS_ORDER.find((option) => option.value === tenant[0].status)
+    lead = `${status ? `1 ${status.label.toLowerCase()} user` : '1 user'} in this tenant.`
+    adminText = admins === 1 ? ' They hold the Administrator role.' : ''
+  } else {
+    const counts = STATUS_ORDER.map((option) => ({
+      label: option.label.toLowerCase(),
+      count: tenant.filter((row) => row.status === option.value).length,
+    })).filter((entry) => entry.count > 0)
+    const other = tenant.length - counts.reduce((total, entry) => total + entry.count, 0)
+    const breakdown =
+      counts.length === 1 && other === 0
+        ? `, all ${counts[0].label}`
+        : `: ${listWords([
+            ...counts.map((entry) => `${entry.count} ${entry.label}`),
+            ...(other > 0 ? [`${other} in another status`] : []),
+          ])}`
+    lead = `${plural(tenant.length, 'user')} in this tenant${breakdown}.`
+    adminText =
+      admins === 0
+        ? ' None holds the Administrator role.'
+        : admins === tenant.length
+          ? ' All hold the Administrator role.'
+          : ` ${admins} ${admins === 1 ? 'holds' : 'hold'} the Administrator role.`
+  }
+  return `${lead}${adminText}${filterTail}${stagedTail}`
+}
 
 function upsertUser(existing: UserRow[], incoming: UserRow): UserRow[] {
   const incomingEmail = incoming.email.toLowerCase()
@@ -273,6 +323,8 @@ export default function AdminUsersPage() {
   const searchParams = useSearchParams()
 
   const [users, setUsers] = useState<UserRow[]>([])
+  // Every membership, unfiltered: the header states the tenant as it stands, whatever the filters show.
+  const [tenantUsers, setTenantUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [forbidden, setForbidden] = useState(false)
@@ -298,6 +350,7 @@ export default function AdminUsersPage() {
   const [assistantError, setAssistantError] = useState('')
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const inviteNameRef = useRef<HTMLInputElement>(null)
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
   const [addUserStep, setAddUserStep] = useState<1 | 2 | 3>(1)
@@ -487,21 +540,26 @@ export default function AdminUsersPage() {
       try {
         const businessUnitFilterValue = businessUnitFilter.trim()
         const costCenterFilterValue = costCenterFilter.trim()
-        const rows = await getAdminUsers(
-          {
-            search,
-            status: statusFilter,
-            role: roleFilter,
-            business_unit_id:
-              businessUnitFilterValue && /^\d+$/.test(businessUnitFilterValue)
-                ? businessUnitFilterValue
-                : undefined,
-            cost_center_id: costCenterFilterValue || undefined,
-          },
-          controller.signal,
-        )
+        const filterActive = Boolean(search || statusFilter || roleFilter || businessUnitFilterValue || costCenterFilterValue)
+        const [rows, everything] = await Promise.all([
+          getAdminUsers(
+            {
+              search,
+              status: statusFilter,
+              role: roleFilter,
+              business_unit_id:
+                businessUnitFilterValue && /^\d+$/.test(businessUnitFilterValue)
+                  ? businessUnitFilterValue
+                  : undefined,
+              cost_center_id: costCenterFilterValue || undefined,
+            },
+            controller.signal,
+          ),
+          filterActive ? getAdminUsers({}, controller.signal) : null,
+        ])
 
         setUsers(rows)
+        setTenantUsers(everything ?? rows)
         setForbidden(false)
       } catch (requestError) {
         if ((requestError as { name?: string })?.name === 'AbortError') return
@@ -892,6 +950,7 @@ export default function AdminUsersPage() {
       })
 
       setUsers((current) => upsertUser(current, created || pendingUser))
+      setTenantUsers((current) => upsertUser(current, created || pendingUser))
       setIsAddUserModalOpen(false)
       if (created?.invitationDeliveryStatus === 'failed') {
         setInvitationNotice(
@@ -925,7 +984,7 @@ export default function AdminUsersPage() {
       expiresAt: string
     },
   ) => {
-    setUsers((current) =>
+    const update = (current: UserRow[]) =>
       current.map((row) =>
         row.membershipId === user.membershipId
           ? {
@@ -937,8 +996,9 @@ export default function AdminUsersPage() {
               invitationExpiresAt: invitation.expiresAt,
             }
           : row,
-      ),
-    )
+      )
+    setUsers(update)
+    setTenantUsers(update)
   }
 
   const handleInvitationAction = async (
@@ -1045,6 +1105,7 @@ export default function AdminUsersPage() {
       })
 
       setUsers((current) => upsertUser(current, saved || updatedUser))
+      setTenantUsers((current) => upsertUser(current, saved || updatedUser))
       setEditingUser(null)
     } catch (requestError) {
       if (requestError instanceof UsersApiError && requestError.status === 401) {
@@ -1150,12 +1211,76 @@ export default function AdminUsersPage() {
   const selectedCostCenterLabel =
     costCenterOptions.find((option) => option.value === addUserForm.costCenter)?.label
 
+  // The filters the loaded rows reflect (the search box applies after its debounce).
+  const filtered = Boolean(search || statusFilter || roleFilter || businessUnitFilter.trim() || costCenterFilter.trim())
+  const statement = loading
+    ? 'Loading users…'
+    : forbidden
+      ? 'You do not have permission to view tenant users, so their access cannot be shown.'
+      : error
+        ? 'Users could not be loaded, so tenant access cannot be shown.'
+        : usersStatement(tenantUsers, usersForTable, filtered)
+  const figure = (status: string) =>
+    loading || forbidden || error ? '—' : tenantUsers.filter((row) => row.status === status).length
+  const rowActions = (user: UserRow) => (
+    <>
+      {user.status === 'invited' && user.invitationId ? (
+        <>
+          <button
+            type="button"
+            onClick={() => void handleInvitationAction(user, 'resend')}
+            disabled={invitationActionId === user.invitationId}
+            className={levvUi.secondaryButton}
+            title={user.invitationDeliveryError || 'Invalidate the old link and send a new invitation'}
+          >
+            <RotateCcw />
+            {user.invitationDeliveryStatus === 'failed' ? 'Retry invite' : 'Resend'}
+          </button>
+          {user.invitationStatus !== 'revoked' ? (
+            <button
+              type="button"
+              onClick={() => void handleInvitationAction(user, 'revoke')}
+              disabled={invitationActionId === user.invitationId}
+              className={levvUi.dangerGhostButton}
+            >
+              <Ban />
+              Revoke
+            </button>
+          ) : null}
+        </>
+      ) : null}
+      {user.status !== 'invited' || !user.invitationId ? (
+        <button
+          type="button"
+          onClick={() => openEditUserModal(user)}
+          className={levvUi.secondaryButton}
+        >
+          <Pencil />
+          Edit access
+        </button>
+      ) : null}
+    </>
+  )
+  const userName = (user: UserRow) =>
+    isFeatureEnabled('user_detail_v2') && user.membershipId ? (
+      <Link
+        href={`/admin/users/${encodeURIComponent(user.membershipId)}?return_to=${encodeURIComponent(currentListHref)}`}
+        className="rounded-sm outline-none transition-colors duration-150 hover:text-blue-700 hover:underline focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      >
+        <Breakable text={user.name} />
+      </Link>
+    ) : (
+      <Breakable text={user.name} />
+    )
+
   return (
-    <LevvPage width="wide" className="p-0 sm:p-0 lg:p-0">
+    <LevvPage>
       <div className="space-y-6">
-        <LevvPageHeader
+        <LevvRecordHeader
+          trail="Admin settings / Users"
           title="Users"
-          description="Manage users, roles, and access across the tenant."
+          statement={statement}
+          figures={STATUS_ORDER.map((option) => ({ label: option.label, value: figure(option.value) }))}
           actions={
             <>
               <span className="mr-2 hidden items-center gap-1.5 text-[13px] text-slate-500 md:inline-flex">
@@ -1167,85 +1292,50 @@ export default function AdminUsersPage() {
                 onClick={openAddUserModal}
                 className={levvUi.primaryButton}
               >
-                <Plus className="h-4 w-4" />
+                <Plus />
                 Invite User
               </button>
             </>
           }
         />
 
-        <LevvPanel className="grid divide-y divide-[var(--line)] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:divide-x lg:divide-y-0">
-          <div className="flex min-w-0 flex-col px-5 py-4">
-            <h2 className="text-[15px] font-semibold text-slate-950">
-              AI Assistant
-            </h2>
-            <p className="mt-0.5 text-[13px] text-slate-500">
-              Describe a user update and Nova will stage it in the table.
-            </p>
-            <div className="relative mt-3 flex flex-1 flex-col">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-[var(--rail)] text-[var(--nova)]"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-              </span>
-              <textarea
-                value={assistantPrompt}
-                onChange={(event) => setAssistantPrompt(event.target.value)}
-                className={`${TEXTAREA} flex-1 resize-none pl-11 sm:pr-32`}
-                rows={2}
-                placeholder="Make Amy Schneider inactive and move her to Procurement"
-              />
-              <button
-                type="button"
-                onClick={() => void handleAssistantGenerate()}
-                disabled={assistantLoading || !assistantPrompt.trim()}
-                className="levv-press mt-2 inline-flex h-7 items-center rounded-md px-2.5 text-xs font-semibold text-blue-700 outline-none hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 sm:absolute sm:bottom-1.5 sm:right-1.5 sm:mt-0"
-              >
-                {assistantLoading ? 'Generating...' : 'Update via AI'}
-              </button>
-            </div>
-            {assistantError ? (
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
-                <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
-                {assistantError}
-              </p>
-            ) : null}
-          </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <LevvNovaPanel
+            title="AI Assistant"
+            description="Describe a user update and Nova will stage it in the table."
+            placeholder="Make Amy Schneider inactive and move her to Procurement"
+            value={assistantPrompt}
+            onChange={setAssistantPrompt}
+            onSubmit={() => void handleAssistantGenerate()}
+            submitLabel="Update via AI"
+            busy={assistantLoading}
+            busyLabel="Generating..."
+            error={assistantError || undefined}
+          />
 
-          <div className="flex min-w-0 flex-col px-5 py-4">
-            <h2 className="text-[15px] font-semibold text-slate-950">
-              Mass User Upload
-            </h2>
-            <p className="mt-0.5 text-[13px] text-slate-500">
-              Upload an .xlsx, .xls, or .csv file with columns like name, email,
-              role, status, businessUnit, costCenter, and ssoEnabled.
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <div className="mt-auto pt-3">
+          <LevvUploadZone
+            title="Mass User Upload"
+            description="Upload an .xlsx, .xls, or .csv file with columns like name, email, role, status, businessUnit, costCenter, and ssoEnabled."
+            error={uploadError || undefined}
+            action={
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className={levvUi.secondaryButton}
               >
-                <Upload className="h-4 w-4" />
+                <Upload />
                 Select Excel File
               </button>
-            </div>
-            {uploadError ? (
-              <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
-                <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
-                {uploadError}
-              </p>
-            ) : null}
-          </div>
-        </LevvPanel>
+            }
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+        </div>
 
         {!forbidden && invitationNotice ? (
           <LevvNotice tone="emerald" icon={CheckCircle2}>
@@ -1260,61 +1350,69 @@ export default function AdminUsersPage() {
         ) : null}
 
         <div className="space-y-3">
-          <LevvToolbar>
-            <LevvSearchField
-              type="text"
-              className="w-full sm:w-auto sm:min-w-[10rem] sm:flex-1"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search users"
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="grid w-full gap-1.5 sm:w-60">
+              <span className={levvUi.label}>Search</span>
+              <LevvSearchField
+                type="text"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search users"
+                aria-label="Search users"
+              />
+            </label>
 
-            <LevvSelect
-              className="w-full sm:w-32"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">All statuses</option>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </LevvSelect>
+            <div className="grid gap-1.5">
+              <span className={levvUi.label} aria-hidden>Status</span>
+              <LevvSegmented
+                label="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[{ value: '', label: 'All' }, ...STATUS_OPTIONS]}
+              />
+            </div>
 
-            <LevvSelect
-              className="w-full sm:w-36"
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
-            >
-              <option value="">All roles</option>
-              {ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </LevvSelect>
+            <label className="grid w-full gap-1.5 sm:w-44">
+              <span className={levvUi.label}>Role</span>
+              <LevvSelect
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+              >
+                <option value="">All roles</option>
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </label>
 
-            <LevvSelect
-              className="w-full sm:w-44"
-              value={businessUnitFilter}
-              onChange={(event) => setBusinessUnitFilter(event.target.value)}
-              disabled={businessUnitsLoading}
-            >
-              <option value="">All business units</option>
-              {businessUnitOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </LevvSelect>
+            <label className="grid w-full gap-1.5 sm:w-48">
+              <span className={levvUi.label}>Business unit</span>
+              <LevvSelect
+                value={businessUnitFilter}
+                onChange={(event) => setBusinessUnitFilter(event.target.value)}
+                disabled={businessUnitsLoading}
+              >
+                <option value="">All business units</option>
+                {businessUnitOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </LevvSelect>
+            </label>
 
-            <input
-              value={costCenterFilter}
-              onChange={(event) => setCostCenterFilter(event.target.value)}
-              placeholder="Cost center ID"
-              className={`${levvUi.input} w-full sm:w-32`}
-            />
+            <label className="grid w-full gap-1.5 sm:w-36">
+              <span className={levvUi.label}>Cost center</span>
+              <input
+                value={costCenterFilter}
+                onChange={(event) => setCostCenterFilter(event.target.value)}
+                placeholder="Cost center ID"
+                aria-label="Cost center ID"
+                className={levvUi.input}
+              />
+            </label>
 
             <button
               type="button"
@@ -1323,7 +1421,11 @@ export default function AdminUsersPage() {
             >
               Clear filters
             </button>
-          </LevvToolbar>
+
+            <span className={`${levvUi.legend} ml-auto text-slate-500`}>
+              Showing <span className="font-semibold tabular-nums normal-case tracking-normal text-slate-950">{loading || forbidden || error ? '—' : usersForTable.length}</span>
+            </span>
+          </div>
 
           {businessUnitsLoading && (
             <p className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -1339,111 +1441,7 @@ export default function AdminUsersPage() {
             </p>
           )}
 
-          <div className={levvUi.tableShell}>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left">
-                <thead>
-                  <tr>
-                    <th className={levvUi.th}>Name</th>
-                    <th className={levvUi.th}>Email</th>
-                    <th className={levvUi.th}>Status</th>
-                    <th className={levvUi.th}>Role</th>
-                    <th className={levvUi.th}>Business Unit</th>
-                    <th className={levvUi.th}>Cost Center</th>
-                    <th className={levvUi.th}>SSO</th>
-                    <th className={`${levvUi.th} sticky right-0 bg-[var(--surface-sunken)] text-right shadow-[inset_1px_0_0_var(--line)]`}>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {!loading &&
-                    !forbidden &&
-                    usersForTable.map((user) => (
-                      <tr
-                        key={`${user.membershipId || user.userId || user.email}-${user.name}`}
-                        className="group"
-                      >
-                        <td className={TD}>
-                          <span className="whitespace-nowrap font-medium text-slate-950">
-                          {isFeatureEnabled('user_detail_v2') && user.membershipId ? (
-                            <Link
-                              href={`/admin/users/${encodeURIComponent(user.membershipId)}?return_to=${encodeURIComponent(currentListHref)}`}
-                              className="rounded-sm outline-none transition-colors duration-150 hover:text-blue-700 hover:underline focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                            >
-                              {user.name}
-                            </Link>
-                          ) : (
-                            user.name
-                          )}
-                          </span>
-                        </td>
-                        <td className={TD}>
-                          {user.email || '—'}
-                        </td>
-                        <td className={TD}>
-                          <LevvStatusBadge tone={statusTone(user)}>
-                            {toTitleCase(user.status)}
-                          </LevvStatusBadge>
-                        </td>
-                        <td className={TD}>
-                          {getAccessRole(user.role).label}
-                        </td>
-                        <td className={TD}>
-                          {user.businessUnit || user.businessUnitId || '—'}
-                        </td>
-                        <td className={`${TD} tabular-nums`}>
-                          {toCostCenterDisplay(user)}
-                        </td>
-                        <td className={TD}>
-                          <span className={user.ssoEnabled ? 'text-slate-900' : 'text-slate-400'}>
-                            {user.ssoEnabled ? 'Yes' : 'No'}
-                          </span>
-                        </td>
-                        <td className={`${TD} sticky right-0 bg-white text-right shadow-[inset_1px_0_0_var(--line)] transition-colors duration-150 group-hover:bg-[var(--surface-sunken)]`}>
-                          <div className="-my-1.5 flex justify-end gap-1">
-                            {user.status === 'invited' && user.invitationId ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleInvitationAction(user, 'resend')}
-                                  disabled={invitationActionId === user.invitationId}
-                                  className={rowAction()}
-                                  title={user.invitationDeliveryError || 'Invalidate the old link and send a new invitation'}
-                                >
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                  {user.invitationDeliveryStatus === 'failed' ? 'Retry invite' : 'Resend'}
-                                </button>
-                                {user.invitationStatus !== 'revoked' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleInvitationAction(user, 'revoke')}
-                                    disabled={invitationActionId === user.invitationId}
-                                    className={rowAction('danger')}
-                                  >
-                                    <Ban className="h-3.5 w-3.5" />
-                                    Revoke
-                                  </button>
-                                ) : null}
-                              </>
-                            ) : null}
-                            {user.status !== 'invited' || !user.invitationId ? (
-                              <button
-                                type="button"
-                                onClick={() => openEditUserModal(user)}
-                                className={rowAction()}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit access
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-
+          <div className={`${levvUi.tableShell} levv-cq`}>
             {loading ? (
               <TableState icon={Loader2} spin>
                 Loading users...
@@ -1458,7 +1456,99 @@ export default function AdminUsersPage() {
               </TableState>
             ) : usersForTable.length === 0 ? (
               <TableState icon={Users}>No users found.</TableState>
-            ) : null}
+            ) : (
+              <>
+                <ul className="levv-cq-list divide-y divide-[var(--line)] border-t-2 border-slate-950">
+                  {usersForTable.map((user) => (
+                    <li
+                      key={`${user.membershipId || user.userId || user.email}-${user.name}`}
+                      className="flex items-start justify-between gap-3 py-3.5"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-[14px] font-medium text-slate-950">{userName(user)}</p>
+                        <p className="text-[13px] text-slate-500">{user.email ? <Breakable text={user.email} /> : '—'}</p>
+                        <p className="pt-1 text-[13px] text-slate-700">
+                          {getAccessRole(user.role).label}
+                          <span className="text-slate-500"> · </span>
+                          {user.businessUnit || user.businessUnitId || '—'}
+                          <span className="text-slate-500"> · </span>
+                          <span className="tabular-nums">{toCostCenterDisplay(user)}</span>
+                          <span className="text-slate-500"> · SSO </span>
+                          <span className={user.ssoEnabled ? 'text-slate-900' : 'text-slate-500'}>
+                            {user.ssoEnabled ? 'Yes' : 'No'}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2.5">
+                        <LevvStatusBadge tone={statusTone(user)}>
+                          {toTitleCase(user.status)}
+                        </LevvStatusBadge>
+                        <div className="flex flex-wrap justify-end gap-1">{rowActions(user)}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="levv-cq-table relative overflow-x-auto">
+                  <table className="w-full min-w-[880px] border-separate border-spacing-0 text-left">
+                    <thead>
+                      <tr>
+                        <th className={levvUi.th}>Name</th>
+                        <th className={levvUi.th}>Email</th>
+                        <th className={levvUi.th}>Status</th>
+                        <th className={levvUi.th}>Role</th>
+                        <th className={levvUi.th}>Business Unit</th>
+                        <th className={levvUi.th}>Cost Center</th>
+                        <th className={levvUi.th}>SSO</th>
+                        <th className={`${levvUi.th} sticky right-0 bg-[var(--ground)] text-right`}>Action</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {usersForTable.map((user) => (
+                        <tr
+                          key={`${user.membershipId || user.userId || user.email}-${user.name}`}
+                          className={ROW}
+                        >
+                          <td className={levvUi.td}>
+                            <span className="font-medium text-slate-950">
+                              {userName(user)}
+                            </span>
+                          </td>
+                          <td className={levvUi.td}>
+                            {user.email ? <Breakable text={user.email} /> : '—'}
+                          </td>
+                          <td className={levvUi.td}>
+                            <LevvStatusBadge tone={statusTone(user)}>
+                              {toTitleCase(user.status)}
+                            </LevvStatusBadge>
+                          </td>
+                          <td className={levvUi.td}>
+                            {getAccessRole(user.role).label}
+                          </td>
+                          <td className={levvUi.td}>
+                            {user.businessUnit || user.businessUnitId || '—'}
+                          </td>
+                          <td className={`${levvUi.td} tabular-nums`}>
+                            {toCostCenterDisplay(user)}
+                          </td>
+                          <td className={levvUi.td}>
+                            <span className={user.ssoEnabled ? 'text-slate-900' : 'text-slate-500'}>
+                              {user.ssoEnabled ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className={`${levvUi.td} sticky right-0 bg-[var(--ground)] text-right transition-colors duration-150 group-hover:bg-[var(--surface-sunken)]`}>
+                            <div className="-my-1.5 flex justify-end gap-1">
+                              {rowActions(user)}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1470,6 +1560,7 @@ export default function AdminUsersPage() {
           description="Configure the membership before sending a single-use invitation."
           closeLabel="Close invite user modal"
           onClose={closeAddUserModal}
+          initialFocus={inviteNameRef}
           closeDisabled={addingUser}
           nav={
             <ol
@@ -1489,7 +1580,7 @@ export default function AdminUsersPage() {
                       type="button"
                       onClick={() => goToInvitationStep(step)}
                       aria-current={active ? 'step' : undefined}
-                      className={`levv-press flex shrink-0 items-center gap-2 rounded-md py-1 pl-1 pr-2 text-[13px] outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                      className={`levv-press flex shrink-0 items-center gap-2 rounded-md py-1 pl-1 pr-2 text-[13px] outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
                         active
                           ? 'font-semibold text-slate-950'
                           : done
@@ -1498,12 +1589,12 @@ export default function AdminUsersPage() {
                       }`}
                     >
                       <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums transition-colors duration-200 ${
+                        className={`flex h-5 w-5 items-center justify-center text-[11px] font-semibold tabular-nums transition-colors duration-200 ${
                           done
-                            ? 'bg-blue-600 text-white'
+                            ? 'bg-slate-900 text-white'
                             : active
-                              ? 'bg-slate-900 text-white'
-                              : 'border border-[var(--line-strong)] bg-white text-slate-500'
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-[var(--line-strong)] text-slate-500'
                         }`}
                       >
                         {done ? <Check className="h-3 w-3" strokeWidth={3} /> : step}
@@ -1513,7 +1604,7 @@ export default function AdminUsersPage() {
                     {index < 2 ? (
                       <span
                         aria-hidden
-                        className={`h-px min-w-3 flex-1 transition-colors duration-200 ${done ? 'bg-blue-600' : 'bg-[var(--line)]'}`}
+                        className={`h-px min-w-3 flex-1 transition-colors duration-200 ${done ? 'bg-slate-400' : 'bg-[var(--line)]'}`}
                       />
                     ) : null}
                   </li>
@@ -1573,7 +1664,7 @@ export default function AdminUsersPage() {
                   onChange={(event) => setAddUserForm((current) => ({ ...current, name: event.target.value }))}
                   className={levvUi.input}
                   placeholder="Jane Doe"
-                  autoFocus
+                  ref={inviteNameRef}
                 />
               </div>
               <div>
@@ -1831,7 +1922,7 @@ export default function AdminUsersPage() {
                     {getAccessRole(editUserForm.role).permissions.map((permission) => (
                       <span
                         key={permission}
-                        className="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-[var(--line)]"
+                        className="border border-[var(--line-strong)] px-2 py-0.5 text-xs font-medium text-slate-700"
                       >
                         {permission}
                       </span>
@@ -1989,7 +2080,7 @@ export default function AdminUsersPage() {
                     description: event.target.value,
                   }))
                 }
-                className={`${TEXTAREA} resize-y`}
+                className={`${levvUi.textarea} resize-y`}
                 placeholder="Finance business unit"
                 rows={3}
               />
@@ -2070,6 +2161,7 @@ function UsersDialog({
   onClose,
   closeDisabled,
   layer = 'z-50',
+  initialFocus,
   nav,
   footer,
   children,
@@ -2081,23 +2173,28 @@ function UsersDialog({
   onClose: () => void
   closeDisabled: boolean
   layer?: string
+  initialFocus?: RefObject<HTMLElement>
   nav?: ReactNode
   footer: ReactNode
   children: ReactNode
 }) {
+  // Mounted only while open: focus moves in, Tab stays inside, Escape closes, focus returns to the opener.
+  const dialogRef = useLevvDialog<HTMLDivElement>(true, onClose, initialFocus)
   return (
     <div
-      className={`fixed inset-0 ${layer} flex items-center justify-center bg-slate-950/30 p-4 animate-in fade-in duration-200 motion-reduce:animate-none`}
+      className={`fixed inset-0 ${layer} flex items-center justify-center bg-slate-950/30 p-4`}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-pop animate-in fade-in zoom-in-[0.97] duration-200 ease-out motion-reduce:animate-none"
+        tabIndex={-1}
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden border border-slate-950 bg-[var(--ground)] outline-none"
       >
         <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-6 py-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-semibold text-slate-950">
+            <h2 id={titleId} className="text-lg font-semibold text-slate-950">
               {title}
             </h2>
             <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>
@@ -2138,7 +2235,7 @@ function TableState({
   return (
     <div
       role={alert ? 'alert' : undefined}
-      className="flex flex-col items-center gap-2.5 border-t border-[var(--line)] px-6 py-14 text-center"
+      className="flex flex-col items-center gap-2.5 border-t-2 border-slate-950 px-6 py-14 text-center"
     >
       <Icon
         className={`h-5 w-5 ${tone === 'rose' ? 'text-rose-500' : 'text-slate-400'} ${
@@ -2152,10 +2249,25 @@ function TableState({
   )
 }
 
+/** An address can wrap after its @ and before each dot, so a long one never widens its column; the text is unchanged. */
+function Breakable({ text }: { text: string }) {
+  const parts = text.replace(/@/g, '@\n').replace(/\./g, '\n.').split('\n')
+  return (
+    <>
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 ? <wbr /> : null}
+          {part}
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
 function ReviewRow({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-      <p className="text-xs text-slate-500 sm:pt-0.5">{label}</p>
+      <p className={`${levvUi.label} sm:pt-0.5`}>{label}</p>
       <div className="min-w-0">{children}</div>
     </div>
   )

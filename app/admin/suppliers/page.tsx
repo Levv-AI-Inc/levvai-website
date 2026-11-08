@@ -1,5 +1,5 @@
 import SupplierDirectory from '../../suppliers/SupplierDirectory'
 
 export default function AdminSuppliersPage() {
-  return <SupplierDirectory />
+  return <SupplierDirectory trail="Admin settings / Suppliers" />
 }

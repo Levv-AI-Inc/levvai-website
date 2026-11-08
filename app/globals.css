@@ -210,11 +210,82 @@ button {
   color: var(--ink);
 }
 
-.levv-panel,
-.levv-stat-card,
-.levv-table-shell {
+.levv-panel {
   border-color: var(--line);
   background: var(--surface);
+}
+
+/* =========================
+   The app world: the exposure record
+   Inside the signed-in app the neutrals are one eleven-step ramp from Rail Navy (Z0) to backlit paper (Z10), legends
+   are tracked capitals, text and figures are set in Helvetica (the face the app always rendered in), and corners
+   are square. The landing page keeps Inter; spec-pinned screens (`.levv-spec`) reset the colours and corners but
+   keep the app face.
+========================= */
+body.levv-auth-shell,
+body.levv-auth-shell .levv-spec {
+  --font-app: Helvetica, Arial, sans-serif;
+}
+
+body.levv-auth-shell {
+  --c-slate-50: 245 244 239;
+  --c-slate-100: 224 225 229;
+  --c-slate-200: 194 196 205;
+  --c-slate-300: 161 165 179;
+  --c-slate-400: 130 135 154;
+  --c-slate-500: 103 109 129;
+  --c-slate-600: 79 86 108;
+  --c-slate-700: 58 66 90;
+  --c-slate-800: 40 48 73;
+  --c-slate-900: 25 33 59;
+  --c-slate-950: 10 19 48;
+  --c-gray-50: 245 244 239;
+  --c-gray-100: 224 225 229;
+  --c-gray-200: 194 196 205;
+  --c-gray-300: 161 165 179;
+  --c-gray-400: 130 135 154;
+  --c-gray-500: 103 109 129;
+  --c-gray-600: 79 86 108;
+  --c-gray-700: 58 66 90;
+  --c-gray-800: 40 48 73;
+  --c-gray-900: 25 33 59;
+  --c-gray-950: 10 19 48;
+  --ground: #f5f4ef;
+  --surface: #fbfaf6;
+  --surface-sunken: #ecebe6;
+  --line: #d3d4d9;
+  --line-strong: #a1a5b3;
+  --ink: #0a1330;
+  --ink-2: #19213b;
+  --muted: #676d81;
+  --faint: #82879a;
+  --radius-sm: 1px;
+  --radius: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+}
+
+/* Hatching reads before any word does: denser where fewer people can approve a step, crossed where one person
+   holds two steps of the same chain. */
+.levv-hatch-dense {
+  background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.5) 0 1px, transparent 1px 4px);
+}
+
+.levv-hatch-mid {
+  background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.45) 0 1px, transparent 1px 7px);
+}
+
+.levv-hatch-light {
+  background-image: repeating-linear-gradient(45deg, rgb(130 135 154 / 0.4) 0 1px, transparent 1px 11px);
+}
+
+.levv-hatch-conflict {
+  background-image:
+    repeating-linear-gradient(45deg, rgb(192 57 43 / 0.32) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgb(192 57 43 / 0.32) 0 1px, transparent 1px 5px);
 }
 
 /* =========================
@@ -228,6 +299,35 @@ body.levv-auth-shell main.flex-1 h1 {
   letter-spacing: -0.022em;
 }
 
+/* Lists that are a table when their column is wide enough and stacked rows when it is not, whatever the viewport:
+   the admin column is narrow at 1024-1340px because the rail and the settings column are both docked. */
+.levv-cq {
+  container-type: inline-size;
+}
+
+.levv-cq .levv-cq-table,
+.levv-cq .levv-cq-wide {
+  display: none;
+}
+
+@container (min-width: 700px) {
+  .levv-cq .levv-cq-table {
+    display: block;
+  }
+  .levv-cq .levv-cq-list {
+    display: none;
+  }
+}
+
+@container (min-width: 860px) {
+  .levv-cq .levv-cq-wide {
+    display: table-cell;
+  }
+  .levv-cq .levv-cq-narrow {
+    display: none;
+  }
+}
+
 body.levv-auth-shell main.flex-1 h2,
 body.levv-auth-shell main.flex-1 h3 {
   color: var(--ink-2);
@@ -235,6 +335,9 @@ body.levv-auth-shell main.flex-1 h3 {
 
 body.levv-auth-shell main.flex-1 label {
   color: var(--muted);
+}
+
+body.levv-auth-shell main.flex-1 label:not([class*='tracking-']) {
   letter-spacing: 0 !important;
 }
 
@@ -244,17 +347,19 @@ body.levv-auth-shell main.flex-1 table {
 }
 
 body.levv-auth-shell main.flex-1 thead tr {
-  background: var(--surface-sunken) !important;
+  background: transparent !important;
 }
 
+/* Column heads are legends: condensed capitals over a 2px Rail Navy rule. */
 body.levv-auth-shell main.flex-1 th {
-  padding-top: 0.7rem !important;
-  padding-bottom: 0.7rem !important;
+  padding-top: 0.6rem !important;
+  padding-bottom: 0.6rem !important;
+  border-bottom: 2px solid var(--ink) !important;
   color: var(--muted) !important;
-  font-size: 0.75rem !important;
-  font-weight: 550 !important;
-  letter-spacing: 0 !important;
-  text-transform: none !important;
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
   white-space: nowrap;
 }
 
@@ -276,8 +381,8 @@ body.levv-auth-shell main.flex-1 textarea:not(.levv-bare) {
   background-color: var(--surface) !important;
   border-color: var(--line-strong) !important;
   color: var(--ink) !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 1px 1px rgb(10 17 40 / 0.03) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
   transition:
     border-color var(--dur-fast) ease,
     box-shadow var(--dur-fast) ease;
@@ -285,7 +390,7 @@ body.levv-auth-shell main.flex-1 textarea:not(.levv-bare) {
 
 body.levv-auth-shell main.flex-1 input::placeholder,
 body.levv-auth-shell main.flex-1 textarea::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 body.levv-auth-shell main.flex-1 input:not(.levv-bare):focus,
@@ -303,8 +408,8 @@ body.levv-auth-shell main.flex-1 input.levv-readonly-input {
   box-shadow: none !important;
 }
 
-body.levv-auth-shell main.flex-1 button,
-body.levv-auth-shell main.flex-1 a {
+body.levv-auth-shell main.flex-1 button:not([class*='tracking-']),
+body.levv-auth-shell main.flex-1 a:not([class*='tracking-']) {
   letter-spacing: 0 !important;
 }
 
@@ -312,7 +417,7 @@ body.levv-auth-shell main.flex-1 button[class*='rounded-xl'],
 body.levv-auth-shell main.flex-1 button[class*='rounded-2xl'],
 body.levv-auth-shell main.flex-1 a[class*='rounded-xl'][class*='px-'],
 body.levv-auth-shell main.flex-1 a[class*='rounded-2xl'][class*='px-'] {
-  border-radius: 0.5rem !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 body.levv-auth-shell main.flex-1 button:not(:disabled):active {

@@ -134,17 +134,17 @@ export default function AdminLayout({
     <div className={clsx('flex flex-1 flex-col lg:flex-row', isFlowStudio ? 'gap-4' : 'gap-4 lg:gap-8')}>
       <aside
         className={clsx(
-          'shrink-0 rounded-xl border border-[var(--line)] bg-white p-2 lg:sticky lg:top-20 lg:w-52 lg:self-start lg:overflow-y-auto',
+          'shrink-0 border-b border-[var(--line)] pb-2 lg:sticky lg:top-20 lg:w-52 lg:self-start lg:overflow-y-auto lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3',
           isFlowStudio
             ? 'lg:h-[calc(100vh-8rem)]'
             : 'lg:max-h-[calc(100vh-6rem)]'
         )}
       >
-        <div className="hidden px-2.5 pb-2 pt-1.5 lg:block">
-          <h2 className="text-[13px] font-semibold text-slate-950">
+        <div className="hidden px-2.5 pb-3 pt-1 lg:block">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             Admin settings
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-500">
             Tenant controls and access.
           </p>
         </div>
@@ -164,10 +164,10 @@ export default function AdminLayout({
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={clsx(
-                  'flex h-8 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] transition-colors duration-150',
+                  'flex h-8 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-[13.5px] transition-colors duration-150',
                   isActive
-                    ? 'bg-blue-50 font-medium text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                    ? 'bg-[var(--surface)] font-semibold text-blue-600 ring-1 ring-inset ring-[var(--line)]'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
                 )}
               >
                 {item.label}

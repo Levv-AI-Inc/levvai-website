@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MailPlus, MapPin, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 
+import { levvUi } from '@/components/ui/levv-app'
+
+const ITEM_BASE =
+  'flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] outline-none focus-visible:bg-slate-100 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0'
+const ITEM = `${ITEM_BASE} text-slate-800 hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400 [&_svg]:text-slate-500 disabled:[&_svg]:text-slate-300`
+
 type SupplierRowActionsProps = {
   canManage: boolean
   canManageContactAccess: boolean
@@ -102,7 +108,7 @@ export default function SupplierRowActions({
       <button
         type="button"
         disabled
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-300"
+        className={levvUi.iconButton}
         aria-label="Actions unavailable"
       >
         <MoreVertical className="h-4 w-4" />
@@ -116,7 +122,7 @@ export default function SupplierRowActions({
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+        className={`${levvUi.iconButton} ${open ? 'bg-slate-100 text-slate-950' : ''}`}
         aria-label="Open supplier actions"
       >
         <MoreVertical className="h-4 w-4" />
@@ -128,7 +134,7 @@ export default function SupplierRowActions({
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[120] w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+            className="fixed z-[120] w-44 overflow-hidden border border-[var(--line)] bg-[var(--surface)] py-1"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -140,7 +146,7 @@ export default function SupplierRowActions({
                 setOpen(false)
                 onEdit()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              className={ITEM}
             >
               <Pencil className="h-4 w-4" />
               Edit supplier
@@ -153,7 +159,7 @@ export default function SupplierRowActions({
                 setOpen(false)
                 onInvite()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+              className={ITEM}
             >
               <MailPlus className="h-4 w-4" />
               Contact access
@@ -166,7 +172,7 @@ export default function SupplierRowActions({
                 setOpen(false)
                 onCoverage()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+              className={ITEM}
             >
               <MapPin className="h-4 w-4" />
               Coverage
@@ -177,7 +183,7 @@ export default function SupplierRowActions({
                 setOpen(false)
                 onDelete()
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+              className={`${ITEM_BASE} mt-1 border-t border-[var(--line)] text-rose-700 hover:bg-rose-50 hover:text-rose-800`}
             >
               <Trash2 className="h-4 w-4" />
               Delete supplier

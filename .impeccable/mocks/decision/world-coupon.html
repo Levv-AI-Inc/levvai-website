@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Approval chains · Levv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Courier+Prime:wght@400;700&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0a1330;--blue:#2658e4;--stock:#fbfaf5;--sleeve:#eeebe2;--red:#c62a22;--ink2:#5c6173;--rule:#d8d4c8;--perf:#aea896;--ph:#8d909b;--onav:#8fa8f6}
+*{box-sizing:border-box}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{position:relative;background:var(--sleeve);color:var(--navy);font:400 14px/20px 'Libre Franklin',system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.lab{font-family:'Archivo',sans-serif;font-stretch:75%;font-weight:700;font-size:11px;line-height:13px;letter-spacing:.08em;text-transform:uppercase}
+.c{font-family:'Courier Prime',monospace;font-weight:700;color:var(--blue)}
+svg{display:block;flex:none}
+/* rail */
+.rail{position:absolute;left:0;top:0;width:232px;height:900px;background:var(--navy);color:#fff;padding:15px 12px}
+.logo{display:flex;align-items:center;gap:11px;height:26px;padding:0 8px}
+.tile{width:26px;height:26px;background:#fff;color:var(--blue);display:grid;place-items:center;font:800 17px/1 'Archivo',sans-serif}
+.word{font:700 13px/1 'Archivo',sans-serif;font-stretch:112%;letter-spacing:.3em}
+.ten{margin:18px 8px 0;border:1px solid rgba(255,255,255,.2);padding:6px 10px 7px;display:flex;justify-content:space-between;align-items:flex-end}
+.ten .lab{display:block;color:rgba(255,255,255,.52)}
+.ten b{font-weight:500;font-size:14px;line-height:20px}
+.ten span.sw{color:rgba(255,255,255,.62);font-size:12px;line-height:20px}
+.sec{display:block;margin:24px 8px 6px;color:rgba(255,255,255,.5)}
+.ni{display:flex;justify-content:space-between;align-items:center;height:34px;padding:0 10px 0 8px;margin-bottom:1px;color:rgba(255,255,255,.82)}
+.ni .c{color:var(--onav);font-size:13px}
+.ni.on{background:var(--stock);color:var(--navy);font-weight:600}
+/* top bar */
+.top{position:absolute;left:232px;right:0;top:0;height:56px;background:var(--stock);border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:14px;padding:0 28px 0 24px}
+.gs{width:380px;height:34px;border:1px solid var(--rule);display:flex;align-items:center;gap:10px;padding:0 7px 0 11px;color:var(--ph)}
+.gs .q{flex:1}
+.kbd{font:700 11px/16px 'Courier Prime',monospace;color:var(--ink2);border:1px solid var(--rule);padding:0 5px}
+.ib{margin-left:auto;width:34px;height:34px;border:1px solid var(--rule);display:grid;place-items:center;position:relative}
+.ib .c{position:absolute;top:-6px;right:-8px;background:var(--stock);border:1px solid var(--rule);font-size:11px;line-height:13px;padding:0 3px}
+.me{display:flex;align-items:center;gap:10px;padding-left:16px;border-left:1px solid var(--rule);height:34px}
+.av{width:30px;height:30px;background:var(--navy);color:#fff;display:grid;place-items:center}
+.me b{display:block;font-weight:600;font-size:13px;line-height:16px}
+.me small{display:block;font-size:12px;line-height:15px;color:var(--ink2)}
+/* settings sub-nav */
+.sub{position:absolute;left:232px;top:56px;bottom:0;width:184px;background:var(--stock);border-right:1px solid var(--rule);padding:24px 10px}
+.sub .lab{display:block;color:var(--ink2);padding:0 10px 10px}
+.si{display:block;height:32px;line-height:32px;padding:0 10px;font-size:13.5px;color:#2a3049;white-space:nowrap}
+.si.on{background:var(--navy);color:#fff;font-weight:600}
+/* page */
+.main{position:absolute;left:416px;top:56px;width:1024px;height:844px;padding:24px 36px 0}
+.hd{display:flex;justify-content:space-between;align-items:flex-end}
+.eb{color:var(--ink2)}
+h1{margin:6px 0 0;font:700 34px/40px 'Archivo',sans-serif;font-stretch:100%;letter-spacing:-.01em}
+.desc{margin:4px 0 0;color:var(--ink2)}
+.btn{height:40px;padding:0 18px 0 14px;background:var(--blue);color:#fff;display:flex;align-items:center;gap:9px;font-size:12px;margin-bottom:2px}
+.fl{display:flex;gap:10px;margin-top:24px;align-items:center}
+.fb{height:44px;border:1px solid var(--rule);background:var(--stock);padding:6px 10px 0 11px}
+.fb .lab{display:block;color:var(--ink2)}
+.fb .v{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:3px;line-height:18px}
+.ph{color:var(--ph)}
+.seg{display:flex;height:44px;border:1px solid var(--rule);background:var(--stock)}
+.seg span.lab{display:flex;align-items:center;gap:8px;padding:0 15px;font-size:12px;border-left:1px solid var(--rule)}
+.seg span.lab:first-child{border-left:0}
+.seg .on{background:var(--navy);color:#fff}
+.seg .on .c{color:var(--onav)}
+.seg .c{font-size:13px;letter-spacing:0}
+.cnt{margin-left:auto;color:var(--ink2);display:flex;gap:6px;align-items:baseline}
+.cnt .c{font-size:13px;letter-spacing:0}
+/* coupon strip */
+.strip{position:relative;display:grid;grid-template-columns:76px 270px repeat(3,162px) 1fr;height:120px;background:var(--stock);border:1px solid var(--rule);margin-bottom:16px}
+.fl+.strip{margin-top:24px}
+.pri{padding:11px 12px 12px;border-right:1px solid var(--rule);display:flex;flex-direction:column;justify-content:space-between}
+.pri .lab{color:var(--ink2)}
+.pri .c{font-size:38px;line-height:34px;letter-spacing:-.03em}
+.nm{display:flex;flex-direction:column;min-width:0}
+.nm b{display:block;padding:10px 14px 9px;font-weight:600;font-size:15px;line-height:20px;border-bottom:1px solid var(--rule)}
+.aw{padding:9px 14px 0;font-size:13px;line-height:18px}
+.aw .lab{display:block;color:var(--ink2);margin-bottom:4px}
+.aw em{font-style:normal;font-weight:600}
+.cp,.end{position:relative;display:flex;flex-direction:column}
+.cp::before,.end::before{content:"";position:absolute;left:-7px;top:-8px;bottom:-8px;width:14px;z-index:2;clip-path:inset(7px 0);
+ background:radial-gradient(circle at 7px 7px,var(--sleeve) 5.6px,var(--rule) 6.1px 6.9px,transparent 7.4px) top/14px 14px no-repeat,
+ radial-gradient(circle at 7px 7px,var(--sleeve) 5.6px,var(--rule) 6.1px 6.9px,transparent 7.4px) bottom/14px 14px no-repeat,
+ linear-gradient(var(--perf) 50%,transparent 0) 7px 0/1px 6px repeat-y}
+.cp .h{height:24px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 12px 0 14px}
+.cp .bd{flex:1;padding:9px 12px 11px 14px;display:flex;flex-direction:column;justify-content:space-between}
+.g{font-weight:600;font-size:14px;line-height:18px}
+.r{display:flex;justify-content:space-between;align-items:center;font-size:12px;line-height:16px;color:var(--ink2)}
+.r .c{font-size:13px}
+.end{justify-content:center;padding:24px 16px 0}
+.end .lab{color:var(--ink2)}
+.st{border-left:1px solid var(--rule);padding:11px 14px 12px;display:flex;flex-direction:column}
+.st .lab{color:var(--ink2)}
+.st b{font-weight:600;margin-top:4px}
+.tb.lab{color:var(--blue);font-size:12px;margin-top:auto}
+.chk{font:800 11px/1 'Archivo',sans-serif;font-stretch:75%;letter-spacing:.14em;color:var(--red);border:1.5px solid var(--red);padding:3px 3px 2px 5px;mix-blend-mode:multiply}
+.void .cp .h,.void .cp .bd{opacity:.4}
+.vs{position:absolute;left:376px;top:52px;z-index:3;font:800 24px/1 'Archivo',sans-serif;font-stretch:75%;letter-spacing:.26em;color:var(--red);border:2.5px solid var(--red);padding:5px 8px 4px 14px;mix-blend-mode:multiply}
+.cf{display:flex;align-items:center;gap:12px;margin:-8px 0 14px;padding:0 0 0 13px;height:26px;font-size:13px}
+.cf .lab{color:var(--red)}
+.cf b{font-weight:600}
+.cf .tb.lab{margin:0 0 0 auto}
+.ft{position:absolute;left:36px;right:36px;bottom:0;height:44px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.ft .lab{color:var(--navy);margin-right:8px}
+</style></head><body>
+
+<nav class="rail">
+ <div class="logo"><span class="tile">L</span><span class="word">LEVVAI</span></div>
+ <div class="ten"><div><span class="lab">Tenant</span><b>acme</b></div><span class="sw">Switch</span></div>
+ <span class="lab sec">Main</span>
+ <div class="ni">Home</div>
+ <div class="ni">My items<span class="c">3</span></div>
+ <div class="ni">Inbox<span class="c">7</span></div>
+ <div class="ni">Running workflows<span class="c">12</span></div>
+ <span class="lab sec">Management</span>
+ <div class="ni">Contingent workforce</div>
+ <div class="ni">Services</div>
+ <div class="ni">Workers</div>
+ <div class="ni">Suppliers</div>
+ <span class="lab sec">System</span>
+ <div class="ni">Finance</div>
+ <div class="ni on">Settings</div>
+</nav>
+
+<header class="top">
+ <div class="gs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5c6173" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg><span class="q">Search pages</span><span class="kbd">⌘K</span></div>
+ <div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0a1330" stroke-width="1.5"><path d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11L4 11zM6.5 14.2h3"/></svg><span class="c">3</span></div>
+ <div class="me"><span class="av lab">LA</span><div><b>Local Admin</b><small>acme · Administrator</small></div></div>
+</header>
+
+<aside class="sub">
+ <span class="lab">Admin settings</span>
+ <span class="si">Users</span><span class="si">Company</span><span class="si">Roles</span><span class="si">Approval groups</span><span class="si">Supplier network</span>
+ <span class="si on">Approval chains</span>
+ <span class="si">Workflows</span><span class="si">Financial</span><span class="si">Rates</span><span class="si">Suppliers</span><span class="si">Workers</span>
+ <span class="si">Compliance policies</span><span class="si">Tenant docs</span><span class="si">Integrations</span><span class="si">Configuration</span>
+</aside>
+
+<main class="main">
+ <div class="hd">
+  <div>
+   <div class="lab eb">Admin settings</div>
+   <h1>Approval chains</h1>
+   <p class="desc">A request takes the first active chain it matches, lowest priority number first, then goes to that chain's approvers in order.</p>
+  </div>
+  <span class="btn lab"><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.8"><path d="M6 1v10M1 6h10"/></svg>New chain</span>
+ </div>
+
+ <div class="fl">
+  <div class="fb" style="width:300px"><span class="lab">Search</span><div class="v"><span class="ph">Search chains</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5c6173" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg></div></div>
+  <div class="seg"><span class="lab on">All<span class="c">4</span></span><span class="lab">Active<span class="c">3</span></span><span class="lab">Inactive<span class="c">1</span></span></div>
+  <div class="fb" style="width:220px"><span class="lab">Match strategy</span><div class="v"><span>All strategies</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#0a1330" stroke-width="1.5"><path d="M2 3.5l3 3 3-3"/></svg></div></div>
+  <div class="cnt lab">Showing<span class="c">4</span>of<span class="c">4</span></div>
+ </div>
+
+
+ <div class="strip">
+  <div class="pri"><span class="lab">Priority</span><span class="c">10</span></div>
+  <div class="nm"><b>Standard US contingent approval</b><div class="aw"><span class="lab">Applies when</span>Job country is <em>US</em></div></div>
+  <div class="cp"><div class="h lab">Step 1 of 2</div><div class="bd"><span class="g">Onboarding approvers</span><span class="r"><span>Any one of <span class="c">3</span></span></span></div></div>
+  <div class="cp"><div class="h lab">Step 2 of 2</div><div class="bd"><span class="g">Finance sign&#8209;off</span><span class="r"><span>All must · <span class="c">1</span></span></span></div></div>
+  <div class="end"><span class="lab">End of chain</span></div>
+  <div class="st"><span class="lab">Status</span><b>Active</b><span class="lab tb">Edit</span></div>
+ </div>
+
+ <div class="strip">
+  <div class="pri"><span class="lab">Priority</span><span class="c">20</span></div>
+  <div class="nm"><b>High value engagement approval</b><div class="aw"><span class="lab">Applies when</span>Currency is <em>USD</em> and budget is at least <em>100,000</em></div></div>
+  <div class="cp"><div class="h lab">Step 1 of 3</div><div class="bd"><span class="g">Finance sign&#8209;off</span><span class="r"><span>All must · <span class="c">1</span></span></span></div></div>
+  <div class="cp"><div class="h lab">Step 2 of 3</div><div class="bd"><span class="g">Legal sign&#8209;off</span><span class="r"><span>All must · <span class="c">1</span></span></span></div></div>
+  <div class="cp"><div class="h lab">Step 3 of 3</div><div class="bd"><span class="g">Vendor &amp; insurance sign&#8209;off</span><span class="r"><span>Any one of <span class="c">2</span></span></span></div></div>
+  <div class="st"><span class="lab">Status</span><b>Active</b><span class="lab tb">Edit</span></div>
+ </div>
+
+ <div class="strip">
+  <div class="pri"><span class="lab">Priority</span><span class="c">30</span></div>
+  <div class="nm"><b>Contractor onboarding access</b><div class="aw"><span class="lab">Applies when</span>Worker type is <em>contractor</em></div></div>
+  <div class="cp"><div class="h lab">Step 1 of 3</div><div class="bd"><span class="g">Security review</span><span class="r"><span>Any one of <span class="c">2</span></span></span></div></div>
+  <div class="cp"><div class="h lab">Step 2 of 3</div><div class="bd"><span class="g">Onboarding approvers</span><span class="r"><span>Any one of <span class="c">3</span></span><i class="chk">CHECK</i></span></div></div>
+  <div class="cp"><div class="h lab">Step 3 of 3</div><div class="bd"><span class="g">IT provisioning</span><span class="r"><span>Any one of <span class="c">2</span></span><i class="chk">CHECK</i></span></div></div>
+  <div class="st"><span class="lab">Status</span><b>Active</b><span class="lab tb">Edit</span></div>
+ </div>
+ <div class="cf"><span class="lab">Conflict</span><b>Sam Patel sits in two steps of this chain.</b><span style="color:var(--ink2)">Steps 2 and 3, so one person could approve twice.</span><span class="lab tb">Review members</span></div>
+
+ <div class="strip void">
+  <div class="pri"><span class="lab">Priority</span><span class="c">40</span></div>
+  <div class="nm"><b>People changes</b><div class="aw"><span class="lab">Applies when</span>Request type is <em>extension</em> or <em>conversion</em></div></div>
+  <div class="cp"><div class="h lab">Step 1 of 1</div><div class="bd"><span class="g">People Ops sign&#8209;off</span><span class="r"><span>Any one of <span class="c">2</span></span></span></div></div>
+  <div class="end" style="grid-column:span 2"><span class="lab" style="color:var(--red)">Switched off, kept on record</span></div>
+  <div class="st"><span class="lab">Status</span><b style="color:var(--ink2)">Inactive</b><span class="lab tb">Edit</span></div>
+  <span class="vs">VOID</span>
+ </div>
+
+ <footer class="ft"><span><span class="lab">Sample data</span>Names, groups and rules on this page are examples.</span><span>Levv admin · acme</span></footer>
+</main>
+</body></html>

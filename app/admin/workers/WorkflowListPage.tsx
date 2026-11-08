@@ -2,19 +2,33 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Pencil, Plus, X } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
+import {
+  LevvNotice,
+  LevvRecordHeader,
+  LevvStatusBadge,
+  levvUi,
+  type LevvTone,
+} from '@/components/ui/levv-app'
 import {
   deleteComplianceWorkflow,
   getComplianceWorkflows,
   type Workflow,
   type WorkflowType,
 } from '@/lib/api/complianceWorkflows'
+import WorkersTabs from './WorkersTabs'
 
 type WorkflowTypeLabel = 'Onboarding' | 'Offboarding'
 
 const WORKFLOW_TYPE_BY_LABEL: Record<WorkflowTypeLabel, WorkflowType> = {
   Onboarding: 'onboarding',
   Offboarding: 'offboarding',
+}
+
+const STATUS_TONE: Record<Workflow['status'], LevvTone> = {
+  published: 'blue',
+  draft: 'slate',
+  archived: 'slate',
 }
 
 function formatStatus(status: Workflow['status']) {
@@ -35,6 +49,8 @@ export default function WorkflowListPage({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  // The header speaks only once the first load has settled, so it never claims "none" before it knows.
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   const apiWorkflowType = WORKFLOW_TYPE_BY_LABEL[workflowType]
   const isOnboarding = workflowType === 'Onboarding'
@@ -55,6 +71,7 @@ export default function WorkflowListPage({
       setError(toErrorMessage(loadError, 'Failed to load workflows.'))
     } finally {
       setIsLoading(false)
+      setHasLoaded(true)
     }
   }, [apiWorkflowType])
 
@@ -83,56 +100,82 @@ export default function WorkflowListPage({
     }
   }
 
-  return (
-    <section className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-950">
-          {workflowType} Workflows
-        </h1>
+  const published = workflowRows.filter((row) => row.status === 'published').length
+  const drafts = workflowRows.filter((row) => row.status === 'draft').length
+  const archived = workflowRows.filter((row) => row.status === 'archived').length
+  const active = workflowRows.filter((row) => row.is_active).length
+  const kind = workflowType.toLowerCase()
+  const plural = (count: number, one: string) => `${count} ${one}${count === 1 ? '' : 's'}`
+  const statusParts = [
+    `${published} published`,
+    `${drafts} ${drafts === 1 ? 'draft' : 'drafts'}`,
+    ...(archived > 0 ? [`${archived} archived`] : []),
+  ]
+  const pending = isLoading || !hasLoaded
+  const statement = pending
+    ? `Loading ${kind} workflows…`
+    : error && workflowRows.length === 0
+      ? `${workflowType} workflows could not be loaded, so their status cannot be shown.`
+      : workflowRows.length === 0
+        ? `No ${kind} workflows yet.`
+        : `${plural(workflowRows.length, `${kind} workflow`)}: ${statusParts.join(', ')}${
+            isOnboarding ? `; ${active} active` : ''
+          }.`
+  const figure = (value: number) => (pending || (error && workflowRows.length === 0) ? '—' : value)
 
-        <Link
-          href={`${basePath}/new`}
-          className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          <Plus className="h-4 w-4" />
-          Add {workflowType} Workflow
-        </Link>
-      </div>
+  return (
+    <div className="space-y-6">
+      <LevvRecordHeader
+        trail="Admin settings / Workers"
+        title={`${workflowType} Workflows`}
+        statement={statement}
+        figures={[
+          { label: 'Published', value: figure(published) },
+          { label: 'Draft', value: figure(drafts) },
+          ...(isOnboarding ? [{ label: 'Active', value: figure(active) }] : []),
+        ]}
+        actions={
+          <Link href={`${basePath}/new`} className={levvUi.primaryButton}>
+            <Plus />
+            Add {workflowType} Workflow
+          </Link>
+        }
+      />
+
+      <WorkersTabs />
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <LevvNotice tone="rose">{error}</LevvNotice>
       )}
 
-      <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-gray-950">
+      <div className="relative overflow-x-auto">
+        <table className="w-full">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left font-semibold">Policy</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
+              <th className={levvUi.th}>Policy</th>
+              <th className={`${levvUi.th} hidden w-40 sm:table-cell`}>Status</th>
               {isOnboarding && (
-                <th className="px-4 py-3 text-left font-semibold">Active</th>
+                <th className={`${levvUi.th} hidden w-32 sm:table-cell`}>Active</th>
               )}
-              <th className="px-4 py-3 text-right font-semibold">
+              <th className={`${levvUi.th} w-[124px] text-right`}>
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {isLoading ? (
-              <tr>
+              <tr className="[&>td]:border-b [&>td]:border-[var(--line)]">
                 <td
-                  className="px-4 py-8 text-center text-slate-400"
+                  className={`${levvUi.td} py-8 text-center text-slate-500`}
                   colSpan={colSpan}
                 >
                   Loading workflows...
                 </td>
               </tr>
             ) : workflowRows.length === 0 ? (
-              <tr>
+              <tr className="[&>td]:border-b [&>td]:border-[var(--line)]">
                 <td
-                  className="px-4 py-8 text-center text-slate-400"
+                  className={`${levvUi.td} py-8 text-center text-slate-500`}
                   colSpan={colSpan}
                 >
                   No {workflowType.toLowerCase()} workflows yet.
@@ -140,41 +183,53 @@ export default function WorkflowListPage({
               </tr>
             ) : (
               workflowRows.map((row) => (
-                <tr key={row.id}>
-                  <td className="px-4 py-3 font-medium text-gray-950">
+                <tr
+                  key={row.id}
+                  className="hover:bg-[var(--surface)] [&>td]:border-b [&>td]:border-[var(--line)]"
+                >
+                  <td className={`${levvUi.td} font-medium text-slate-950`}>
                     {row.name}
+                    {/* On a phone the status columns fold under the name. */}
+                    <span className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-normal sm:hidden">
+                      <LevvStatusBadge tone={STATUS_TONE[row.status]}>
+                        {formatStatus(row.status)}
+                      </LevvStatusBadge>
+                      {isOnboarding && row.is_active ? (
+                        <LevvStatusBadge tone="emerald">Active</LevvStatusBadge>
+                      ) : null}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {formatStatus(row.status)}
+                  <td className={`${levvUi.td} hidden sm:table-cell`}>
+                    <LevvStatusBadge tone={STATUS_TONE[row.status]}>
+                      {formatStatus(row.status)}
+                    </LevvStatusBadge>
                   </td>
                   {isOnboarding && (
-                    <td className="px-4 py-3">
+                    <td className={`${levvUi.td} hidden sm:table-cell`}>
                       {row.is_active ? (
-                        <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                          Active
-                        </span>
+                        <LevvStatusBadge tone="emerald">Active</LevvStatusBadge>
                       ) : (
-                        <span className="text-slate-400">-</span>
+                        <span className="text-slate-500">-</span>
                       )}
                     </td>
                   )}
-                  <td className="px-4 py-3 text-right">
-                    <div className="inline-flex items-center gap-4">
+                  <td className={`${levvUi.td} text-right`}>
+                    <div className="inline-flex items-center gap-1">
                       <Link
                         href={`${basePath}/${row.id}`}
                         aria-label={`Edit ${row.name}`}
-                        className="text-slate-700 hover:text-slate-950"
+                        className={levvUi.secondaryButton}
                       >
-                        <Pencil className="h-4 w-4" />
+                        Edit
                       </Link>
                       <button
                         type="button"
                         aria-label={`Remove ${row.name}`}
                         onClick={() => handleDeleteWorkflow(row.id, row.name)}
-                        className="text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={levvUi.dangerIconButton}
                         disabled={deletingId === row.id}
                       >
-                        <X className="h-4 w-4" />
+                        <Trash2 />
                       </button>
                     </div>
                   </td>
@@ -184,6 +239,6 @@ export default function WorkflowListPage({
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   )
 }
